@@ -1,0 +1,21 @@
+# OS / editor
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.tmp
+*.log
+.idea/
+.vscode/
+*.swp
+
+# local analysis / temp
+文件/_excel_analysis.json
+**/_gen_*.py
+**/_patch_*.py
+**/_normalize_*.py
+
+# secrets
+.env
+.env.*
+credentials.json
+*.pem
