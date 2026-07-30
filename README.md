@@ -5,7 +5,8 @@ PC 端产品 PRD 与 HTML 原型仓库（GitHub Pages 友好）。
 ## 快速入口
 
 - 原型总入口：`prototype/index.html`
-- PRD（v1.0.0）：`docs/versions/v1.0.0/prd.md`
+- 产品 PRD 阅读页（v1.0.0）：`docs/versions/v1.0.0/prd.html`
+- 产品 PRD 源码：`docs/versions/v1.0.0/prd.md`
 - PC 原型：`prototype/versions/v1.0.0/index.html`
 
 ## 本地预览

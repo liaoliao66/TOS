@@ -1,0 +1,29 @@
+---
+description: 仅针对产品 PRD：必须同步 prd.html 阅读页，线上入口禁止链到 .md 纯文本
+alwaysApply: true
+---
+
+# 产品 PRD 阅读页强制规范
+
+## 适用范围（必须先判断）
+
+**本规则仅适用于产品 PRD 文档**，即路径为：
+
+- `docs/versions/{版本号}/prd.md`（源码）
+- `docs/versions/{版本号}/prd.html`（阅读页）
+
+**不适用**（禁止套用本条去生成阅读页）：
+
+- 需求清单、评审纪要、周报、会议纪要
+- 接口说明、权限矩阵、埋点表等日常办公文档
+- `docs/daily/**`、`docs/meeting/**` 及其他非 `prd.md` 命名文档
+
+若当前任务不是产品 PRD，忽略本文件其余条款。
+
+## 强制要求（仅产品 PRD）
+
+1. 新建或实质更新产品 `prd.md` 后，必须同步生成/更新同目录 `prd.html`。
+2. `prd.html` 须正确渲染标题、表格、列表、加粗与 Mermaid；宽屏左侧目录 + 正文 `max-width` 920–960px 居中，禁止贴左留白。
+3. `prototype/index.html` 与版本原型入口的「查看 PRD」必须指向 `prd.html`，禁止默认指向 `.md`（GitHub Pages 不渲染 Markdown，会显示无格式纯文本）。
+4. 阅读页可提供次级「源码 MD」链接到 `prd.md`；飞书/语雀粘贴仍以 `prd.md` 为准。
+5. 确认表单交付路径须同时写明 `prd.md` + `prd.html`。
