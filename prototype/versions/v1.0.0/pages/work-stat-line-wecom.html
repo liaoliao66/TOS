@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>添加一条作业 · 企微H5</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <style>
+    :root { --brand: #0f766e; --brand-hover: #0d9488; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; font-size: 14px; background: #f1f5f9; }
+    .btn { border-radius: 20px; -webkit-transition: all .15s ease; transition: all .15s ease; }
+    .btn:active { -webkit-transform: scale(0.95); transform: scale(0.95); }
+    .btn-brand { background: var(--brand); color: #fff; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .field label { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
+    .field select, .field input {
+      width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px;
+      font-size: 14px; min-height: 40px; background: #fff; box-sizing: border-box;
+    }
+    .toast { position: absolute; top: 72px; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); z-index: 80; min-width: 220px; max-width: 90%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+    .fade-in { -webkit-animation: fadeIn .2s ease; animation: fadeIn .2s ease; }
+    @-webkit-keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .page-bg { background: #e2e8f0; min-height: 100vh; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center; padding: 24px 12px; box-sizing: border-box; }
+    .phone-frame { width: 390px; height: 844px; border-radius: 48px; border: 3px solid #e5e7eb; background: #0f172a; box-shadow: 0 12px 40px rgba(15,23,42,0.18); padding: 12px; box-sizing: border-box; }
+    .phone-screen { width: 100%; height: 100%; border-radius: 36px; background: #f1f5f9; overflow: hidden; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-orient: vertical; -webkit-flex-direction: column; flex-direction: column; position: relative; }
+    .phone-status { height: 28px; background: #fff; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; padding: 0 16px; font-size: 11px; color: #334155; border-bottom: 1px solid #f1f5f9; -webkit-flex-shrink: 0; flex-shrink: 0; }
+    .phone-scroll { -webkit-box-flex: 1; -webkit-flex: 1; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; }
+    .wecom-tag { font-size: 10px; color: #0f766e; background: #ccfbf1; border-radius: 999px; padding: 1px 8px; }
+  </style>
+</head>
+<body class="page-bg text-slate-800">
+  <div class="phone-frame" aria-label="手机预览框">
+    <div class="phone-screen">
+      <div class="phone-status">
+        <span>9:41</span>
+        <span class="wecom-tag">企微 H5</span>
+        <span><i class="fa-solid fa-signal"></i> <i class="fa-solid fa-wifi"></i> <i class="fa-solid fa-battery-full"></i></span>
+      </div>
+
+      <div class="phone-scroll">
+        <header class="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 h-12 flex items-center gap-3">
+          <a href="work-stat-edit-wecom.html" class="text-teal-700 text-sm"><i class="fa-solid fa-chevron-left mr-1"></i>返回单据</a>
+          <div class="font-semibold text-base flex-1 text-center pr-8">添加一条</div>
+        </header>
+
+        <main class="px-4 pt-3 pb-6 space-y-3">
+          <div class="text-xs text-slate-500 bg-slate-100 rounded-xl px-3 py-2">
+            归属单据：<span class="text-slate-800 font-medium">2026-07-29 · 白班</span> · 本页只录一条，保存后回到单据继续添加或提交审核
+          </div>
+
+          <div class="card p-4 space-y-3">
+            <div class="field">
+              <label>时段</label>
+              <select id="fSlot">
+                <option>08:00-09:00</option>
+                <option>09:00-10:00</option>
+                <option>10:00-11:00</option>
+                <option>11:00-12:00</option>
+                <option>12:00-13:00</option>
+                <option>13:00-14:00</option>
+                <option>14:00-15:00</option>
+                <option>15:00-16:00</option>
+                <option>16:00-17:00</option>
+                <option>17:00-18:00</option>
+                <option>18:00-19:00</option>
+                <option>19:00-20:00</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>泊位</label>
+              <select id="fBerth" onchange="syncMachine()">
+                <option>5#泊位</option>
+                <option>6#泊位</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>机械</label>
+              <select id="fMachine">
+                <option>1#门机</option>
+                <option>2#门机</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>师傅（司机）</label>
+              <select id="fDriver">
+                <option>涂峰</option>
+                <option>陈迪政</option>
+                <option>刘志显</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>货种</label>
+              <select id="fCargo">
+                <option>氧化钙</option>
+                <option>氮磷肥</option>
+                <option>硫矿</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>作业量（吨）</label>
+              <input id="fQty" type="number" step="0.01" min="0" placeholder="请输入作业量" value="108.00" />
+            </div>
+            <div class="field">
+              <label>是否正常作业</label>
+              <select id="fNormal" onchange="toggleReason()">
+                <option value="yes" selected>正常作业</option>
+                <option value="no">非正常</option>
+              </select>
+            </div>
+            <div class="field hidden" id="reasonWrap">
+              <label>非正常原因</label>
+              <select id="fReason">
+                <option value="">请选择原因</option>
+                <option>停电/无生产作业</option>
+                <option>吃饭休息</option>
+                <option>车辆断档</option>
+                <option>交接班</option>
+                <option>避高温，暂停作业</option>
+                <option>下雨，暂停作业</option>
+                <option>完船</option>
+              </select>
+            </div>
+          </div>
+
+          <button type="button" class="btn btn-brand w-full py-3 text-sm" onclick="saveLine(false)">保存本条</button>
+          <button type="button" class="btn border border-slate-200 bg-white w-full py-3 text-sm" onclick="saveLine(true)">保存并继续添加</button>
+          <div class="text-center text-xs text-slate-400">
+            <a href="work-stat-edit-wecom.html" class="text-teal-700">取消，返回单据</a>
+          </div>
+        </main>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showToast(msg, type) {
+      type = type || 'ok';
+      var host = document.querySelector('.phone-screen') || document.body;
+      var el = document.createElement('div');
+      el.className = 'toast fade-in px-4 py-3 text-sm text-white text-center ' + (type === 'err' ? 'bg-red-500' : 'bg-emerald-500');
+      el.textContent = msg;
+      host.appendChild(el);
+      setTimeout(function(){ el.remove(); }, 2200);
+    }
+    function syncMachine() {
+      var berth = document.getElementById('fBerth').value;
+      document.getElementById('fMachine').value = berth.indexOf('6') >= 0 ? '2#门机' : '1#门机';
+    }
+    function toggleReason() {
+      var no = document.getElementById('fNormal').value === 'no';
+      document.getElementById('reasonWrap').classList.toggle('hidden', !no);
+      if (!no) document.getElementById('fReason').value = '';
+    }
+    function saveLine(continueAdd) {
+      var normal = document.getElementById('fNormal').value === 'yes';
+      var reason = document.getElementById('fReason').value;
+      var qty = document.getElementById('fQty').value;
+      if (qty === '' || Number(qty) < 0) {
+        showToast('请填写有效作业量', 'err');
+        return;
+      }
+      if (!normal && !reason) {
+        showToast('非正常作业须选择原因', 'err');
+        return;
+      }
+      var line = {
+        slot: document.getElementById('fSlot').value,
+        berth: document.getElementById('fBerth').value,
+        machine: document.getElementById('fMachine').value,
+        driver: document.getElementById('fDriver').value,
+        cargo: document.getElementById('fCargo').value,
+        qty: Number(qty),
+        normal: normal,
+        reason: normal ? '' : reason
+      };
+      try { sessionStorage.setItem('wecomNewLine', JSON.stringify(line)); } catch (e) {}
+      showToast('本条已保存');
+      setTimeout(function() {
+        if (continueAdd) {
+          document.getElementById('fQty').value = '';
+          document.getElementById('fNormal').value = 'yes';
+          toggleReason();
+          showToast('可继续填写下一条');
+        } else {
+          window.location.href = 'work-stat-edit-wecom.html';
+        }
+      }, 700);
+    }
+  </script>
+</body>
+</html>

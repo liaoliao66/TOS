@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>作业填报编辑 · 企微H5</title>
+  <title>日班单据 · 企微H5</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   <style>
@@ -13,203 +13,155 @@
     .btn:active { -webkit-transform: scale(0.95); transform: scale(0.95); }
     .btn-brand { background: var(--brand); color: #fff; }
     .card { background: #fff; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-    .cell { border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; background: #fff; }
-    .toast { position: fixed; top: 72px; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); z-index: 80; min-width: 220px; max-width: 90%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+    .badge { border-radius: 999px; font-size: 12px; padding: 2px 10px; display: inline-block; }
+    .badge-draft { background: #e2e8f0; color: #475569; }
+    .toast { position: absolute; top: 72px; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); z-index: 80; min-width: 220px; max-width: 90%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
     .fade-in { -webkit-animation: fadeIn .2s ease; animation: fadeIn .2s ease; }
     @-webkit-keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    input, select { font-size: 14px; min-height: 36px; }
+    .page-bg { background: #e2e8f0; min-height: 100vh; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center; padding: 24px 12px; box-sizing: border-box; }
+    .phone-frame { width: 390px; height: 844px; border-radius: 48px; border: 3px solid #e5e7eb; background: #0f172a; box-shadow: 0 12px 40px rgba(15,23,42,0.18); padding: 12px; box-sizing: border-box; }
+    .phone-screen { width: 100%; height: 100%; border-radius: 36px; background: #f1f5f9; overflow: hidden; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-orient: vertical; -webkit-flex-direction: column; flex-direction: column; position: relative; }
+    .phone-status { height: 28px; background: #fff; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; padding: 0 16px; font-size: 11px; color: #334155; border-bottom: 1px solid #f1f5f9; -webkit-flex-shrink: 0; flex-shrink: 0; }
+    .phone-scroll { -webkit-box-flex: 1; -webkit-flex: 1; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; }
+    .wecom-tag { font-size: 10px; color: #0f766e; background: #ccfbf1; border-radius: 999px; padding: 1px 8px; }
+    .bottom-bar { position: sticky; bottom: 0; background: rgba(255,255,255,0.96); border-top: 1px solid #e2e8f0; padding: 10px 16px 14px; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
   </style>
 </head>
-<body class="text-slate-800 min-h-screen pb-8">
-  <header class="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 h-12 flex items-center gap-3">
-    <a href="work-stat-list-wecom.html" class="text-teal-700 text-sm"><i class="fa-solid fa-chevron-left mr-1"></i>返回列表</a>
-    <div class="font-semibold text-base flex-1 text-center pr-8">填报编辑</div>
-  </header>
-
-  <main class="px-4 pt-3 space-y-3">
-    <div class="card p-4">
-      <div class="flex flex-wrap gap-3 text-sm mb-3">
-        <div><span class="text-slate-500">开班日</span> <span class="font-medium ml-1">2026-07-29</span></div>
-        <div><span class="text-slate-500">班次</span> <span class="font-medium ml-1">白班</span></div>
+<body class="page-bg text-slate-800">
+  <div class="phone-frame" aria-label="手机预览框">
+    <div class="phone-screen">
+      <div class="phone-status">
+        <span>9:41</span>
+        <span class="wecom-tag">企微 H5</span>
+        <span><i class="fa-solid fa-signal"></i> <i class="fa-solid fa-wifi"></i> <i class="fa-solid fa-battery-full"></i></span>
       </div>
-      <div class="flex gap-2">
-        <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm flex-1" onclick="showToast('草稿已保存')">保存草稿</button>
-        <button type="button" class="btn btn-brand px-4 py-2 text-sm flex-1" onclick="submitForm()">提交</button>
-      </div>
-    </div>
 
-    <div class="text-xs text-slate-500 px-1">
-      简化矩阵示意（2～3 时段 × 2 台机械）。非正常仍可填作业量，作为效率分析条件因子。
-    </div>
+      <div class="phone-scroll">
+        <header class="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 h-12 flex items-center gap-3">
+          <a href="work-stat-list-wecom.html" class="text-teal-700 text-sm"><i class="fa-solid fa-chevron-left mr-1"></i>返回</a>
+          <div class="font-semibold text-base flex-1 text-center pr-8">日班单据</div>
+        </header>
 
-    <!-- 时段 08:00-09:00 -->
-    <div class="card p-4 space-y-3">
-      <div class="font-medium text-sm text-teal-800">08:00-09:00</div>
-      <div class="grid grid-cols-1 gap-3">
-        <div class="cell space-y-2">
-          <div class="text-xs text-slate-500">5#泊位 · 1#门机</div>
-          <select class="w-full border border-slate-200 rounded-lg px-2 py-1.5"><option>涂峰</option><option>陈迪政</option><option>刘志显</option></select>
-          <select class="w-full border border-slate-200 rounded-lg px-2 py-1.5"><option>氧化钙</option><option>氮磷肥</option><option>硫矿</option></select>
-          <input type="number" step="0.01" min="0" value="108.00" class="w-full border border-slate-200 rounded-lg px-2 py-1.5" placeholder="作业量(吨)" />
-          <select class="normal-flag w-full border border-slate-200 rounded-lg px-2 py-1.5" onchange="toggleReason(this)">
-            <option value="yes" selected>正常作业</option>
-            <option value="no">非正常</option>
-          </select>
-          <select class="reason-sel w-full border border-slate-200 rounded-lg px-2 py-1.5 hidden">
-            <option value="">请选择原因</option>
-            <option>停电/无生产作业</option>
-            <option>吃饭休息</option>
-            <option>车辆断档</option>
-            <option>交接班</option>
-            <option>避高温，暂停作业</option>
-            <option>下雨，暂停作业</option>
-            <option>完船</option>
-          </select>
-        </div>
-        <div class="cell space-y-2">
-          <div class="text-xs text-slate-500">6#泊位 · 2#门机</div>
-          <select class="w-full border border-slate-200 rounded-lg px-2 py-1.5"><option>陈迪政</option><option>涂峰</option><option>刘志显</option></select>
-          <select class="w-full border border-slate-200 rounded-lg px-2 py-1.5"><option>氮磷肥</option><option>氧化钙</option><option>硫矿</option></select>
-          <input type="number" step="0.01" min="0" value="96.50" class="w-full border border-slate-200 rounded-lg px-2 py-1.5" placeholder="作业量(吨)" />
-          <select class="normal-flag w-full border border-slate-200 rounded-lg px-2 py-1.5" onchange="toggleReason(this)">
-            <option value="yes" selected>正常作业</option>
-            <option value="no">非正常</option>
-          </select>
-          <select class="reason-sel w-full border border-slate-200 rounded-lg px-2 py-1.5 hidden">
-            <option value="">请选择原因</option>
-            <option>停电/无生产作业</option>
-            <option>吃饭休息</option>
-            <option>车辆断档</option>
-            <option>交接班</option>
-            <option>避高温，暂停作业</option>
-            <option>下雨，暂停作业</option>
-            <option>完船</option>
-          </select>
+        <main class="px-4 pt-3 pb-28 space-y-3">
+          <div class="card p-4">
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <div class="font-medium text-base">2026-07-29 · 白班</div>
+                <div class="text-xs text-slate-500 mt-1">已录 <span id="lineCount">3</span> 条 · 合计 <span id="lineTotal" class="text-teal-800 font-medium">246.50</span> 吨</div>
+              </div>
+              <span class="badge badge-draft">草稿</span>
+            </div>
+            <div class="mt-3 text-xs text-teal-800 bg-teal-50 rounded-xl px-3 py-2">
+              每次只填<strong>一条</strong>作业明细；录完后在本页「提交审核」。审批由平台处理，本页不展示审批操作。
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between px-1">
+            <div class="text-sm font-medium text-slate-700">已录明细</div>
+            <a href="work-stat-line-wecom.html" class="text-xs text-teal-700"><i class="fa-solid fa-plus mr-1"></i>添加一条</a>
+          </div>
+
+          <div id="lineList" class="space-y-3"></div>
+
+          <div class="text-center text-xs text-slate-400 pt-2">
+            <a href="work-stat-list-wecom.html" class="text-teal-700">返回列表</a>
+          </div>
+        </main>
+
+        <div class="bottom-bar">
+          <div class="flex gap-2">
+            <a href="work-stat-line-wecom.html" class="btn border border-teal-200 text-teal-800 bg-white px-4 py-2.5 text-sm flex-1 text-center">添加一条</a>
+            <button type="button" class="btn btn-brand px-4 py-2.5 text-sm flex-1" onclick="submitSheet()">提交审核</button>
+          </div>
         </div>
       </div>
     </div>
-
-    <!-- 时段 09:00-10:00 -->
-    <div class="card p-4 space-y-3">
-      <div class="font-medium text-sm text-teal-800">09:00-10:00</div>
-      <div class="grid grid-cols-1 gap-3">
-        <div class="cell space-y-2">
-          <div class="text-xs text-slate-500">5#泊位 · 1#门机</div>
-          <select class="w-full border border-slate-200 rounded-lg px-2 py-1.5"><option>涂峰</option><option>陈迪政</option><option>刘志显</option></select>
-          <select class="w-full border border-slate-200 rounded-lg px-2 py-1.5"><option>氧化钙</option><option>氮磷肥</option><option>硫矿</option></select>
-          <input type="number" step="0.01" min="0" value="0.00" class="w-full border border-slate-200 rounded-lg px-2 py-1.5" placeholder="作业量(吨)" />
-          <select class="normal-flag w-full border border-slate-200 rounded-lg px-2 py-1.5" onchange="toggleReason(this)">
-            <option value="yes">正常作业</option>
-            <option value="no" selected>非正常</option>
-          </select>
-          <select class="reason-sel w-full border border-slate-200 rounded-lg px-2 py-1.5">
-            <option value="">请选择原因</option>
-            <option>停电/无生产作业</option>
-            <option selected>避高温，暂停作业</option>
-            <option>下雨，暂停作业</option>
-            <option>吃饭休息</option>
-            <option>车辆断档</option>
-            <option>交接班</option>
-            <option>完船</option>
-          </select>
-        </div>
-        <div class="cell space-y-2">
-          <div class="text-xs text-slate-500">6#泊位 · 2#门机</div>
-          <select class="w-full border border-slate-200 rounded-lg px-2 py-1.5"><option>刘志显</option><option>涂峰</option><option>陈迪政</option></select>
-          <select class="w-full border border-slate-200 rounded-lg px-2 py-1.5"><option>硫矿</option><option>氧化钙</option><option>氮磷肥</option></select>
-          <input type="number" step="0.01" min="0" value="42.00" class="w-full border border-slate-200 rounded-lg px-2 py-1.5" placeholder="作业量(吨)" />
-          <select class="normal-flag w-full border border-slate-200 rounded-lg px-2 py-1.5" onchange="toggleReason(this)">
-            <option value="yes">正常作业</option>
-            <option value="no" selected>非正常</option>
-          </select>
-          <select class="reason-sel w-full border border-slate-200 rounded-lg px-2 py-1.5">
-            <option value="">请选择原因</option>
-            <option>停电/无生产作业</option>
-            <option>避高温，暂停作业</option>
-            <option selected>下雨，暂停作业</option>
-            <option>吃饭休息</option>
-            <option>车辆断档</option>
-            <option>交接班</option>
-            <option>完船</option>
-          </select>
-        </div>
-      </div>
-    </div>
-
-    <!-- 时段 10:00-11:00 -->
-    <div class="card p-4 space-y-3">
-      <div class="font-medium text-sm text-teal-800">10:00-11:00</div>
-      <div class="grid grid-cols-1 gap-3">
-        <div class="cell space-y-2">
-          <div class="text-xs text-slate-500">5#泊位 · 1#门机</div>
-          <select class="w-full border border-slate-200 rounded-lg px-2 py-1.5"><option>涂峰</option><option>陈迪政</option><option>刘志显</option></select>
-          <select class="w-full border border-slate-200 rounded-lg px-2 py-1.5"><option>氧化钙</option><option>氮磷肥</option><option>硫矿</option></select>
-          <input type="number" step="0.01" min="0" value="120.00" class="w-full border border-slate-200 rounded-lg px-2 py-1.5" placeholder="作业量(吨)" />
-          <select class="normal-flag w-full border border-slate-200 rounded-lg px-2 py-1.5" onchange="toggleReason(this)">
-            <option value="yes" selected>正常作业</option>
-            <option value="no">非正常</option>
-          </select>
-          <select class="reason-sel w-full border border-slate-200 rounded-lg px-2 py-1.5 hidden">
-            <option value="">请选择原因</option>
-            <option>停电/无生产作业</option>
-            <option>吃饭休息</option>
-            <option>车辆断档</option>
-            <option>交接班</option>
-            <option>避高温，暂停作业</option>
-            <option>下雨，暂停作业</option>
-            <option>完船</option>
-          </select>
-        </div>
-        <div class="cell space-y-2">
-          <div class="text-xs text-slate-500">6#泊位 · 2#门机</div>
-          <select class="w-full border border-slate-200 rounded-lg px-2 py-1.5"><option>陈迪政</option><option>涂峰</option><option>刘志显</option></select>
-          <select class="w-full border border-slate-200 rounded-lg px-2 py-1.5"><option>氮磷肥</option><option>氧化钙</option><option>硫矿</option></select>
-          <input type="number" step="0.01" min="0" value="0.00" class="w-full border border-slate-200 rounded-lg px-2 py-1.5" placeholder="作业量(吨)" />
-          <select class="normal-flag w-full border border-slate-200 rounded-lg px-2 py-1.5" onchange="toggleReason(this)">
-            <option value="yes">正常作业</option>
-            <option value="no" selected>非正常</option>
-          </select>
-          <select class="reason-sel w-full border border-slate-200 rounded-lg px-2 py-1.5">
-            <option value="">请选择原因</option>
-            <option selected>停电/无生产作业</option>
-            <option>吃饭休息</option>
-            <option>车辆断档</option>
-            <option>交接班</option>
-            <option>避高温，暂停作业</option>
-            <option>下雨，暂停作业</option>
-            <option>完船</option>
-          </select>
-        </div>
-      </div>
-    </div>
-
-    <button type="button" class="btn btn-brand w-full py-3 text-sm" onclick="submitForm()">提交</button>
-    <div class="text-center text-xs text-slate-400 pb-4">
-      <a href="work-stat-list-wecom.html" class="text-teal-700">返回列表</a>
-    </div>
-  </main>
+  </div>
 
   <script>
+    var DEMO_LINES = [
+      { slot: '08:00-09:00', berth: '5#泊位', machine: '1#门机', driver: '涂峰', cargo: '氧化钙', qty: 108.00, normal: true, reason: '' },
+      { slot: '08:00-09:00', berth: '6#泊位', machine: '2#门机', driver: '陈迪政', cargo: '氮磷肥', qty: 96.50, normal: true, reason: '' },
+      { slot: '09:00-10:00', berth: '5#泊位', machine: '1#门机', driver: '涂峰', cargo: '氧化钙', qty: 42.00, normal: false, reason: '避高温，暂停作业' }
+    ];
+
     function showToast(msg, type) {
       type = type || 'ok';
+      var host = document.querySelector('.phone-screen') || document.body;
       var el = document.createElement('div');
       el.className = 'toast fade-in px-4 py-3 text-sm text-white text-center ' + (type === 'err' ? 'bg-red-500' : 'bg-emerald-500');
       el.textContent = msg;
-      document.body.appendChild(el);
+      host.appendChild(el);
       setTimeout(function(){ el.remove(); }, 2200);
     }
-    function toggleReason(sel) {
-      var box = sel.parentElement;
-      var reason = box.querySelector('.reason-sel');
-      if (!reason) return;
-      if (sel.value === 'no') { reason.classList.remove('hidden'); }
-      else { reason.classList.add('hidden'); reason.selectedIndex = 0; }
+
+    function loadExtraLine() {
+      try {
+        var raw = sessionStorage.getItem('wecomNewLine');
+        if (!raw) return;
+        var line = JSON.parse(raw);
+        DEMO_LINES.push(line);
+        sessionStorage.removeItem('wecomNewLine');
+      } catch (e) {}
     }
-    function submitForm() {
-      showToast('已提交发起，审批由平台处理');
+
+    function renderLines() {
+      loadExtraLine();
+      var box = document.getElementById('lineList');
+      var total = 0;
+      var html = '';
+      DEMO_LINES.forEach(function(r, i) {
+        total += Number(r.qty) || 0;
+        html += '<div class="card p-4">' +
+          '<div class="flex items-start justify-between gap-2">' +
+            '<div class="font-medium text-sm text-teal-800">' + r.slot + '</div>' +
+            '<div class="text-xs text-slate-400">#' + (i + 1) + '</div>' +
+          '</div>' +
+          '<div class="mt-2 text-sm">' + r.berth + ' · ' + r.machine + '</div>' +
+          '<div class="mt-1 text-xs text-slate-500">' + r.driver + ' · ' + r.cargo + '</div>' +
+          '<div class="mt-2 flex items-center justify-between">' +
+            '<div class="font-semibold tabular-nums">' + Number(r.qty).toFixed(2) + ' <span class="text-xs font-normal text-slate-400">吨</span></div>' +
+            (r.normal
+              ? '<span class="badge" style="background:#d1fae5;color:#047857">正常</span>'
+              : '<span class="badge" style="background:#fef3c7;color:#b45309">非正常</span>') +
+          '</div>' +
+          (!r.normal && r.reason ? '<div class="mt-1 text-xs text-amber-700">原因：' + r.reason + '</div>' : '') +
+          '<div class="mt-3 flex gap-3 text-xs">' +
+            '<a href="work-stat-line-wecom.html?edit=' + i + '" class="text-teal-700">编辑</a>' +
+            '<button type="button" class="text-rose-600" onclick="removeLine(' + i + ')">删除</button>' +
+          '</div>' +
+        '</div>';
+      });
+      if (!DEMO_LINES.length) {
+        html = '<div class="card p-8 text-center text-slate-400 text-sm">暂无明细<br/><span class="text-xs">请先「添加一条」作业数据</span></div>';
+      }
+      box.innerHTML = html;
+      document.getElementById('lineCount').textContent = String(DEMO_LINES.length);
+      document.getElementById('lineTotal').textContent = total.toFixed(2);
+    }
+
+    function removeLine(i) {
+      DEMO_LINES.splice(i, 1);
+      renderLines();
+      showToast('已删除该条明细');
+    }
+
+    function submitSheet() {
+      if (!DEMO_LINES.length) {
+        showToast('请至少添加一条作业明细后再提交', 'err');
+        return;
+      }
+      var bad = DEMO_LINES.some(function(r){ return !r.normal && !r.reason; });
+      if (bad) {
+        showToast('存在非正常未选原因的明细，请先补全', 'err');
+        return;
+      }
+      showToast('已提交审核，审批由平台处理');
       setTimeout(function(){ window.location.href = 'work-stat-list-wecom.html'; }, 1200);
     }
+
+    renderLines();
   </script>
 </body>
 </html>

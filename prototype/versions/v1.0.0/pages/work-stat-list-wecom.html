@@ -18,85 +18,89 @@
     .badge-pending { background: #fef3c7; color: #b45309; }
     .badge-ok { background: #d1fae5; color: #047857; }
     .badge-reject { background: #fee2e2; color: #b91c1c; }
-    .fab { position: fixed; right: 16px; bottom: 24px; z-index: 40; width: 56px; height: 56px; border-radius: 16px; background: var(--brand); color: #fff; box-shadow: 0 4px 16px rgba(15,118,110,0.35); display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center; }
-    .toast { position: fixed; top: 72px; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); z-index: 80; min-width: 200px; max-width: 90%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
-    .fade-in { -webkit-animation: fadeIn .2s ease; animation: fadeIn .2s ease; }
-    @-webkit-keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .fab { position: absolute; right: 16px; bottom: 24px; z-index: 40; width: 56px; height: 56px; border-radius: 16px; background: var(--brand); color: #fff; box-shadow: 0 4px 16px rgba(15,118,110,0.35); display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center; }
+    .page-bg { background: #e2e8f0; min-height: 100vh; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center; padding: 24px 12px; box-sizing: border-box; }
+    .phone-frame { width: 390px; height: 844px; border-radius: 48px; border: 3px solid #e5e7eb; background: #0f172a; box-shadow: 0 12px 40px rgba(15,23,42,0.18); padding: 12px; box-sizing: border-box; }
+    .phone-screen { width: 100%; height: 100%; border-radius: 36px; background: #f1f5f9; overflow: hidden; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-orient: vertical; -webkit-flex-direction: column; flex-direction: column; position: relative; }
+    .phone-status { height: 28px; background: #fff; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; padding: 0 16px; font-size: 11px; color: #334155; border-bottom: 1px solid #f1f5f9; -webkit-flex-shrink: 0; flex-shrink: 0; }
+    .phone-scroll { -webkit-box-flex: 1; -webkit-flex: 1; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; }
+    .wecom-tag { font-size: 10px; color: #0f766e; background: #ccfbf1; border-radius: 999px; padding: 1px 8px; }
   </style>
 </head>
-<body class="text-slate-800 min-h-screen pb-24">
-  <header class="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 h-12 flex items-center justify-between">
-    <div class="font-semibold text-base">作业填报</div>
-    <a href="work-stat-edit-wecom.html" class="btn btn-brand text-xs px-3 py-1.5">新建填报</a>
-  </header>
+<body class="page-bg text-slate-800">
+  <div class="phone-frame" aria-label="手机预览框">
+    <div class="phone-screen">
+      <div class="phone-status">
+        <span>9:41</span>
+        <span class="wecom-tag">企微 H5</span>
+        <span><i class="fa-solid fa-signal"></i> <i class="fa-solid fa-wifi"></i> <i class="fa-solid fa-battery-full"></i></span>
+      </div>
 
-  <div class="px-4 pt-3 pb-2">
-    <div class="text-xs text-slate-500 bg-teal-50 text-teal-800 rounded-xl px-3 py-2">
-      企微轻量填报 · 提交后由平台审批（本页不展示审批操作）
+      <div class="phone-scroll">
+        <header class="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 h-12 flex items-center justify-between">
+          <div class="font-semibold text-base">作业填报</div>
+          <a href="work-stat-edit-wecom.html" class="btn btn-brand text-xs px-3 py-1.5">新建日班</a>
+        </header>
+
+        <div class="px-4 pt-3 pb-2">
+          <div class="text-xs text-teal-800 bg-teal-50 rounded-xl px-3 py-2">
+            企微：每次只填一条明细 → 在日班单据汇总后「提交审核」。审批由平台处理，本页不展示审批操作。PC 端仍为矩阵录入。
+          </div>
+        </div>
+
+        <main class="px-4 space-y-3 pb-20">
+          <a href="work-stat-edit-wecom.html" class="card p-4 block active:bg-slate-50">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <div class="font-medium">2026-07-29 · 白班</div>
+                <div class="text-xs text-slate-500 mt-1">已录 3 条 · 产量 246.50 吨</div>
+              </div>
+              <span class="badge badge-draft">草稿</span>
+            </div>
+            <div class="mt-2 text-xs text-teal-700">继续添加明细 / 提交审核 <i class="fa-solid fa-chevron-right text-[12px]"></i></div>
+          </a>
+
+          <a href="work-stat-view-wecom.html" class="card p-4 block active:bg-slate-50">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <div class="font-medium">2026-07-28 · 夜班</div>
+                <div class="text-xs text-slate-500 mt-1">已录 8 条 · 产量 980.50 吨</div>
+              </div>
+              <span class="badge badge-pending">审批中</span>
+            </div>
+            <div class="mt-2 text-xs text-slate-500">已提交，等待平台处理</div>
+          </a>
+
+          <a href="work-stat-view-wecom.html" class="card p-4 block active:bg-slate-50">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <div class="font-medium">2026-07-28 · 白班</div>
+                <div class="text-xs text-slate-500 mt-1">已录 12 条 · 产量 2,106.00 吨</div>
+              </div>
+              <span class="badge badge-ok">已通过</span>
+            </div>
+            <div class="mt-2 text-xs text-teal-700">查看明细 <i class="fa-solid fa-chevron-right text-[12px]"></i></div>
+          </a>
+
+          <a href="work-stat-edit-wecom.html" class="card p-4 block active:bg-slate-50">
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <div class="font-medium">2026-07-27 · 白班</div>
+                <div class="text-xs text-slate-500 mt-1">已录 6 条 · 产量 1,050.00 吨</div>
+              </div>
+              <span class="badge badge-reject">已驳回</span>
+            </div>
+            <div class="mt-2 text-xs text-teal-700">修改明细后重新提交 <i class="fa-solid fa-chevron-right text-[12px]"></i></div>
+          </a>
+        </main>
+
+        <a href="work-stat-edit-wecom.html" class="fab" title="新建日班"><i class="fa-solid fa-plus text-xl"></i></a>
+
+        <div class="px-4 pt-2 pb-4 text-center text-xs text-slate-400">
+          <a href="../wecom-index.html" class="text-teal-700">返回企微入口</a>
+        </div>
+      </div>
     </div>
   </div>
-
-  <main class="px-4 space-y-3">
-    <a href="work-stat-edit-wecom.html" class="card p-4 block active:bg-slate-50">
-      <div class="flex items-start justify-between gap-3">
-        <div>
-          <div class="font-medium">2026-07-29 · 白班</div>
-          <div class="text-xs text-slate-500 mt-1">产量 1,420.00 吨</div>
-        </div>
-        <span class="badge badge-draft">草稿</span>
-      </div>
-      <div class="mt-2 text-xs text-teal-700">点击继续编辑 <i class="fa-solid fa-chevron-right text-[12px]"></i></div>
-    </a>
-
-    <a href="work-stat-edit-wecom.html" class="card p-4 block active:bg-slate-50">
-      <div class="flex items-start justify-between gap-3">
-        <div>
-          <div class="font-medium">2026-07-28 · 夜班</div>
-          <div class="text-xs text-slate-500 mt-1">产量 980.50 吨</div>
-        </div>
-        <span class="badge badge-pending">审批中</span>
-      </div>
-      <div class="mt-2 text-xs text-slate-500">已提交，等待平台处理</div>
-    </a>
-
-    <a href="work-stat-view-wecom.html" class="card p-4 block active:bg-slate-50">
-      <div class="flex items-start justify-between gap-3">
-        <div>
-          <div class="font-medium">2026-07-28 · 白班</div>
-          <div class="text-xs text-slate-500 mt-1">产量 2,106.00 吨</div>
-        </div>
-        <span class="badge badge-ok">已通过</span>
-      </div>
-      <div class="mt-2 text-xs text-teal-700">点击查看详情 <i class="fa-solid fa-chevron-right text-[12px]"></i></div>
-    </a>
-
-    <a href="work-stat-edit-wecom.html" class="card p-4 block active:bg-slate-50">
-      <div class="flex items-start justify-between gap-3">
-        <div>
-          <div class="font-medium">2026-07-27 · 白班</div>
-          <div class="text-xs text-slate-500 mt-1">产量 1,050.00 吨</div>
-        </div>
-        <span class="badge badge-reject">已驳回</span>
-      </div>
-      <div class="mt-2 text-xs text-teal-700">点击修改后重新提交 <i class="fa-solid fa-chevron-right text-[12px]"></i></div>
-    </a>
-  </main>
-
-  <a href="work-stat-edit-wecom.html" class="fab" title="新建填报"><i class="fa-solid fa-plus text-xl"></i></a>
-
-  <div class="px-4 pt-6 pb-4 text-center text-xs text-slate-400">
-    <a href="../wecom-index.html" class="text-teal-700">返回企微入口</a>
-  </div>
-
-  <script>
-    function showToast(msg) {
-      var el = document.createElement('div');
-      el.className = 'toast fade-in px-4 py-3 text-sm text-white bg-emerald-500 text-center';
-      el.textContent = msg;
-      document.body.appendChild(el);
-      setTimeout(function(){ el.remove(); }, 2200);
-    }
-  </script>
 </body>
 </html>

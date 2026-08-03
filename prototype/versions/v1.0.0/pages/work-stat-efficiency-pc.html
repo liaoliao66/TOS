@@ -6,6 +6,7 @@
   <title>作业效率分析 · 单机作业量统计</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     :root { --brand: #0f766e; --brand-hover: #0d9488; }
     body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
@@ -68,7 +69,7 @@
           <p class="text-xs text-slate-500">版本 v1.0.0 · 仅已通过数据 · 考核师傅单位时间作业量（吨/小时）</p>
         </div>
         <div class="flex items-center gap-3">
-          <button type="button" class="btn btn-brand px-4 py-2 text-sm" onclick="openAsk('师傅效率排名')"><i class="fa-solid fa-comments mr-1"></i>智能问数</button>
+          <button type="button" class="btn btn-brand px-4 py-2 text-sm" onclick="openAsk('氧化钙师傅效率排名')"><i class="fa-solid fa-comments mr-1"></i>智能问数</button>
           <span class="text-sm text-slate-600"><i class="fa-solid fa-user text-slate-400 mr-1"></i>数据查看人</span>
         </div>
       </header>
@@ -93,10 +94,9 @@
                 </select>
               </div>
               <div>
-                <label class="block text-xs text-slate-500 mb-1">货种</label>
-                <select class="border border-slate-200 rounded-xl px-3 py-2">
-                  <option>全部</option>
-                  <option>氧化钙</option>
+                <label class="block text-xs text-slate-500 mb-1">货种（效率对比必选）</label>
+                <select id="filterCargo" class="border border-slate-200 rounded-xl px-3 py-2" onchange="onCargoFilterChange()">
+                  <option selected>氧化钙</option>
                   <option>氮磷肥</option>
                   <option>硫矿</option>
                 </select>
@@ -110,7 +110,7 @@
                   <option>刘志显</option>
                 </select>
               </div>
-              <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="showToast('已刷新效率分析数据')">查询</button>
+              <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="onCargoFilterChange(); showToast('已按货种刷新效率分析')">查询</button>
               <div class="text-xs text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2">状态固定：已通过</div>
             </div>
           </div>
@@ -121,173 +121,87 @@
           </div>
 
           <div id="panelMaster" class="space-y-5">
-            <div class="grid md:grid-cols-4 gap-4">
-              <div class="card card-hover p-5 md:col-span-1">
-                <div class="text-xs text-slate-500">总产量</div>
-                <div class="text-2xl font-semibold mt-1">18,426.50 <span class="text-sm font-normal">吨</span></div>
-                <div class="text-xs text-slate-400 mt-2">筛选范围内已通过合计</div>
+            <!-- 统计卡片：单排（仅总产量 + 正常维） -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div class="card card-hover p-4">
+                <div class="text-xs text-slate-500">本货种总产量(吨)</div>
+                <div id="kpiTotal" class="text-xl font-semibold mt-1 tabular-nums">8,640.00</div>
               </div>
-              <div class="card card-hover p-5 md:col-span-1.5">
-                <div class="text-xs text-emerald-700 font-medium mb-3"><i class="fa-solid fa-circle-check mr-1"></i>正常维（吨/小时）</div>
-                <div class="grid grid-cols-3 gap-2 text-center">
-                  <div>
-                    <div class="text-xs text-slate-500">平均</div>
-                    <div class="text-lg font-semibold text-teal-800">112.40</div>
-                  </div>
-                  <div>
-                    <div class="text-xs text-slate-500">最大</div>
-                    <div class="text-lg font-semibold">148.00</div>
-                  </div>
-                  <div>
-                    <div class="text-xs text-slate-500">最小</div>
-                    <div class="text-lg font-semibold">86.50</div>
-                  </div>
-                </div>
+              <div class="card card-hover p-4 border-t-4 border-emerald-500">
+                <div class="text-xs text-emerald-700">正常·平均</div>
+                <div id="kpiAvg" class="text-xl font-semibold mt-1 text-teal-800 tabular-nums">118.50</div>
+                <div class="text-[11px] text-slate-400 mt-0.5">吨/小时 · 当前货种</div>
               </div>
-              <div class="card card-hover p-5 md:col-span-1.5">
-                <div class="text-xs text-amber-700 font-medium mb-3"><i class="fa-solid fa-triangle-exclamation mr-1"></i>异常维（吨/小时）</div>
-                <div class="grid grid-cols-3 gap-2 text-center">
-                  <div>
-                    <div class="text-xs text-slate-500">平均</div>
-                    <div class="text-lg font-semibold text-amber-800">28.60</div>
-                  </div>
-                  <div>
-                    <div class="text-xs text-slate-500">最大</div>
-                    <div class="text-lg font-semibold">72.00</div>
-                  </div>
-                  <div>
-                    <div class="text-xs text-slate-500">最小</div>
-                    <div class="text-lg font-semibold">0.00</div>
-                  </div>
-                </div>
+              <div class="card card-hover p-4 border-t-4 border-emerald-400">
+                <div class="text-xs text-emerald-700">正常·最大</div>
+                <div id="kpiMax" class="text-xl font-semibold mt-1 tabular-nums">148.00</div>
+                <div class="text-[11px] text-slate-400 mt-0.5">吨/小时 · 当前货种</div>
+              </div>
+              <div class="card card-hover p-4 border-t-4 border-emerald-300">
+                <div class="text-xs text-emerald-700">正常·最小</div>
+                <div id="kpiMin" class="text-xl font-semibold mt-1 tabular-nums">96.00</div>
+                <div class="text-[11px] text-slate-400 mt-0.5">吨/小时 · 当前货种</div>
               </div>
             </div>
 
-            <div class="grid md:grid-cols-3 gap-4">
-              <div class="card card-hover p-5">
-                <div class="text-xs text-slate-500">正常平均吨/小时</div>
-                <div class="text-2xl font-semibold mt-1 text-teal-800">112.40</div>
+            <!-- 证据折线图 -->
+            <div class="card p-5">
+              <div class="flex flex-wrap items-start justify-between gap-3 mb-4">
+                <div>
+                  <div class="text-sm font-medium">证据折线图 · 作业日产量对比</div>
+                  <p class="text-xs text-slate-500 mt-1">横轴开班日 · 纵轴作业量(吨) · 含平均/最大/最小基准线 + 各师傅每日产量（随货种联动）</p>
+                </div>
+                <div class="flex flex-wrap gap-2 items-end">
+                  <div>
+                    <label class="block text-[11px] text-slate-500 mb-1">时间起</label>
+                    <input id="chartDateFrom" type="date" value="2026-07-21" class="border border-slate-200 rounded-xl px-2 py-1.5 text-sm" />
+                  </div>
+                  <div>
+                    <label class="block text-[11px] text-slate-500 mb-1">时间止</label>
+                    <input id="chartDateTo" type="date" value="2026-07-29" class="border border-slate-200 rounded-xl px-2 py-1.5 text-sm" />
+                  </div>
+                  <div>
+                    <label class="block text-[11px] text-slate-500 mb-1">货种（与榜单联动）</label>
+                    <select id="chartCargo" class="border border-slate-200 rounded-xl px-2 py-1.5 text-sm" onchange="syncCargoFromChart()">
+                      <option selected>氧化钙</option>
+                      <option>氮磷肥</option>
+                      <option>硫矿</option>
+                    </select>
+                  </div>
+                  <button type="button" class="btn btn-brand px-4 py-1.5 text-sm" onclick="refreshEvidenceChart()">刷新图表</button>
+                </div>
               </div>
-              <div class="card card-hover p-5">
-                <div class="text-xs text-slate-500">正常最大 / 最小</div>
-                <div class="text-2xl font-semibold mt-1">148.00 <span class="text-sm font-normal text-slate-400">/</span> 86.50</div>
+              <div class="relative h-72">
+                <canvas id="evidenceChart"></canvas>
               </div>
-              <div class="card card-hover p-5">
-                <div class="text-xs text-slate-500">异常平均吨/小时</div>
-                <div class="text-2xl font-semibold mt-1 text-amber-800">28.60</div>
-              </div>
-            </div>
-            <div class="grid md:grid-cols-2 gap-4">
-              <div class="card card-hover p-5">
-                <div class="text-xs text-slate-500">异常最大吨/小时</div>
-                <div class="text-2xl font-semibold mt-1">72.00</div>
-              </div>
-              <div class="card card-hover p-5">
-                <div class="text-xs text-slate-500">异常最小吨/小时</div>
-                <div class="text-2xl font-semibold mt-1">0.00</div>
-              </div>
+              <div class="mt-3 text-xs text-slate-400">虚线：平均 / 最大 / 最小作业量基准；实线：每日每位师傅作业量。跨货种不混比。</div>
             </div>
 
             <div class="card overflow-hidden">
-              <div class="px-5 py-4 border-b text-sm font-medium">异常分原因统计</div>
+              <div class="px-5 py-4 border-b flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div class="text-sm font-medium">师傅效率榜 · <span id="rankCargoLabel" class="text-teal-700">氧化钙</span></div>
+                  <p class="text-xs text-slate-500 mt-0.5">仅同货种内对比吨/小时；切换顶部或图表货种后刷新</p>
+                </div>
+                <div class="text-xs text-slate-400">排序：正常平均吨/小时 ↓</div>
+              </div>
               <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                   <thead class="bg-slate-50 text-slate-500 text-left">
                     <tr>
-                      <th class="px-4 py-3">原因</th>
-                      <th class="px-4 py-3">时段数</th>
-                      <th class="px-4 py-3">产量(吨)</th>
-                      <th class="px-4 py-3">平均吨/小时</th>
-                      <th class="px-4 py-3">最大</th>
-                      <th class="px-4 py-3">最小</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr class="table-row border-t">
-                      <td class="px-4 py-3">避高温，暂停作业</td>
-                      <td class="px-4 py-3">18</td>
-                      <td class="px-4 py-3">426.00</td>
-                      <td class="px-4 py-3">23.67</td>
-                      <td class="px-4 py-3">48.00</td>
-                      <td class="px-4 py-3">0.00</td>
-                    </tr>
-                    <tr class="table-row border-t">
-                      <td class="px-4 py-3">下雨，暂停作业</td>
-                      <td class="px-4 py-3">12</td>
-                      <td class="px-4 py-3">210.50</td>
-                      <td class="px-4 py-3">17.54</td>
-                      <td class="px-4 py-3">36.00</td>
-                      <td class="px-4 py-3">0.00</td>
-                    </tr>
-                    <tr class="table-row border-t">
-                      <td class="px-4 py-3">停电/无生产作业</td>
-                      <td class="px-4 py-3">24</td>
-                      <td class="px-4 py-3">0.00</td>
-                      <td class="px-4 py-3">0.00</td>
-                      <td class="px-4 py-3">0.00</td>
-                      <td class="px-4 py-3">0.00</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="card overflow-hidden">
-              <div class="px-5 py-4 border-b text-sm font-medium">师傅效率榜</div>
-              <div class="overflow-x-auto">
-                <table class="min-w-full text-sm">
-                  <thead class="bg-slate-50 text-slate-500 text-left">
-                    <tr>
+                      <th class="px-4 py-3">排名</th>
                       <th class="px-4 py-3">师傅</th>
-                      <th class="px-4 py-3">货种切片示意</th>
+                      <th class="px-4 py-3">货种</th>
                       <th class="px-4 py-3">班次</th>
+                      <th class="px-4 py-3">产量(吨)</th>
+                      <th class="px-4 py-3">时段数</th>
                       <th class="px-4 py-3">正常平均</th>
                       <th class="px-4 py-3">正常最大</th>
                       <th class="px-4 py-3">正常最小</th>
-                      <th class="px-4 py-3">异常平均</th>
-                      <th class="px-4 py-3">异常最大</th>
-                      <th class="px-4 py-3">异常最小</th>
                       <th class="px-4 py-3">操作</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    <tr class="table-row border-t">
-                      <td class="px-4 py-3 font-medium">涂峰</td>
-                      <td class="px-4 py-3"><span class="badge bg-teal-50 text-teal-800">氧化钙</span> <span class="badge bg-slate-100 text-slate-600">氮磷肥</span></td>
-                      <td class="px-4 py-3">白班</td>
-                      <td class="px-4 py-3 text-teal-800 font-medium">124.80</td>
-                      <td class="px-4 py-3">148.00</td>
-                      <td class="px-4 py-3">96.00</td>
-                      <td class="px-4 py-3">32.40</td>
-                      <td class="px-4 py-3">72.00</td>
-                      <td class="px-4 py-3">0.00</td>
-                      <td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="work-stat-view-pc.html">查看明细</a></td>
-                    </tr>
-                    <tr class="table-row border-t">
-                      <td class="px-4 py-3 font-medium">陈迪政</td>
-                      <td class="px-4 py-3"><span class="badge bg-teal-50 text-teal-800">氧化钙</span> <span class="badge bg-slate-100 text-slate-600">硫矿</span></td>
-                      <td class="px-4 py-3">白班 / 夜班</td>
-                      <td class="px-4 py-3 text-teal-800 font-medium">110.25</td>
-                      <td class="px-4 py-3">136.50</td>
-                      <td class="px-4 py-3">88.00</td>
-                      <td class="px-4 py-3">26.80</td>
-                      <td class="px-4 py-3">54.00</td>
-                      <td class="px-4 py-3">0.00</td>
-                      <td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="work-stat-view-pc.html">查看明细</a></td>
-                    </tr>
-                    <tr class="table-row border-t">
-                      <td class="px-4 py-3 font-medium">刘志显</td>
-                      <td class="px-4 py-3"><span class="badge bg-teal-50 text-teal-800">氮磷肥</span> <span class="badge bg-slate-100 text-slate-600">硫矿</span></td>
-                      <td class="px-4 py-3">夜班</td>
-                      <td class="px-4 py-3 text-teal-800 font-medium">102.15</td>
-                      <td class="px-4 py-3">128.00</td>
-                      <td class="px-4 py-3">86.50</td>
-                      <td class="px-4 py-3">21.50</td>
-                      <td class="px-4 py-3">48.00</td>
-                      <td class="px-4 py-3">0.00</td>
-                      <td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="work-stat-view-pc.html">查看明细</a></td>
-                    </tr>
-                  </tbody>
+                  <tbody id="rankBody"></tbody>
                 </table>
               </div>
             </div>
@@ -362,7 +276,246 @@
       document.getElementById('panelDaily').classList.toggle('hidden', master);
       document.getElementById('tabMaster').classList.toggle('active', master);
       document.getElementById('tabDaily').classList.toggle('active', !master);
+      if (master && window.__evidenceChart) {
+        window.__evidenceChart.resize();
+      }
     }
+
+    /* 证据折线：按货种的演示数据（开班日 → 各师傅日产量） */
+    var EVIDENCE_DATA = {
+      '氧化钙': {
+        days: ['07-21','07-22','07-23','07-24','07-25','07-26','07-27','07-28','07-29'],
+        avg: 1180, max: 1520, min: 820,
+        masters: {
+          '涂峰':   [1280, 1350, 1420, 1380, 1520, 1460, 1320, 1400, 1480],
+          '陈迪政': [1100, 1180, 1250, 1200, 1320, 1280, 1150, 1220, 1300],
+          '刘志显': [980, 1050, 1120, 1080, 1180, 1140, 1020, 1090, 1160]
+        }
+      },
+      '氮磷肥': {
+        days: ['07-21','07-22','07-23','07-24','07-25','07-26','07-27','07-28','07-29'],
+        avg: 960, max: 1280, min: 640,
+        masters: {
+          '涂峰':   [920, 980, 1050, 1000, 1120, 1080, 960, 1020, 1100],
+          '陈迪政': [880, 940, 1000, 960, 1080, 1040, 900, 980, 1060],
+          '刘志显': [760, 820, 880, 840, 960, 920, 780, 860, 940]
+        }
+      },
+      '硫矿': {
+        days: ['07-21','07-22','07-23','07-24','07-25','07-26','07-27','07-28','07-29'],
+        avg: 720, max: 980, min: 480,
+        masters: {
+          '涂峰':   [680, 740, 800, 760, 880, 840, 720, 780, 860],
+          '陈迪政': [640, 700, 760, 720, 840, 800, 680, 740, 820],
+          '刘志显': [560, 620, 680, 640, 760, 720, 600, 660, 740]
+        }
+      }
+    };
+
+    /* 师傅效率榜：按货种（同货种内对比） */
+    var RANK_BY_CARGO = {
+      '氧化钙': {
+        total: '8,640.00', avg: '118.50', max: '148.00', min: '96.00',
+        rows: [
+          { name: '涂峰', shift: '白班', qty: '3,240.00', slots: 26, avg: 124.80, max: 148.00, min: 96.00 },
+          { name: '陈迪政', shift: '白班 / 夜班', qty: '2,980.00', slots: 27, avg: 110.25, max: 136.50, min: 98.00 },
+          { name: '刘志显', shift: '夜班', qty: '2,420.00', slots: 24, avg: 100.80, max: 122.00, min: 96.00 }
+        ]
+      },
+      '氮磷肥': {
+        total: '6,420.00', avg: '102.40', max: '128.00', min: '86.50',
+        rows: [
+          { name: '涂峰', shift: '白班', qty: '2,460.00', slots: 22, avg: 111.80, max: 128.00, min: 92.00 },
+          { name: '刘志显', shift: '夜班', qty: '2,180.00', slots: 21, avg: 103.80, max: 120.00, min: 88.00 },
+          { name: '陈迪政', shift: '白班', qty: '1,780.00', slots: 19, avg: 93.60, max: 112.00, min: 86.50 }
+        ]
+      },
+      '硫矿': {
+        total: '4,860.00', avg: '88.20', max: '108.00', min: '72.00',
+        rows: [
+          { name: '陈迪政', shift: '白班 / 夜班', qty: '1,860.00', slots: 20, avg: 93.00, max: 108.00, min: 78.00 },
+          { name: '涂峰', shift: '白班', qty: '1,720.00', slots: 19, avg: 90.50, max: 104.00, min: 76.00 },
+          { name: '刘志显', shift: '夜班', qty: '1,280.00', slots: 16, avg: 80.00, max: 96.00, min: 72.00 }
+        ]
+      }
+    };
+
+    var MASTER_COLORS = {
+      '涂峰': '#0f766e',
+      '陈迪政': '#2563eb',
+      '刘志显': '#7c3aed'
+    };
+
+    function getActiveCargo() {
+      var el = document.getElementById('filterCargo');
+      return (el && el.value) || '氧化钙';
+    }
+
+    function setCargoEverywhere(cargo) {
+      var f = document.getElementById('filterCargo');
+      var c = document.getElementById('chartCargo');
+      if (f) f.value = cargo;
+      if (c) c.value = cargo;
+    }
+
+    function renderRankBoard(cargo) {
+      cargo = cargo || getActiveCargo();
+      var pack = RANK_BY_CARGO[cargo] || RANK_BY_CARGO['氧化钙'];
+      var label = document.getElementById('rankCargoLabel');
+      if (label) label.textContent = cargo;
+      document.getElementById('kpiTotal').textContent = pack.total;
+      document.getElementById('kpiAvg').textContent = pack.avg;
+      document.getElementById('kpiMax').textContent = pack.max;
+      document.getElementById('kpiMin').textContent = pack.min;
+      var body = document.getElementById('rankBody');
+      if (!body) return;
+      var html = '';
+      pack.rows.forEach(function(r, i) {
+        html += '<tr class="table-row border-t">' +
+          '<td class="px-4 py-3 font-medium text-slate-500">' + (i + 1) + '</td>' +
+          '<td class="px-4 py-3 font-medium">' + r.name + '</td>' +
+          '<td class="px-4 py-3"><span class="badge bg-teal-50 text-teal-800">' + cargo + '</span></td>' +
+          '<td class="px-4 py-3">' + r.shift + '</td>' +
+          '<td class="px-4 py-3 tabular-nums">' + r.qty + '</td>' +
+          '<td class="px-4 py-3">' + r.slots + '</td>' +
+          '<td class="px-4 py-3 text-teal-800 font-medium tabular-nums">' + r.avg.toFixed(2) + '</td>' +
+          '<td class="px-4 py-3 tabular-nums">' + r.max.toFixed(2) + '</td>' +
+          '<td class="px-4 py-3 tabular-nums">' + r.min.toFixed(2) + '</td>' +
+          '<td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="work-stat-view-pc.html">查看明细</a></td>' +
+          '</tr>';
+      });
+      body.innerHTML = html;
+    }
+
+    function onCargoFilterChange() {
+      var cargo = getActiveCargo();
+      setCargoEverywhere(cargo);
+      renderRankBoard(cargo);
+      refreshEvidenceChart(true);
+    }
+
+    function syncCargoFromChart() {
+      var cargo = document.getElementById('chartCargo').value;
+      setCargoEverywhere(cargo);
+      renderRankBoard(cargo);
+      refreshEvidenceChart(true);
+    }
+
+    function buildEvidenceDatasets(cargo) {
+      var pack = EVIDENCE_DATA[cargo] || EVIDENCE_DATA['氧化钙'];
+      var avgLine = pack.days.map(function(){ return pack.avg; });
+      var maxLine = pack.days.map(function(){ return pack.max; });
+      var minLine = pack.days.map(function(){ return pack.min; });
+      var datasets = [
+        {
+          label: '平均作业量',
+          data: avgLine,
+          borderColor: '#64748b',
+          borderDash: [6, 4],
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: false,
+          tension: 0
+        },
+        {
+          label: '最大作业量',
+          data: maxLine,
+          borderColor: '#ef4444',
+          borderDash: [6, 4],
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: false,
+          tension: 0
+        },
+        {
+          label: '最小作业量',
+          data: minLine,
+          borderColor: '#f59e0b',
+          borderDash: [6, 4],
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: false,
+          tension: 0
+        }
+      ];
+      Object.keys(pack.masters).forEach(function(name) {
+        datasets.push({
+          label: name,
+          data: pack.masters[name],
+          borderColor: MASTER_COLORS[name] || '#0f766e',
+          backgroundColor: MASTER_COLORS[name] || '#0f766e',
+          borderWidth: 2.5,
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          fill: false,
+          tension: 0.25
+        });
+      });
+      return { labels: pack.days, datasets: datasets };
+    }
+
+    function refreshEvidenceChart(silent) {
+      var cargo = document.getElementById('chartCargo').value;
+      var from = document.getElementById('chartDateFrom').value;
+      var to = document.getElementById('chartDateTo').value;
+      var built = buildEvidenceDatasets(cargo);
+      if (window.__evidenceChart) {
+        window.__evidenceChart.data.labels = built.labels;
+        window.__evidenceChart.data.datasets = built.datasets;
+        window.__evidenceChart.options.plugins.title.text = '货种：' + cargo + ' · ' + from + ' ~ ' + to;
+        window.__evidenceChart.update();
+      }
+      if (!silent) showToast('已按「' + cargo + '」刷新证据折线图');
+    }
+
+    function initEvidenceChart() {
+      var canvas = document.getElementById('evidenceChart');
+      if (!canvas || typeof Chart === 'undefined') return;
+      var cargo = getActiveCargo();
+      setCargoEverywhere(cargo);
+      renderRankBoard(cargo);
+      var built = buildEvidenceDatasets(cargo);
+      var from = document.getElementById('chartDateFrom').value;
+      var to = document.getElementById('chartDateTo').value;
+      window.__evidenceChart = new Chart(canvas, {
+        type: 'line',
+        data: { labels: built.labels, datasets: built.datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+            title: {
+              display: true,
+              text: '货种：' + cargo + ' · ' + from + ' ~ ' + to,
+              font: { size: 13 },
+              color: '#475569'
+            },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  return ctx.dataset.label + '：' + ctx.parsed.y + ' 吨';
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              title: { display: true, text: '开班日（作业日）', color: '#64748b' },
+              grid: { color: '#f1f5f9' }
+            },
+            y: {
+              title: { display: true, text: '作业量（吨）', color: '#64748b' },
+              beginAtZero: true,
+              grid: { color: '#f1f5f9' }
+            }
+          }
+        }
+      });
+    }
+
+    document.addEventListener('DOMContentLoaded', initEvidenceChart);
   </script>
 
   <div id="askMask" class="ask-mask" onclick="closeAsk()"></div>
@@ -385,9 +538,9 @@
       <div>
         <div class="text-xs text-slate-500 mb-2">系统预置快捷</div>
         <div class="flex flex-wrap gap-2" id="askChipsPreset">
-          <button type="button" class="ask-chip" data-q="师傅效率排名">师傅效率排名</button>
+          <button type="button" class="ask-chip" data-q="氧化钙师傅效率排名">氧化钙师傅效率排名</button>
           <button type="button" class="ask-chip" data-q="今日各货种作业量合计">今日各货种作业量合计</button>
-          <button type="button" class="ask-chip" data-q="异常原因分布">异常原因分布</button>
+          <button type="button" class="ask-chip" data-q="氮磷肥师傅效率排名">氮磷肥师傅效率排名</button>
           <button type="button" class="ask-chip" data-q="今日全港总作业量">今日全港总作业量</button>
         </div>
       </div>
@@ -491,12 +644,20 @@ function appendBot(html) {
   chat.appendChild(d);
   chat.scrollTop = chat.scrollHeight;
 }
-function resultEfficiency() {
-  return '<div class="font-medium mb-2">师傅效率排名（正常维 · 吨/小时）</div>' +
-    '<table class="w-full text-xs bg-white rounded-lg overflow-hidden"><thead><tr class="bg-slate-100 text-left"><th class="p-2">师傅</th><th class="p-2">正常平均</th></tr></thead>' +
-    '<tbody><tr class="border-t"><td class="p-2">涂峰</td><td class="p-2">124.80</td></tr>' +
-    '<tr class="border-t"><td class="p-2">陈迪政</td><td class="p-2">110.25</td></tr>' +
-    '<tr class="border-t"><td class="p-2">刘志显</td><td class="p-2">102.15</td></tr></tbody></table>';
+function resultEfficiency(cargo) {
+  cargo = cargo || '氧化钙';
+  var rows = {
+    '氧化钙': [['涂峰','124.80'],['陈迪政','110.25'],['刘志显','100.80']],
+    '氮磷肥': [['涂峰','111.80'],['刘志显','103.80'],['陈迪政','93.60']],
+    '硫矿': [['陈迪政','93.00'],['涂峰','90.50'],['刘志显','80.00']]
+  };
+  var list = rows[cargo] || rows['氧化钙'];
+  var html = '<div class="font-medium mb-2">师傅效率排名（货种：' + cargo + ' · 正常维 · 吨/小时）</div>' +
+    '<table class="w-full text-xs bg-white rounded-lg overflow-hidden"><thead><tr class="bg-slate-100 text-left"><th class="p-2">排名</th><th class="p-2">师傅</th><th class="p-2">正常平均</th></tr></thead><tbody>';
+  list.forEach(function(r, i) {
+    html += '<tr class="border-t"><td class="p-2">' + (i + 1) + '</td><td class="p-2">' + r[0] + '</td><td class="p-2">' + r[1] + '</td></tr>';
+  });
+  return html + '</tbody></table><div class="text-[11px] text-slate-400 mt-1">仅同货种对比，跨货种不混排</div>';
 }
 function resultCargo() {
   return '<div class="font-medium mb-2">今日各货种作业量合计</div>' +
@@ -505,19 +666,17 @@ function resultCargo() {
     '<tr class="border-t"><td class="p-2">氮磷肥</td><td class="p-2">956.50</td></tr>' +
     '<tr class="border-t"><td class="p-2">硫矿</td><td class="p-2">420.00</td></tr></tbody></table>';
 }
-function resultAbnormal() {
-  return '<div class="font-medium mb-2">异常原因分布</div><table class="w-full text-xs bg-white rounded-lg overflow-hidden"><thead><tr class="bg-slate-100 text-left"><th class="p-2">原因</th><th class="p-2">时段数</th></tr></thead><tbody>' +
-    '<tr class="border-t"><td class="p-2">避高温，暂停作业</td><td class="p-2">18</td></tr><tr class="border-t"><td class="p-2">下雨，暂停作业</td><td class="p-2">12</td></tr><tr class="border-t"><td class="p-2">停电/无生产作业</td><td class="p-2">24</td></tr></tbody></table>';
-}
 function resultTotal(label, val) {
   return '<div class="font-medium mb-1">' + label + '</div><div class="text-2xl font-semibold text-teal-800">' + val + ' <span class="text-sm font-normal">吨</span></div>';
 }
 function answerQuestion(q) {
-  if (q.indexOf('效率') >= 0 || q.indexOf('师傅') >= 0) { appendBot(resultEfficiency()); return; }
-  if (q.indexOf('异常') >= 0 || q.indexOf('原因') >= 0) { appendBot(resultAbnormal()); return; }
+  if (q.indexOf('货种') >= 0 && (q.indexOf('合计') >= 0 || q.indexOf('作业量') >= 0)) { appendBot(resultCargo()); return; }
+  if (q.indexOf('氮磷肥') >= 0) { appendBot(resultEfficiency('氮磷肥')); return; }
+  if (q.indexOf('硫矿') >= 0) { appendBot(resultEfficiency('硫矿')); return; }
+  if (q.indexOf('效率') >= 0 || q.indexOf('师傅') >= 0 || q.indexOf('排名') >= 0 || q.indexOf('氧化钙') >= 0) { appendBot(resultEfficiency('氧化钙')); return; }
   if (q.indexOf('货种') >= 0) { appendBot(resultCargo()); return; }
   if (q.indexOf('总作业') >= 0 || q.indexOf('全港') >= 0) { appendBot(resultTotal('今日全港总作业量', '2,660.50')); return; }
-  appendBot('我可能没理解。你可以试试快捷问数，例如「师傅效率排名」。');
+  appendBot('我可能没理解。你可以试试快捷问数，例如「氧化钙师傅效率排名」（须带货种）。');
 }
 function sendAsk(e) {
   e.preventDefault();
