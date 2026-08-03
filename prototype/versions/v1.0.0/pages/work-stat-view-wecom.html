@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>作业填报查看 · 企微H5</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <style>
+    :root { --brand: #0f766e; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; font-size: 14px; background: #f1f5f9; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .cell { border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px; background: #f8fafc; }
+    .badge { border-radius: 999px; font-size: 12px; padding: 2px 10px; display: inline-block; }
+    .badge-ok { background: #d1fae5; color: #047857; }
+    .field-label { font-size: 12px; color: #64748b; }
+    .field-val { font-size: 14px; color: #1e293b; font-weight: 500; }
+  </style>
+</head>
+<body class="text-slate-800 min-h-screen pb-8">
+  <header class="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 h-12 flex items-center gap-3">
+    <a href="work-stat-list-wecom.html" class="text-teal-700 text-sm"><i class="fa-solid fa-chevron-left mr-1"></i>返回列表</a>
+    <div class="font-semibold text-base flex-1 text-center pr-8">填报详情</div>
+  </header>
+
+  <main class="px-4 pt-3 space-y-3">
+    <div class="card p-4">
+      <div class="flex flex-wrap items-center gap-3 text-sm">
+        <div><span class="text-slate-500">开班日</span> <span class="font-medium ml-1">2026-07-28</span></div>
+        <div><span class="text-slate-500">班次</span> <span class="font-medium ml-1">白班</span></div>
+        <span class="badge badge-ok">已通过</span>
+      </div>
+      <div class="mt-2 text-sm"><span class="text-slate-500">本班总计</span> <span class="font-semibold text-teal-800 ml-1">2,106.00 吨</span></div>
+      <div class="mt-2 text-xs text-slate-400">只读查看 · 已通过数据不可修改</div>
+    </div>
+
+    <div class="card p-4 space-y-3">
+      <div class="font-medium text-sm text-teal-800">08:00-09:00</div>
+      <div class="grid grid-cols-1 gap-3">
+        <div class="cell space-y-2">
+          <div class="text-xs text-slate-500">5#泊位 · 1#门机</div>
+          <div><div class="field-label">司机</div><div class="field-val">涂峰</div></div>
+          <div><div class="field-label">货种</div><div class="field-val">氧化钙</div></div>
+          <div><div class="field-label">作业量</div><div class="field-val">118.00 吨</div></div>
+          <div><div class="field-label">是否正常作业</div><div class="field-val">正常作业</div></div>
+        </div>
+        <div class="cell space-y-2">
+          <div class="text-xs text-slate-500">6#泊位 · 2#门机</div>
+          <div><div class="field-label">司机</div><div class="field-val">陈迪政</div></div>
+          <div><div class="field-label">货种</div><div class="field-val">氮磷肥</div></div>
+          <div><div class="field-label">作业量</div><div class="field-val">102.50 吨</div></div>
+          <div><div class="field-label">是否正常作业</div><div class="field-val">正常作业</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-4 space-y-3">
+      <div class="font-medium text-sm text-teal-800">09:00-10:00</div>
+      <div class="grid grid-cols-1 gap-3">
+        <div class="cell space-y-2">
+          <div class="text-xs text-slate-500">5#泊位 · 1#门机</div>
+          <div><div class="field-label">司机</div><div class="field-val">涂峰</div></div>
+          <div><div class="field-label">货种</div><div class="field-val">氧化钙</div></div>
+          <div><div class="field-label">作业量</div><div class="field-val">0.00 吨</div></div>
+          <div><div class="field-label">是否正常作业</div><div class="field-val text-amber-700">非正常</div></div>
+          <div><div class="field-label">非正常原因</div><div class="field-val">避高温，暂停作业</div></div>
+        </div>
+        <div class="cell space-y-2">
+          <div class="text-xs text-slate-500">6#泊位 · 2#门机</div>
+          <div><div class="field-label">司机</div><div class="field-val">刘志显</div></div>
+          <div><div class="field-label">货种</div><div class="field-val">硫矿</div></div>
+          <div><div class="field-label">作业量</div><div class="field-val">36.00 吨</div></div>
+          <div><div class="field-label">是否正常作业</div><div class="field-val text-amber-700">非正常</div></div>
+          <div><div class="field-label">非正常原因</div><div class="field-val">下雨，暂停作业</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card p-4 space-y-3">
+      <div class="font-medium text-sm text-teal-800">10:00-11:00</div>
+      <div class="grid grid-cols-1 gap-3">
+        <div class="cell space-y-2">
+          <div class="text-xs text-slate-500">5#泊位 · 1#门机</div>
+          <div><div class="field-label">司机</div><div class="field-val">涂峰</div></div>
+          <div><div class="field-label">货种</div><div class="field-val">氧化钙</div></div>
+          <div><div class="field-label">作业量</div><div class="field-val">126.00 吨</div></div>
+          <div><div class="field-label">是否正常作业</div><div class="field-val">正常作业</div></div>
+        </div>
+        <div class="cell space-y-2">
+          <div class="text-xs text-slate-500">6#泊位 · 2#门机</div>
+          <div><div class="field-label">司机</div><div class="field-val">陈迪政</div></div>
+          <div><div class="field-label">货种</div><div class="field-val">氮磷肥</div></div>
+          <div><div class="field-label">作业量</div><div class="field-val">0.00 吨</div></div>
+          <div><div class="field-label">是否正常作业</div><div class="field-val text-amber-700">非正常</div></div>
+          <div><div class="field-label">非正常原因</div><div class="field-val">停电/无生产作业</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center text-xs text-slate-400 pb-4">
+      <a href="work-stat-list-wecom.html" class="text-teal-700">返回列表</a>
+    </div>
+  </main>
+</body>
+</html>

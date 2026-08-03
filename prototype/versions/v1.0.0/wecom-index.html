@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>企微H5入口 · v1.0.0</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 14px; }
+    .card { background:#fff; border-radius:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06); }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <main class="max-w-lg mx-auto px-4 py-8">
+    <div class="mb-2 text-xs text-slate-500">版本 v1.0.0 · 企微H5</div>
+    <h1 class="text-xl font-semibold">单机作业量统计 · 企微轻量填报</h1>
+    <p class="mt-2 text-sm text-slate-600">提交后由平台审批；本原型不展示审批操作。无手机壳与底部 Tab。</p>
+
+    <div class="mt-6 space-y-3">
+      <a class="card p-4 block active:bg-slate-50" href="pages/work-stat-list-wecom.html">
+        <div class="font-medium text-teal-800"><i class="fa-solid fa-list mr-2"></i>作业填报列表</div>
+        <p class="text-xs text-slate-500 mt-1">草稿 / 审批中 / 已通过 / 已驳回</p>
+      </a>
+      <a class="card p-4 block active:bg-slate-50" href="pages/work-stat-edit-wecom.html">
+        <div class="font-medium text-teal-800"><i class="fa-solid fa-pen-to-square mr-2"></i>作业填报编辑</div>
+        <p class="text-xs text-slate-500 mt-1">简化矩阵 · 正常/非正常作业</p>
+      </a>
+      <a class="card p-4 block active:bg-slate-50" href="pages/work-stat-view-wecom.html">
+        <div class="font-medium text-teal-800"><i class="fa-solid fa-eye mr-2"></i>作业填报只读</div>
+        <p class="text-xs text-slate-500 mt-1">已通过详情查看</p>
+      </a>
+    </div>
+
+    <div class="mt-8 flex flex-col gap-2 text-sm">
+      <a class="text-teal-700 hover:underline" href="index.html"><i class="fa-solid fa-arrow-left mr-1"></i>返回版本入口</a>
+      <a class="text-teal-700 hover:underline" href="../../index.html"><i class="fa-solid fa-house mr-1"></i>返回全局原型总入口</a>
+    </div>
+  </main>
+</body>
+</html>

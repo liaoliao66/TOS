@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>作业填报 · 企微H5</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <style>
+    :root { --brand: #0f766e; --brand-hover: #0d9488; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; font-size: 14px; background: #f1f5f9; }
+    .btn { border-radius: 20px; -webkit-transition: all .15s ease; transition: all .15s ease; }
+    .btn:active { -webkit-transform: scale(0.95); transform: scale(0.95); }
+    .btn-brand { background: var(--brand); color: #fff; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .badge { border-radius: 999px; font-size: 12px; padding: 2px 10px; display: inline-block; }
+    .badge-draft { background: #e2e8f0; color: #475569; }
+    .badge-pending { background: #fef3c7; color: #b45309; }
+    .badge-ok { background: #d1fae5; color: #047857; }
+    .badge-reject { background: #fee2e2; color: #b91c1c; }
+    .fab { position: fixed; right: 16px; bottom: 24px; z-index: 40; width: 56px; height: 56px; border-radius: 16px; background: var(--brand); color: #fff; box-shadow: 0 4px 16px rgba(15,118,110,0.35); display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center; }
+    .toast { position: fixed; top: 72px; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); z-index: 80; min-width: 200px; max-width: 90%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+    .fade-in { -webkit-animation: fadeIn .2s ease; animation: fadeIn .2s ease; }
+    @-webkit-keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  </style>
+</head>
+<body class="text-slate-800 min-h-screen pb-24">
+  <header class="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 h-12 flex items-center justify-between">
+    <div class="font-semibold text-base">作业填报</div>
+    <a href="work-stat-edit-wecom.html" class="btn btn-brand text-xs px-3 py-1.5">新建填报</a>
+  </header>
+
+  <div class="px-4 pt-3 pb-2">
+    <div class="text-xs text-slate-500 bg-teal-50 text-teal-800 rounded-xl px-3 py-2">
+      企微轻量填报 · 提交后由平台审批（本页不展示审批操作）
+    </div>
+  </div>
+
+  <main class="px-4 space-y-3">
+    <a href="work-stat-edit-wecom.html" class="card p-4 block active:bg-slate-50">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div class="font-medium">2026-07-29 · 白班</div>
+          <div class="text-xs text-slate-500 mt-1">产量 1,420.00 吨</div>
+        </div>
+        <span class="badge badge-draft">草稿</span>
+      </div>
+      <div class="mt-2 text-xs text-teal-700">点击继续编辑 <i class="fa-solid fa-chevron-right text-[12px]"></i></div>
+    </a>
+
+    <a href="work-stat-edit-wecom.html" class="card p-4 block active:bg-slate-50">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div class="font-medium">2026-07-28 · 夜班</div>
+          <div class="text-xs text-slate-500 mt-1">产量 980.50 吨</div>
+        </div>
+        <span class="badge badge-pending">审批中</span>
+      </div>
+      <div class="mt-2 text-xs text-slate-500">已提交，等待平台处理</div>
+    </a>
+
+    <a href="work-stat-view-wecom.html" class="card p-4 block active:bg-slate-50">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div class="font-medium">2026-07-28 · 白班</div>
+          <div class="text-xs text-slate-500 mt-1">产量 2,106.00 吨</div>
+        </div>
+        <span class="badge badge-ok">已通过</span>
+      </div>
+      <div class="mt-2 text-xs text-teal-700">点击查看详情 <i class="fa-solid fa-chevron-right text-[12px]"></i></div>
+    </a>
+
+    <a href="work-stat-edit-wecom.html" class="card p-4 block active:bg-slate-50">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <div class="font-medium">2026-07-27 · 白班</div>
+          <div class="text-xs text-slate-500 mt-1">产量 1,050.00 吨</div>
+        </div>
+        <span class="badge badge-reject">已驳回</span>
+      </div>
+      <div class="mt-2 text-xs text-teal-700">点击修改后重新提交 <i class="fa-solid fa-chevron-right text-[12px]"></i></div>
+    </a>
+  </main>
+
+  <a href="work-stat-edit-wecom.html" class="fab" title="新建填报"><i class="fa-solid fa-plus text-xl"></i></a>
+
+  <div class="px-4 pt-6 pb-4 text-center text-xs text-slate-400">
+    <a href="../wecom-index.html" class="text-teal-700">返回企微入口</a>
+  </div>
+
+  <script>
+    function showToast(msg) {
+      var el = document.createElement('div');
+      el.className = 'toast fade-in px-4 py-3 text-sm text-white bg-emerald-500 text-center';
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function(){ el.remove(); }, 2200);
+    }
+  </script>
+</body>
+</html>

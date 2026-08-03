@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>作业效率分析 · 单机作业量统计</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <style>
+    :root { --brand: #0f766e; --brand-hover: #0d9488; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
+    .sidebar { background: #1e293b; }
+    .card { background: #fff; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .card-hover { transition: transform .2s ease, box-shadow .2s ease; }
+    .card-hover:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+    .btn { border-radius: 20px; transition: all .15s ease; }
+    .btn:active { transform: scale(0.95); }
+    .btn-brand { background: var(--brand); color: #fff; }
+    .btn-brand:hover { background: var(--brand-hover); }
+    .table-row:hover { background: #f8fafc; }
+    .badge { border-radius: 999px; font-size: 12px; padding: 2px 10px; }
+    .badge-ok { background: #d1fae5; color: #047857; }
+    .tab-btn { border-radius: 999px; padding: 8px 18px; font-size: 14px; color: #64748b; background: #f1f5f9; }
+    .tab-btn.active { background: #0f766e; color: #fff; }
+    .toast { position: fixed; top: 24px; right: 24px; z-index: 80; min-width: 240px; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
+    .fade-in { animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .fab-ask { position: fixed; right: 24px; bottom: 24px; z-index: 60; min-width: 72px; height: 72px; padding: 0 14px; border-radius: 20px; background: #0f766e; color: #fff; box-shadow: 0 8px 24px rgba(15,118,110,0.35); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; transition: transform .15s ease, background .15s ease; border: 3px solid #99f6e4; }
+    .fab-ask:hover { background: #0d9488; transform: translateY(-4px); }
+    .fab-ask:active { transform: scale(0.95); }
+    .fab-ask i { font-size: 22px; }
+    .fab-ask span { font-size: 13px; font-weight: 600; letter-spacing: 0.05em; }
+    .ask-drawer { position: fixed; top: 0; right: 0; width: 440px; max-width: 100%; height: 100vh; background: #fff; z-index: 70; box-shadow: 0 12px 40px rgba(0,0,0,0.12); display: none; flex-direction: column; }
+    .ask-drawer.open { display: flex; animation: fadeIn .2s ease; }
+    .ask-drawer.fullscreen { width: 100vw; left: 0; right: 0; }
+    .ask-mask { position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 65; display: none; }
+    .ask-mask.open { display: block; }
+    .ask-chip { border-radius: 999px; border: 1px solid #e2e8f0; padding: 6px 12px; font-size: 12px; background: #f8fafc; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+    .ask-chip:hover { border-color: #0f766e; color: #0f766e; }
+    .ask-chip .chip-edit { color: #94a3b8; }
+    .ask-chip .chip-edit:hover { color: #0f766e; }
+    .bubble-user { background: #0f766e; color: #fff; border-radius: 16px 16px 4px 16px; }
+    .bubble-bot { background: #f1f5f9; color: #334155; border-radius: 16px 16px 16px 4px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="flex min-h-screen">
+    <aside class="sidebar w-64 shrink-0 text-slate-100 flex flex-col">
+      <div class="px-5 py-6 border-b border-slate-700">
+        <div class="text-xs text-slate-400 mb-1">TOS 子模块</div>
+        <div class="text-lg font-semibold leading-snug">单机作业量统计</div>
+        <div class="mt-2 text-xs text-slate-400">v1.0.0 · 录入 · 效率分析 · 问数</div>
+      </div>
+      <nav class="p-3 space-y-1 flex-1">
+        <a href="work-stat-efficiency-pc.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm bg-slate-700 text-white"><i class="fa-solid fa-gauge-high w-5 text-center"></i><span>作业效率分析</span></a>
+        <a href="work-stat-list-pc.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-300 hover:bg-slate-700 hover:text-white"><i class="fa-solid fa-table-list w-5 text-center"></i><span>作业填报列表</span></a>
+        <a href="work-stat-berth-machine-pc.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-300 hover:bg-slate-700 hover:text-white"><i class="fa-solid fa-anchor w-5 text-center"></i><span>泊位机械配置</span></a>
+        <a href="work-stat-dict-pc.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-300 hover:bg-slate-700 hover:text-white"><i class="fa-solid fa-book w-5 text-center"></i><span>字典管理</span></a>
+      </nav>
+      <div class="p-4 text-xs text-slate-500 border-t border-slate-700">
+        <a href="../index.html" class="hover:text-slate-300">返回版本入口</a>
+      </div>
+    </aside>
+    <div class="flex-1 min-w-0 flex flex-col">
+      <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+        <div>
+          <h1 class="text-lg font-semibold">作业效率分析</h1>
+          <p class="text-xs text-slate-500">版本 v1.0.0 · 仅已通过数据 · 考核师傅单位时间作业量（吨/小时）</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button type="button" class="btn btn-brand px-4 py-2 text-sm" onclick="openAsk('师傅效率排名')"><i class="fa-solid fa-comments mr-1"></i>智能问数</button>
+          <span class="text-sm text-slate-600"><i class="fa-solid fa-user text-slate-400 mr-1"></i>数据查看人</span>
+        </div>
+      </header>
+      <main class="flex-1 p-6 overflow-auto">
+        <div class="max-w-7xl mx-auto space-y-5">
+          <div class="card p-5">
+            <div class="flex flex-wrap gap-3 items-end">
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">开班日（起）</label>
+                <input type="date" value="2026-07-21" class="border border-slate-200 rounded-xl px-3 py-2" />
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">开班日（止）</label>
+                <input type="date" value="2026-07-29" class="border border-slate-200 rounded-xl px-3 py-2" />
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">班次</label>
+                <select class="border border-slate-200 rounded-xl px-3 py-2">
+                  <option>全部</option>
+                  <option>白班</option>
+                  <option>夜班</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">货种</label>
+                <select class="border border-slate-200 rounded-xl px-3 py-2">
+                  <option>全部</option>
+                  <option>氧化钙</option>
+                  <option>氮磷肥</option>
+                  <option>硫矿</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">师傅</label>
+                <select class="border border-slate-200 rounded-xl px-3 py-2">
+                  <option>全部</option>
+                  <option>涂峰</option>
+                  <option>陈迪政</option>
+                  <option>刘志显</option>
+                </select>
+              </div>
+              <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="showToast('已刷新效率分析数据')">查询</button>
+              <div class="text-xs text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2">状态固定：已通过</div>
+            </div>
+          </div>
+
+          <div class="flex gap-2">
+            <button type="button" id="tabMaster" class="tab-btn active" onclick="switchTab('master')">师傅效率</button>
+            <button type="button" id="tabDaily" class="tab-btn" onclick="switchTab('daily')">日班明细</button>
+          </div>
+
+          <div id="panelMaster" class="space-y-5">
+            <div class="grid md:grid-cols-4 gap-4">
+              <div class="card card-hover p-5 md:col-span-1">
+                <div class="text-xs text-slate-500">总产量</div>
+                <div class="text-2xl font-semibold mt-1">18,426.50 <span class="text-sm font-normal">吨</span></div>
+                <div class="text-xs text-slate-400 mt-2">筛选范围内已通过合计</div>
+              </div>
+              <div class="card card-hover p-5 md:col-span-1.5">
+                <div class="text-xs text-emerald-700 font-medium mb-3"><i class="fa-solid fa-circle-check mr-1"></i>正常维（吨/小时）</div>
+                <div class="grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <div class="text-xs text-slate-500">平均</div>
+                    <div class="text-lg font-semibold text-teal-800">112.40</div>
+                  </div>
+                  <div>
+                    <div class="text-xs text-slate-500">最大</div>
+                    <div class="text-lg font-semibold">148.00</div>
+                  </div>
+                  <div>
+                    <div class="text-xs text-slate-500">最小</div>
+                    <div class="text-lg font-semibold">86.50</div>
+                  </div>
+                </div>
+              </div>
+              <div class="card card-hover p-5 md:col-span-1.5">
+                <div class="text-xs text-amber-700 font-medium mb-3"><i class="fa-solid fa-triangle-exclamation mr-1"></i>异常维（吨/小时）</div>
+                <div class="grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <div class="text-xs text-slate-500">平均</div>
+                    <div class="text-lg font-semibold text-amber-800">28.60</div>
+                  </div>
+                  <div>
+                    <div class="text-xs text-slate-500">最大</div>
+                    <div class="text-lg font-semibold">72.00</div>
+                  </div>
+                  <div>
+                    <div class="text-xs text-slate-500">最小</div>
+                    <div class="text-lg font-semibold">0.00</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-4">
+              <div class="card card-hover p-5">
+                <div class="text-xs text-slate-500">正常平均吨/小时</div>
+                <div class="text-2xl font-semibold mt-1 text-teal-800">112.40</div>
+              </div>
+              <div class="card card-hover p-5">
+                <div class="text-xs text-slate-500">正常最大 / 最小</div>
+                <div class="text-2xl font-semibold mt-1">148.00 <span class="text-sm font-normal text-slate-400">/</span> 86.50</div>
+              </div>
+              <div class="card card-hover p-5">
+                <div class="text-xs text-slate-500">异常平均吨/小时</div>
+                <div class="text-2xl font-semibold mt-1 text-amber-800">28.60</div>
+              </div>
+            </div>
+            <div class="grid md:grid-cols-2 gap-4">
+              <div class="card card-hover p-5">
+                <div class="text-xs text-slate-500">异常最大吨/小时</div>
+                <div class="text-2xl font-semibold mt-1">72.00</div>
+              </div>
+              <div class="card card-hover p-5">
+                <div class="text-xs text-slate-500">异常最小吨/小时</div>
+                <div class="text-2xl font-semibold mt-1">0.00</div>
+              </div>
+            </div>
+
+            <div class="card overflow-hidden">
+              <div class="px-5 py-4 border-b text-sm font-medium">异常分原因统计</div>
+              <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                  <thead class="bg-slate-50 text-slate-500 text-left">
+                    <tr>
+                      <th class="px-4 py-3">原因</th>
+                      <th class="px-4 py-3">时段数</th>
+                      <th class="px-4 py-3">产量(吨)</th>
+                      <th class="px-4 py-3">平均吨/小时</th>
+                      <th class="px-4 py-3">最大</th>
+                      <th class="px-4 py-3">最小</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="table-row border-t">
+                      <td class="px-4 py-3">避高温，暂停作业</td>
+                      <td class="px-4 py-3">18</td>
+                      <td class="px-4 py-3">426.00</td>
+                      <td class="px-4 py-3">23.67</td>
+                      <td class="px-4 py-3">48.00</td>
+                      <td class="px-4 py-3">0.00</td>
+                    </tr>
+                    <tr class="table-row border-t">
+                      <td class="px-4 py-3">下雨，暂停作业</td>
+                      <td class="px-4 py-3">12</td>
+                      <td class="px-4 py-3">210.50</td>
+                      <td class="px-4 py-3">17.54</td>
+                      <td class="px-4 py-3">36.00</td>
+                      <td class="px-4 py-3">0.00</td>
+                    </tr>
+                    <tr class="table-row border-t">
+                      <td class="px-4 py-3">停电/无生产作业</td>
+                      <td class="px-4 py-3">24</td>
+                      <td class="px-4 py-3">0.00</td>
+                      <td class="px-4 py-3">0.00</td>
+                      <td class="px-4 py-3">0.00</td>
+                      <td class="px-4 py-3">0.00</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card overflow-hidden">
+              <div class="px-5 py-4 border-b text-sm font-medium">师傅效率榜</div>
+              <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                  <thead class="bg-slate-50 text-slate-500 text-left">
+                    <tr>
+                      <th class="px-4 py-3">师傅</th>
+                      <th class="px-4 py-3">货种切片示意</th>
+                      <th class="px-4 py-3">班次</th>
+                      <th class="px-4 py-3">正常平均</th>
+                      <th class="px-4 py-3">正常最大</th>
+                      <th class="px-4 py-3">正常最小</th>
+                      <th class="px-4 py-3">异常平均</th>
+                      <th class="px-4 py-3">异常最大</th>
+                      <th class="px-4 py-3">异常最小</th>
+                      <th class="px-4 py-3">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="table-row border-t">
+                      <td class="px-4 py-3 font-medium">涂峰</td>
+                      <td class="px-4 py-3"><span class="badge bg-teal-50 text-teal-800">氧化钙</span> <span class="badge bg-slate-100 text-slate-600">氮磷肥</span></td>
+                      <td class="px-4 py-3">白班</td>
+                      <td class="px-4 py-3 text-teal-800 font-medium">124.80</td>
+                      <td class="px-4 py-3">148.00</td>
+                      <td class="px-4 py-3">96.00</td>
+                      <td class="px-4 py-3">32.40</td>
+                      <td class="px-4 py-3">72.00</td>
+                      <td class="px-4 py-3">0.00</td>
+                      <td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="work-stat-view-pc.html">查看明细</a></td>
+                    </tr>
+                    <tr class="table-row border-t">
+                      <td class="px-4 py-3 font-medium">陈迪政</td>
+                      <td class="px-4 py-3"><span class="badge bg-teal-50 text-teal-800">氧化钙</span> <span class="badge bg-slate-100 text-slate-600">硫矿</span></td>
+                      <td class="px-4 py-3">白班 / 夜班</td>
+                      <td class="px-4 py-3 text-teal-800 font-medium">110.25</td>
+                      <td class="px-4 py-3">136.50</td>
+                      <td class="px-4 py-3">88.00</td>
+                      <td class="px-4 py-3">26.80</td>
+                      <td class="px-4 py-3">54.00</td>
+                      <td class="px-4 py-3">0.00</td>
+                      <td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="work-stat-view-pc.html">查看明细</a></td>
+                    </tr>
+                    <tr class="table-row border-t">
+                      <td class="px-4 py-3 font-medium">刘志显</td>
+                      <td class="px-4 py-3"><span class="badge bg-teal-50 text-teal-800">氮磷肥</span> <span class="badge bg-slate-100 text-slate-600">硫矿</span></td>
+                      <td class="px-4 py-3">夜班</td>
+                      <td class="px-4 py-3 text-teal-800 font-medium">102.15</td>
+                      <td class="px-4 py-3">128.00</td>
+                      <td class="px-4 py-3">86.50</td>
+                      <td class="px-4 py-3">21.50</td>
+                      <td class="px-4 py-3">48.00</td>
+                      <td class="px-4 py-3">0.00</td>
+                      <td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="work-stat-view-pc.html">查看明细</a></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div id="panelDaily" class="hidden space-y-5">
+            <div class="card overflow-hidden">
+              <div class="px-5 py-4 border-b flex items-center justify-between">
+                <div class="text-sm font-medium">已通过日班明细</div>
+                <button type="button" class="text-xs text-slate-500" onclick="document.getElementById('emptyDemo').classList.toggle('hidden');document.getElementById('detailTable').classList.toggle('hidden');">切换空状态演示</button>
+              </div>
+              <div id="emptyDemo" class="hidden p-12 text-center text-slate-400">
+                <i class="fa-regular fa-folder-open text-3xl mb-3"></i>
+                <div>该范围暂无已通过数据</div>
+              </div>
+              <div id="detailTable" class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                  <thead class="bg-slate-50 text-slate-500 text-left">
+                    <tr>
+                      <th class="px-4 py-3">开班日</th>
+                      <th class="px-4 py-3">班次</th>
+                      <th class="px-4 py-3">状态</th>
+                      <th class="px-4 py-3">本班总作业量(吨)</th>
+                      <th class="px-4 py-3">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr class="table-row border-t">
+                      <td class="px-4 py-3">2026-07-29</td>
+                      <td class="px-4 py-3">白班</td>
+                      <td class="px-4 py-3"><span class="badge badge-ok">已通过</span></td>
+                      <td class="px-4 py-3 font-medium">1,420.00</td>
+                      <td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="work-stat-view-pc.html">查看</a></td>
+                    </tr>
+                    <tr class="table-row border-t">
+                      <td class="px-4 py-3">2026-07-29</td>
+                      <td class="px-4 py-3">夜班</td>
+                      <td class="px-4 py-3"><span class="badge badge-ok">已通过</span></td>
+                      <td class="px-4 py-3 font-medium">1,240.50</td>
+                      <td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="work-stat-view-pc.html">查看</a></td>
+                    </tr>
+                    <tr class="table-row border-t">
+                      <td class="px-4 py-3">2026-07-28</td>
+                      <td class="px-4 py-3">白班</td>
+                      <td class="px-4 py-3"><span class="badge badge-ok">已通过</span></td>
+                      <td class="px-4 py-3 font-medium">2,106.00</td>
+                      <td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="work-stat-view-pc.html">查看</a></td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="px-5 py-4 border-t text-sm text-slate-500 flex justify-between"><span>共 3 条</span><span>1 / 1</span></div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    function showToast(msg, type) {
+      type = type || 'ok';
+      var el = document.createElement('div');
+      el.className = 'toast fade-in px-4 py-3 text-sm text-white ' + (type === 'err' ? 'bg-red-500' : 'bg-emerald-500');
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function(){ el.remove(); }, 2600);
+    }
+    function switchTab(name) {
+      var master = name === 'master';
+      document.getElementById('panelMaster').classList.toggle('hidden', !master);
+      document.getElementById('panelDaily').classList.toggle('hidden', master);
+      document.getElementById('tabMaster').classList.toggle('active', master);
+      document.getElementById('tabDaily').classList.toggle('active', !master);
+    }
+  </script>
+
+  <div id="askMask" class="ask-mask" onclick="closeAsk()"></div>
+  <button type="button" class="fab-ask" title="打开智能问数助手" onclick="openAsk()">
+    <i class="fa-solid fa-robot"></i>
+    <span>问数</span>
+  </button>
+  <aside id="askDrawer" class="ask-drawer">
+    <div class="px-4 py-4 border-b border-slate-200 flex items-center justify-between gap-2">
+      <div class="min-w-0">
+        <div class="font-semibold flex items-center gap-2"><i class="fa-solid fa-robot text-teal-700"></i>智能问数助手</div>
+        <div class="text-xs text-slate-500">仅查已通过 · 默认近1个月 · 只出结果 · 支持全屏</div>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <button type="button" id="askFullBtn" class="btn border border-slate-200 bg-white px-3 py-1.5 text-xs" onclick="toggleAskFullscreen()" title="全屏"><i class="fa-solid fa-expand mr-1"></i>全屏</button>
+        <button type="button" class="text-slate-400 hover:text-slate-600 px-2" onclick="closeAsk()"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+    </div>
+    <div class="px-4 py-3 border-b border-slate-100 space-y-3">
+      <div>
+        <div class="text-xs text-slate-500 mb-2">系统预置快捷</div>
+        <div class="flex flex-wrap gap-2" id="askChipsPreset">
+          <button type="button" class="ask-chip" data-q="师傅效率排名">师傅效率排名</button>
+          <button type="button" class="ask-chip" data-q="今日各货种作业量合计">今日各货种作业量合计</button>
+          <button type="button" class="ask-chip" data-q="异常原因分布">异常原因分布</button>
+          <button type="button" class="ask-chip" data-q="今日全港总作业量">今日全港总作业量</button>
+        </div>
+      </div>
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-xs text-slate-500">我的快捷</div>
+          <button type="button" class="text-xs text-teal-700 hover:underline" onclick="openShortcutEditor()"><i class="fa-solid fa-plus mr-1"></i>创建快捷</button>
+        </div>
+        <div class="flex flex-wrap gap-2" id="askChipsMine"></div>
+      </div>
+    </div>
+    <div id="askChat" class="flex-1 overflow-y-auto p-4 space-y-3 text-sm"></div>
+    <div class="p-4 border-t border-slate-200 space-y-2">
+      <div class="flex gap-2">
+        <button type="button" class="btn border border-slate-200 bg-white px-3 py-2 text-xs" onclick="saveCurrentAsShortcut()"><i class="fa-solid fa-bookmark mr-1"></i>将上次问法存为快捷</button>
+      </div>
+      <form id="askForm" class="flex gap-2" onsubmit="return sendAsk(event)">
+        <input id="askInput" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="例如：师傅效率排名" />
+        <button type="submit" class="btn btn-brand px-4 py-2 text-sm">发送</button>
+      </form>
+    </div>
+  </aside>
+  <div id="shortcutModal" class="ask-mask" style="z-index:75;display:none;align-items:center;justify-content:center;">
+    <div class="card fade-in w-full max-w-md p-6 m-4" style="border-radius:24px;box-shadow:0 12px 40px rgba(0,0,0,0.12);background:#fff;">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold" id="shortcutModalTitle">创建快捷查询</h3>
+        <button type="button" class="text-slate-400" onclick="closeShortcutEditor()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="space-y-3 text-sm">
+        <div>
+          <label class="block text-xs text-slate-500 mb-1">快捷名称</label>
+          <input id="shortcutName" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="例如：师傅效率" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-500 mb-1">查询问法</label>
+          <input id="shortcutQuery" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="例如：师傅效率排名" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-5">
+        <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="closeShortcutEditor()">取消</button>
+        <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="commitShortcut()">保存</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+window.__askLastQ = '';
+window.__askPending = null;
+window.__askFullscreen = false;
+window.__shortcutEditId = null;
+window.__myShortcuts = JSON.parse(localStorage.getItem('workStatMyShortcuts') || '[]');
+
+function openAsk(prefill) {
+  document.getElementById('askMask').classList.add('open');
+  document.getElementById('askDrawer').classList.add('open');
+  renderMyShortcuts();
+  var chat = document.getElementById('askChat');
+  if (chat && !chat.dataset.inited) {
+    chat.dataset.inited = '1';
+    appendBot('你好，我可以查询已通过的作业效率数据。默认范围近 1 个月；可点快捷问数，也可「创建快捷」。');
+  }
+  if (prefill) {
+    document.getElementById('askInput').value = '';
+    appendUser(prefill);
+    window.__askLastQ = prefill;
+    setTimeout(function(){ answerQuestion(prefill); }, 280);
+  }
+}
+function closeAsk() {
+  document.getElementById('askMask').classList.remove('open');
+  document.getElementById('askDrawer').classList.remove('open');
+  document.getElementById('askDrawer').classList.remove('fullscreen');
+  window.__askFullscreen = false;
+  var btn = document.getElementById('askFullBtn');
+  if (btn) btn.innerHTML = '<i class="fa-solid fa-expand mr-1"></i>全屏';
+}
+function toggleAskFullscreen() {
+  var drawer = document.getElementById('askDrawer');
+  window.__askFullscreen = !window.__askFullscreen;
+  drawer.classList.toggle('fullscreen', window.__askFullscreen);
+  var btn = document.getElementById('askFullBtn');
+  if (window.__askFullscreen) {
+    btn.innerHTML = '<i class="fa-solid fa-compress mr-1"></i>退出全屏';
+  } else {
+    btn.innerHTML = '<i class="fa-solid fa-expand mr-1"></i>全屏';
+  }
+}
+function appendUser(text) {
+  var chat = document.getElementById('askChat');
+  var d = document.createElement('div');
+  d.className = 'flex justify-end';
+  d.innerHTML = '<div class="bubble-user px-3 py-2 max-w-[85%]">' + text + '</div>';
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+}
+function appendBot(html) {
+  var chat = document.getElementById('askChat');
+  var d = document.createElement('div');
+  d.className = 'flex justify-start';
+  d.innerHTML = '<div class="bubble-bot px-3 py-2 max-w-[90%]">' + html + '</div>';
+  chat.appendChild(d);
+  chat.scrollTop = chat.scrollHeight;
+}
+function resultEfficiency() {
+  return '<div class="font-medium mb-2">师傅效率排名（正常维 · 吨/小时）</div>' +
+    '<table class="w-full text-xs bg-white rounded-lg overflow-hidden"><thead><tr class="bg-slate-100 text-left"><th class="p-2">师傅</th><th class="p-2">正常平均</th></tr></thead>' +
+    '<tbody><tr class="border-t"><td class="p-2">涂峰</td><td class="p-2">124.80</td></tr>' +
+    '<tr class="border-t"><td class="p-2">陈迪政</td><td class="p-2">110.25</td></tr>' +
+    '<tr class="border-t"><td class="p-2">刘志显</td><td class="p-2">102.15</td></tr></tbody></table>';
+}
+function resultCargo() {
+  return '<div class="font-medium mb-2">今日各货种作业量合计</div>' +
+    '<table class="w-full text-xs bg-white rounded-lg overflow-hidden"><thead><tr class="bg-slate-100 text-left"><th class="p-2">货种</th><th class="p-2">作业量(吨)</th></tr></thead>' +
+    '<tbody><tr class="border-t"><td class="p-2">氧化钙</td><td class="p-2">1,284.00</td></tr>' +
+    '<tr class="border-t"><td class="p-2">氮磷肥</td><td class="p-2">956.50</td></tr>' +
+    '<tr class="border-t"><td class="p-2">硫矿</td><td class="p-2">420.00</td></tr></tbody></table>';
+}
+function resultAbnormal() {
+  return '<div class="font-medium mb-2">异常原因分布</div><table class="w-full text-xs bg-white rounded-lg overflow-hidden"><thead><tr class="bg-slate-100 text-left"><th class="p-2">原因</th><th class="p-2">时段数</th></tr></thead><tbody>' +
+    '<tr class="border-t"><td class="p-2">避高温，暂停作业</td><td class="p-2">18</td></tr><tr class="border-t"><td class="p-2">下雨，暂停作业</td><td class="p-2">12</td></tr><tr class="border-t"><td class="p-2">停电/无生产作业</td><td class="p-2">24</td></tr></tbody></table>';
+}
+function resultTotal(label, val) {
+  return '<div class="font-medium mb-1">' + label + '</div><div class="text-2xl font-semibold text-teal-800">' + val + ' <span class="text-sm font-normal">吨</span></div>';
+}
+function answerQuestion(q) {
+  if (q.indexOf('效率') >= 0 || q.indexOf('师傅') >= 0) { appendBot(resultEfficiency()); return; }
+  if (q.indexOf('异常') >= 0 || q.indexOf('原因') >= 0) { appendBot(resultAbnormal()); return; }
+  if (q.indexOf('货种') >= 0) { appendBot(resultCargo()); return; }
+  if (q.indexOf('总作业') >= 0 || q.indexOf('全港') >= 0) { appendBot(resultTotal('今日全港总作业量', '2,660.50')); return; }
+  appendBot('我可能没理解。你可以试试快捷问数，例如「师傅效率排名」。');
+}
+function sendAsk(e) {
+  e.preventDefault();
+  var input = document.getElementById('askInput');
+  var q = (input.value || '').trim();
+  if (!q) return false;
+  window.__askLastQ = q;
+  appendUser(q);
+  input.value = '';
+  setTimeout(function(){ answerQuestion(q); }, 280);
+  return false;
+}
+function persistShortcuts() {
+  localStorage.setItem('workStatMyShortcuts', JSON.stringify(window.__myShortcuts));
+}
+function renderMyShortcuts() {
+  var box = document.getElementById('askChipsMine');
+  if (!box) return;
+  box.innerHTML = '';
+  if (!window.__myShortcuts.length) {
+    box.innerHTML = '<span class="text-xs text-slate-400">暂无，可点击「创建快捷」或将上次问法存为快捷</span>';
+    return;
+  }
+  window.__myShortcuts.forEach(function(item) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'ask-chip';
+    btn.innerHTML = '<span class="chip-run">' + item.name + '</span><span class="chip-edit" title="修改名称"><i class="fa-solid fa-pen"></i></span>';
+    btn.querySelector('.chip-run').addEventListener('click', function(ev) {
+      ev.stopPropagation();
+      appendUser(item.query);
+      window.__askLastQ = item.query;
+      setTimeout(function(){ answerQuestion(item.query); }, 280);
+    });
+    btn.querySelector('.chip-edit').addEventListener('click', function(ev) {
+      ev.stopPropagation();
+      openShortcutEditor(item.id);
+    });
+    box.appendChild(btn);
+  });
+}
+function openShortcutEditor(id) {
+  window.__shortcutEditId = id || null;
+  var modal = document.getElementById('shortcutModal');
+  modal.style.display = 'flex';
+  var title = document.getElementById('shortcutModalTitle');
+  var nameEl = document.getElementById('shortcutName');
+  var queryEl = document.getElementById('shortcutQuery');
+  if (id) {
+    var item = window.__myShortcuts.find(function(x){ return x.id === id; });
+    title.textContent = '修改快捷名称';
+    nameEl.value = item ? item.name : '';
+    queryEl.value = item ? item.query : '';
+    queryEl.readOnly = true;
+    queryEl.classList.add('bg-slate-50');
+  } else {
+    title.textContent = '创建快捷查询';
+    nameEl.value = '';
+    queryEl.value = window.__askLastQ || '';
+    queryEl.readOnly = false;
+    queryEl.classList.remove('bg-slate-50');
+  }
+  nameEl.focus();
+}
+function closeShortcutEditor() {
+  document.getElementById('shortcutModal').style.display = 'none';
+  window.__shortcutEditId = null;
+}
+function commitShortcut() {
+  var name = (document.getElementById('shortcutName').value || '').trim();
+  var query = (document.getElementById('shortcutQuery').value || '').trim();
+  if (!name) { showToast('请填写快捷名称','err'); return; }
+  if (!query) { showToast('请填写查询问法','err'); return; }
+  if (window.__shortcutEditId) {
+    window.__myShortcuts = window.__myShortcuts.map(function(x){
+      if (x.id === window.__shortcutEditId) return { id: x.id, name: name, query: x.query };
+      return x;
+    });
+    showToast('快捷名称已更新');
+  } else {
+    var dup = window.__myShortcuts.some(function(x){ return x.name === name; });
+    if (dup) { showToast('名称已存在，请更换','err'); return; }
+    window.__myShortcuts.push({ id: 's' + Date.now(), name: name, query: query });
+    showToast('快捷已创建');
+  }
+  persistShortcuts();
+  renderMyShortcuts();
+  closeShortcutEditor();
+}
+function saveCurrentAsShortcut() {
+  if (!window.__askLastQ) { showToast('请先发起一次问数','err'); return; }
+  openShortcutEditor();
+  document.getElementById('shortcutQuery').value = window.__askLastQ;
+}
+document.querySelectorAll('#askChipsPreset .ask-chip').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    var q = this.getAttribute('data-q');
+    window.__askLastQ = q;
+    appendUser(q);
+    setTimeout(function(){ answerQuestion(q); }, 280);
+  });
+});
+renderMyShortcuts();
+</script>
+</body>
+</html>
