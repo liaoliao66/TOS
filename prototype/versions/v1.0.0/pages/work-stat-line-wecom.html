@@ -47,7 +47,7 @@
 
         <main class="px-4 pt-3 pb-6 space-y-3">
           <div class="text-xs text-slate-500 bg-slate-100 rounded-xl px-3 py-2">
-            归属单据：<span class="text-slate-800 font-medium">2026-07-29 · 白班</span> · 本页只录一条，保存后回到单据继续添加或提交审核
+            归属单据：<span id="belongSheet" class="text-slate-800 font-medium">2026-07-29 · 白班</span> · 本页只录一条，保存后回到单据继续添加或提交审核
           </div>
 
           <div class="card p-4 space-y-3">
@@ -135,6 +135,16 @@
   </div>
 
   <script>
+    (function syncBelong() {
+      try {
+        var raw = sessionStorage.getItem('wecomCurrentSheet') || sessionStorage.getItem('wecomNewSheet');
+        if (!raw) return;
+        var s = JSON.parse(raw);
+        var el = document.getElementById('belongSheet');
+        if (el && s.date) el.textContent = s.date + ' · ' + (s.shift || '');
+      } catch (e) {}
+    })();
+
     function showToast(msg, type) {
       type = type || 'ok';
       var host = document.querySelector('.phone-screen') || document.body;

@@ -18,7 +18,23 @@
     .badge-pending { background: #fef3c7; color: #b45309; }
     .badge-ok { background: #d1fae5; color: #047857; }
     .badge-reject { background: #fee2e2; color: #b91c1c; }
-    .fab { position: absolute; right: 16px; bottom: 24px; z-index: 40; width: 56px; height: 56px; border-radius: 16px; background: var(--brand); color: #fff; box-shadow: 0 4px 16px rgba(15,118,110,0.35); display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center; }
+    .toast { position: absolute; top: 72px; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); z-index: 90; min-width: 220px; max-width: 90%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+    .fade-in { -webkit-animation: fadeIn .2s ease; animation: fadeIn .2s ease; }
+    @-webkit-keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .mask { position: absolute; inset: 0; background: rgba(15,23,42,0.45); z-index: 50; display: none; -webkit-box-align: end; -webkit-align-items: flex-end; align-items: flex-end; -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center; }
+    .mask.open { display: -webkit-box; display: -webkit-flex; display: flex; }
+    .sheet { width: 100%; background: #fff; border-radius: 20px 20px 0 0; padding: 16px 16px 20px; box-shadow: 0 -4px 20px rgba(0,0,0,0.08); }
+    .field label { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
+    .field input, .field select {
+      width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px;
+      font-size: 14px; min-height: 40px; background: #fff; box-sizing: border-box;
+    }
+    .shift-opt {
+      flex: 1; text-align: center; padding: 10px 0; border: 1px solid #e2e8f0; border-radius: 12px;
+      background: #f8fafc; color: #475569; font-size: 14px; cursor: pointer;
+    }
+    .shift-opt.active { border-color: #0f766e; background: #f0fdfa; color: #0f766e; font-weight: 600; }
     .page-bg { background: #e2e8f0; min-height: 100vh; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center; padding: 24px 12px; box-sizing: border-box; }
     .phone-frame { width: 390px; height: 844px; border-radius: 48px; border: 3px solid #e5e7eb; background: #0f172a; box-shadow: 0 12px 40px rgba(15,23,42,0.18); padding: 12px; box-sizing: border-box; }
     .phone-screen { width: 100%; height: 100%; border-radius: 36px; background: #f1f5f9; overflow: hidden; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-orient: vertical; -webkit-flex-direction: column; flex-direction: column; position: relative; }
@@ -37,14 +53,14 @@
       </div>
 
       <div class="phone-scroll">
-        <header class="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 h-12 flex items-center justify-between">
-          <div class="font-semibold text-base">作业填报</div>
-          <a href="work-stat-edit-wecom.html" class="btn btn-brand text-xs px-3 py-1.5">新建日班</a>
+        <header class="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 h-12 flex items-center relative">
+          <div class="absolute left-0 right-0 text-center font-semibold text-base pointer-events-none">作业填报</div>
+          <button type="button" class="btn btn-brand text-xs px-3 py-1.5 ml-auto relative z-10" onclick="openNewSheet()">新建日班</button>
         </header>
 
         <div class="px-4 pt-3 pb-2">
           <div class="text-xs text-teal-800 bg-teal-50 rounded-xl px-3 py-2">
-            企微：每次只填一条明细 → 在日班单据汇总后「提交审核」。审批由平台处理，本页不展示审批操作。PC 端仍为矩阵录入。
+            新建日班需先选开班日与班次；同一开班日+班次不可重复创建。录明细后在单据页「提交审核」。
           </div>
         </div>
 
@@ -94,13 +110,115 @@
           </a>
         </main>
 
-        <a href="work-stat-edit-wecom.html" class="fab" title="新建日班"><i class="fa-solid fa-plus text-xl"></i></a>
-
         <div class="px-4 pt-2 pb-4 text-center text-xs text-slate-400">
           <a href="../wecom-index.html" class="text-teal-700">返回企微入口</a>
         </div>
       </div>
+
+      <!-- 新建日班弹窗 -->
+      <div id="newMask" class="mask" onclick="onMaskClick(event)">
+        <div class="sheet" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-between mb-3">
+            <div class="font-semibold text-base">新建日班</div>
+            <button type="button" class="text-slate-400 text-sm" onclick="closeNewSheet()"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <div class="field mb-3">
+            <label>开班日</label>
+            <input id="newDate" type="date" value="2026-07-30" />
+          </div>
+          <div class="mb-4">
+            <label class="block text-xs text-slate-500 mb-2">班次</label>
+            <div class="flex gap-2">
+              <button type="button" id="shiftDay" class="shift-opt active" onclick="pickShift('白班')">白班</button>
+              <button type="button" id="shiftNight" class="shift-opt" onclick="pickShift('夜班')">夜班</button>
+            </div>
+          </div>
+          <div id="dupHint" class="hidden text-xs text-rose-600 bg-rose-50 rounded-xl px-3 py-2 mb-3">该开班日+班次已存在填报，不可重复创建</div>
+          <div class="flex gap-2">
+            <button type="button" class="btn border border-slate-200 bg-white flex-1 py-2.5 text-sm" onclick="closeNewSheet()">取消</button>
+            <button type="button" class="btn btn-brand flex-1 py-2.5 text-sm" onclick="confirmNewSheet()">确定创建</button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
+
+  <script>
+    /* 演示：列表中已存在的开班日+班次（含各状态） */
+    var EXISTING_SHEETS = [
+      { date: '2026-07-29', shift: '白班', status: '草稿' },
+      { date: '2026-07-28', shift: '夜班', status: '审批中' },
+      { date: '2026-07-28', shift: '白班', status: '已通过' },
+      { date: '2026-07-27', shift: '白班', status: '已驳回' }
+    ];
+    var selectedShift = '白班';
+
+    function showToast(msg, type) {
+      type = type || 'err';
+      var host = document.querySelector('.phone-screen') || document.body;
+      var el = document.createElement('div');
+      el.className = 'toast fade-in px-4 py-3 text-sm text-white text-center ' + (type === 'ok' ? 'bg-emerald-500' : 'bg-red-500');
+      el.textContent = msg;
+      host.appendChild(el);
+      setTimeout(function(){ el.remove(); }, 2400);
+    }
+
+    function openNewSheet() {
+      selectedShift = '白班';
+      document.getElementById('shiftDay').classList.add('active');
+      document.getElementById('shiftNight').classList.remove('active');
+      document.getElementById('dupHint').classList.add('hidden');
+      document.getElementById('newMask').classList.add('open');
+    }
+
+    function closeNewSheet() {
+      document.getElementById('newMask').classList.remove('open');
+    }
+
+    function onMaskClick(e) {
+      if (e.target === document.getElementById('newMask')) closeNewSheet();
+    }
+
+    function pickShift(shift) {
+      selectedShift = shift;
+      document.getElementById('shiftDay').classList.toggle('active', shift === '白班');
+      document.getElementById('shiftNight').classList.toggle('active', shift === '夜班');
+      document.getElementById('dupHint').classList.add('hidden');
+    }
+
+    function findExisting(date, shift) {
+      for (var i = 0; i < EXISTING_SHEETS.length; i++) {
+        if (EXISTING_SHEETS[i].date === date && EXISTING_SHEETS[i].shift === shift) {
+          return EXISTING_SHEETS[i];
+        }
+      }
+      return null;
+    }
+
+    function confirmNewSheet() {
+      var date = document.getElementById('newDate').value;
+      if (!date) {
+        showToast('请选择开班日');
+        return;
+      }
+      if (!selectedShift) {
+        showToast('请选择班次');
+        return;
+      }
+      var hit = findExisting(date, selectedShift);
+      if (hit) {
+        document.getElementById('dupHint').classList.remove('hidden');
+        document.getElementById('dupHint').textContent =
+          '「' + date + ' · ' + selectedShift + '」已存在（' + hit.status + '），不可重复创建';
+        showToast('该开班日+班次已填写，不可重复创建');
+        return;
+      }
+      try {
+        sessionStorage.setItem('wecomNewSheet', JSON.stringify({ date: date, shift: selectedShift, lines: [] }));
+      } catch (e) {}
+      closeNewSheet();
+      window.location.href = 'work-stat-edit-wecom.html?new=1';
+    }
+  </script>
 </body>
 </html>

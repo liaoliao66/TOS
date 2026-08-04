@@ -15,7 +15,7 @@
     .card { background: #fff; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
     .badge { border-radius: 999px; font-size: 12px; padding: 2px 10px; display: inline-block; }
     .badge-draft { background: #e2e8f0; color: #475569; }
-    .toast { position: absolute; top: 72px; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); z-index: 80; min-width: 220px; max-width: 90%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+    .toast { position: absolute; top: 72px; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); z-index: 90; min-width: 220px; max-width: 90%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
     .fade-in { -webkit-animation: fadeIn .2s ease; animation: fadeIn .2s ease; }
     @-webkit-keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -23,9 +23,32 @@
     .phone-frame { width: 390px; height: 844px; border-radius: 48px; border: 3px solid #e5e7eb; background: #0f172a; box-shadow: 0 12px 40px rgba(15,23,42,0.18); padding: 12px; box-sizing: border-box; }
     .phone-screen { width: 100%; height: 100%; border-radius: 36px; background: #f1f5f9; overflow: hidden; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-orient: vertical; -webkit-flex-direction: column; flex-direction: column; position: relative; }
     .phone-status { height: 28px; background: #fff; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; padding: 0 16px; font-size: 11px; color: #334155; border-bottom: 1px solid #f1f5f9; -webkit-flex-shrink: 0; flex-shrink: 0; }
-    .phone-scroll { -webkit-box-flex: 1; -webkit-flex: 1; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; }
+    .phone-scroll { -webkit-box-flex: 1; -webkit-flex: 1; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; min-height: 0; }
     .wecom-tag { font-size: 10px; color: #0f766e; background: #ccfbf1; border-radius: 999px; padding: 1px 8px; }
-    .bottom-bar { position: sticky; bottom: 0; background: rgba(255,255,255,0.96); border-top: 1px solid #e2e8f0; padding: 10px 16px 14px; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+    .bottom-bar {
+      -webkit-flex-shrink: 0; flex-shrink: 0;
+      background: rgba(255,255,255,0.98); border-top: 1px solid #e2e8f0;
+      padding: 10px 12px 16px; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+      box-shadow: 0 -4px 16px rgba(15,23,42,0.06);
+    }
+    .btn-del { background: transparent; color: #94a3b8; border: none; font-size: 13px; padding: 10px 8px; min-width: 48px; }
+    .btn-submit { background: #fff; color: #0f766e; border: 1px solid #99f6e4; padding: 10px 12px; font-size: 13px; -webkit-box-flex: 1; -webkit-flex: 1; flex: 1; }
+    .btn-add { background: var(--brand); color: #fff; padding: 10px 14px; font-size: 14px; font-weight: 600; -webkit-box-flex: 2; -webkit-flex: 2; flex: 2; text-align: center; }
+    .mask { position: absolute; inset: 0; background: rgba(15,23,42,0.45); z-index: 60; display: none; -webkit-box-align: end; -webkit-align-items: flex-end; align-items: flex-end; -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center; }
+    .mask.open { display: -webkit-box; display: -webkit-flex; display: flex; }
+    .mask.center { -webkit-box-align: center; -webkit-align-items: center; align-items: center; padding: 24px; }
+    .sheet { width: 100%; background: #fff; border-radius: 20px 20px 0 0; padding: 16px 16px 20px; box-shadow: 0 -4px 20px rgba(0,0,0,0.08); }
+    .dialog { width: 100%; max-width: 320px; background: #fff; border-radius: 16px; padding: 20px 16px 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); }
+    .field label { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
+    .field input, .field select {
+      width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px;
+      font-size: 14px; min-height: 40px; background: #fff; box-sizing: border-box;
+    }
+    .shift-opt {
+      flex: 1; text-align: center; padding: 10px 0; border: 1px solid #e2e8f0; border-radius: 12px;
+      background: #f8fafc; color: #475569; font-size: 14px; cursor: pointer;
+    }
+    .shift-opt.active { border-color: #0f766e; background: #f0fdfa; color: #0f766e; font-weight: 600; }
   </style>
 </head>
 <body class="page-bg text-slate-800">
@@ -43,36 +66,80 @@
           <div class="font-semibold text-base flex-1 text-center pr-8">日班单据</div>
         </header>
 
-        <main class="px-4 pt-3 pb-28 space-y-3">
+        <main class="px-4 pt-3 pb-4 space-y-3">
           <div class="card p-4">
             <div class="flex items-start justify-between gap-2">
-              <div>
-                <div class="font-medium text-base">2026-07-29 · 白班</div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <div id="sheetTitle" class="font-medium text-base">2026-07-29 · 白班</div>
+                  <button type="button" class="text-teal-700 text-sm shrink-0" onclick="openEditMeta()" title="编辑开班日与班次">
+                    <i class="fa-solid fa-pen-to-square"></i>
+                  </button>
+                </div>
                 <div class="text-xs text-slate-500 mt-1">已录 <span id="lineCount">3</span> 条 · 合计 <span id="lineTotal" class="text-teal-800 font-medium">246.50</span> 吨</div>
               </div>
               <span class="badge badge-draft">草稿</span>
             </div>
             <div class="mt-3 text-xs text-teal-800 bg-teal-50 rounded-xl px-3 py-2">
-              每次只填<strong>一条</strong>作业明细；录完后在本页「提交审核」。审批由平台处理，本页不展示审批操作。
+              每次只填<strong>一条</strong>作业明细；录完后点底部「提交审核」。可编辑开班日/班次；底部「删除」将删除整张日班单据。
             </div>
           </div>
 
-          <div class="flex items-center justify-between px-1">
+          <div class="px-1">
             <div class="text-sm font-medium text-slate-700">已录明细</div>
-            <a href="work-stat-line-wecom.html" class="text-xs text-teal-700"><i class="fa-solid fa-plus mr-1"></i>添加一条</a>
           </div>
 
           <div id="lineList" class="space-y-3"></div>
 
-          <div class="text-center text-xs text-slate-400 pt-2">
+          <div class="text-center text-xs text-slate-400 pt-2 pb-2">
             <a href="work-stat-list-wecom.html" class="text-teal-700">返回列表</a>
           </div>
         </main>
+      </div>
 
-        <div class="bottom-bar">
+      <!-- 底部悬浮操作栏 -->
+      <div class="bottom-bar">
+        <div class="flex items-center gap-2">
+          <button type="button" class="btn btn-del" onclick="openDeleteConfirm()">删除</button>
+          <button type="button" class="btn btn-submit" onclick="submitSheet()">提交审核</button>
+          <a href="work-stat-line-wecom.html" class="btn btn-add">添加一条</a>
+        </div>
+      </div>
+
+      <!-- 编辑开班日/班次 -->
+      <div id="editMask" class="mask" onclick="closeIfMask(event,'editMask')">
+        <div class="sheet" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-between mb-3">
+            <div class="font-semibold text-base">编辑开班日 / 班次</div>
+            <button type="button" class="text-slate-400 text-sm" onclick="closeEditMeta()"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <div class="field mb-3">
+            <label>开班日</label>
+            <input id="editDate" type="date" />
+          </div>
+          <div class="mb-3">
+            <label class="block text-xs text-slate-500 mb-2">班次</label>
+            <div class="flex gap-2">
+              <button type="button" id="editShiftDay" class="shift-opt active" onclick="pickEditShift('白班')">白班</button>
+              <button type="button" id="editShiftNight" class="shift-opt" onclick="pickEditShift('夜班')">夜班</button>
+            </div>
+          </div>
+          <div id="editDupHint" class="hidden text-xs text-rose-600 bg-rose-50 rounded-xl px-3 py-2 mb-3"></div>
           <div class="flex gap-2">
-            <a href="work-stat-line-wecom.html" class="btn border border-teal-200 text-teal-800 bg-white px-4 py-2.5 text-sm flex-1 text-center">添加一条</a>
-            <button type="button" class="btn btn-brand px-4 py-2.5 text-sm flex-1" onclick="submitSheet()">提交审核</button>
+            <button type="button" class="btn border border-slate-200 bg-white flex-1 py-2.5 text-sm" onclick="closeEditMeta()">取消</button>
+            <button type="button" class="btn btn-brand flex-1 py-2.5 text-sm" onclick="saveEditMeta()">保存</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 删除整单确认 -->
+      <div id="delMask" class="mask center" onclick="closeIfMask(event,'delMask')">
+        <div class="dialog" onclick="event.stopPropagation()">
+          <div class="font-semibold text-base text-center">确认删除整张日班？</div>
+          <p id="delMsg" class="text-sm text-slate-500 mt-2 text-center">将删除本开班日单据及全部已录明细，且不可恢复。</p>
+          <div class="flex gap-2 mt-5">
+            <button type="button" class="btn border border-slate-200 bg-white flex-1 py-2.5 text-sm" onclick="closeDeleteConfirm()">取消</button>
+            <button type="button" class="btn flex-1 py-2.5 text-sm text-white" style="background:#e11d48" onclick="confirmDeleteSheet()">确认删除</button>
           </div>
         </div>
       </div>
@@ -85,6 +152,55 @@
       { slot: '08:00-09:00', berth: '6#泊位', machine: '2#门机', driver: '陈迪政', cargo: '氮磷肥', qty: 96.50, normal: true, reason: '' },
       { slot: '09:00-10:00', berth: '5#泊位', machine: '1#门机', driver: '涂峰', cargo: '氧化钙', qty: 42.00, normal: false, reason: '避高温，暂停作业' }
     ];
+
+    /* 其他已存在单据（不含当前单），用于编辑冲突校验 */
+    var OTHER_SHEETS = [
+      { date: '2026-07-29', shift: '白班' },
+      { date: '2026-07-28', shift: '夜班' },
+      { date: '2026-07-28', shift: '白班' },
+      { date: '2026-07-27', shift: '白班' }
+    ];
+
+    var sheetDate = '2026-07-29';
+    var sheetShift = '白班';
+    var editShift = '白班';
+
+    function persistCurrent() {
+      try {
+        sessionStorage.setItem('wecomCurrentSheet', JSON.stringify({ date: sheetDate, shift: sheetShift }));
+      } catch (e) {}
+    }
+
+    function updateTitle() {
+      var el = document.getElementById('sheetTitle');
+      if (el) el.textContent = sheetDate + ' · ' + sheetShift;
+      persistCurrent();
+    }
+
+    function initSheetMeta() {
+      var params = new URLSearchParams(window.location.search || '');
+      if (params.get('new') === '1') {
+        try {
+          var raw = sessionStorage.getItem('wecomNewSheet');
+          if (raw) {
+            var sheet = JSON.parse(raw);
+            DEMO_LINES = Array.isArray(sheet.lines) ? sheet.lines : [];
+            sheetDate = sheet.date || sheetDate;
+            sheetShift = sheet.shift || sheetShift;
+          }
+        } catch (e) {}
+      } else {
+        try {
+          var cur = sessionStorage.getItem('wecomCurrentSheet');
+          if (cur) {
+            var c = JSON.parse(cur);
+            if (c.date) sheetDate = c.date;
+            if (c.shift) sheetShift = c.shift;
+          }
+        } catch (e) {}
+      }
+      updateTitle();
+    }
 
     function showToast(msg, type) {
       type = type || 'ok';
@@ -129,12 +245,12 @@
           (!r.normal && r.reason ? '<div class="mt-1 text-xs text-amber-700">原因：' + r.reason + '</div>' : '') +
           '<div class="mt-3 flex gap-3 text-xs">' +
             '<a href="work-stat-line-wecom.html?edit=' + i + '" class="text-teal-700">编辑</a>' +
-            '<button type="button" class="text-rose-600" onclick="removeLine(' + i + ')">删除</button>' +
+            '<button type="button" class="text-rose-600" onclick="removeLine(' + i + ')">删除本条</button>' +
           '</div>' +
         '</div>';
       });
       if (!DEMO_LINES.length) {
-        html = '<div class="card p-8 text-center text-slate-400 text-sm">暂无明细<br/><span class="text-xs">请先「添加一条」作业数据</span></div>';
+        html = '<div class="card p-8 text-center text-slate-400 text-sm">暂无明细<br/><span class="text-xs">请点底部「添加一条」录入作业数据</span></div>';
       }
       box.innerHTML = html;
       document.getElementById('lineCount').textContent = String(DEMO_LINES.length);
@@ -161,6 +277,75 @@
       setTimeout(function(){ window.location.href = 'work-stat-list-wecom.html'; }, 1200);
     }
 
+    /* —— 编辑开班日/班次 —— */
+    function openEditMeta() {
+      editShift = sheetShift;
+      document.getElementById('editDate').value = sheetDate;
+      document.getElementById('editShiftDay').classList.toggle('active', editShift === '白班');
+      document.getElementById('editShiftNight').classList.toggle('active', editShift === '夜班');
+      document.getElementById('editDupHint').classList.add('hidden');
+      document.getElementById('editMask').classList.add('open');
+    }
+    function closeEditMeta() {
+      document.getElementById('editMask').classList.remove('open');
+    }
+    function pickEditShift(shift) {
+      editShift = shift;
+      document.getElementById('editShiftDay').classList.toggle('active', shift === '白班');
+      document.getElementById('editShiftNight').classList.toggle('active', shift === '夜班');
+      document.getElementById('editDupHint').classList.add('hidden');
+    }
+    function saveEditMeta() {
+      var date = document.getElementById('editDate').value;
+      if (!date) {
+        showToast('请选择开班日', 'err');
+        return;
+      }
+      var sameAsSelf = date === sheetDate && editShift === sheetShift;
+      if (!sameAsSelf) {
+        for (var i = 0; i < OTHER_SHEETS.length; i++) {
+          if (OTHER_SHEETS[i].date === date && OTHER_SHEETS[i].shift === editShift) {
+            var hint = document.getElementById('editDupHint');
+            hint.classList.remove('hidden');
+            hint.textContent = '「' + date + ' · ' + editShift + '」已存在填报，不可改为此组合';
+            showToast('该开班日+班次已填写，仅提示不保存', 'err');
+            return;
+          }
+        }
+      }
+      sheetDate = date;
+      sheetShift = editShift;
+      updateTitle();
+      closeEditMeta();
+      showToast('开班日 / 班次已更新');
+    }
+
+    /* —— 删除整张日班 —— */
+    function openDeleteConfirm() {
+      document.getElementById('delMsg').textContent =
+        '将删除「' + sheetDate + ' · ' + sheetShift + '」整张单据及全部已录明细，且不可恢复。';
+      document.getElementById('delMask').classList.add('open');
+    }
+    function closeDeleteConfirm() {
+      document.getElementById('delMask').classList.remove('open');
+    }
+    function confirmDeleteSheet() {
+      try {
+        sessionStorage.removeItem('wecomNewSheet');
+        sessionStorage.removeItem('wecomCurrentSheet');
+        sessionStorage.removeItem('wecomNewLine');
+      } catch (e) {}
+      showToast('已删除整张日班单据');
+      setTimeout(function(){ window.location.href = 'work-stat-list-wecom.html'; }, 900);
+    }
+
+    function closeIfMask(e, id) {
+      if (e.target === document.getElementById(id)) {
+        document.getElementById(id).classList.remove('open');
+      }
+    }
+
+    initSheetMeta();
     renderLines();
   </script>
 </body>
