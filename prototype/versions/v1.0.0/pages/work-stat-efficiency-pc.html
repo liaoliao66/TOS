@@ -7,6 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="../assets/cargo-cascade.js"></script>
   <style>
     :root { --brand: #0f766e; --brand-hover: #0d9488; }
     body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
@@ -42,6 +43,12 @@
     .ask-chip .chip-edit:hover { color: #0f766e; }
     .bubble-user { background: #0f766e; color: #fff; border-radius: 16px 16px 4px 16px; }
     .bubble-bot { background: #f1f5f9; color: #334155; border-radius: 16px 16px 16px 4px; }
+    .info-btn { width: 28px; height: 28px; border-radius: 999px; border: 1px solid #e2e8f0; color: #0f766e; background: #f0fdfa; display: inline-flex; align-items: center; justify-content: center; }
+    .info-btn:hover { background: #ccfbf1; }
+    .modal-mask { position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 85; display: none; align-items: center; justify-content: center; padding: 24px; }
+    .modal-mask.open { display: flex; }
+    .bar-track { height: 10px; background: #f1f5f9; border-radius: 999px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 999px; background: #0f766e; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen">
@@ -66,15 +73,22 @@
       <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
         <div>
           <h1 class="text-lg font-semibold">作业效率分析</h1>
-          <p class="text-xs text-slate-500">版本 v1.0.0 · 仅已通过数据 · 考核师傅单位时间作业量（吨/小时）</p>
+          <p class="text-xs text-slate-500">版本 v1.0.0 · 仅已通过数据 · 考核司机单位时间作业量（吨/小时）</p>
         </div>
         <div class="flex items-center gap-3">
-          <button type="button" class="btn btn-brand px-4 py-2 text-sm" onclick="openAsk('氧化钙师傅效率排名')"><i class="fa-solid fa-comments mr-1"></i>智能问数</button>
+          <button type="button" class="btn btn-brand px-4 py-2 text-sm" onclick="openAsk('氧化钙司机效率排名')"><i class="fa-solid fa-comments mr-1"></i>智能问数</button>
           <span class="text-sm text-slate-600"><i class="fa-solid fa-user text-slate-400 mr-1"></i>数据查看人</span>
         </div>
       </header>
       <main class="flex-1 p-6 overflow-auto">
         <div class="max-w-7xl mx-auto space-y-5">
+          <!-- 页签在筛选栏顶部 -->
+          <div class="flex flex-wrap gap-2">
+            <button type="button" id="tabMaster" class="tab-btn active" onclick="switchTab('master')">司机效率</button>
+            <button type="button" id="tabVolume" class="tab-btn" onclick="switchTab('volume')">作业总量统计</button>
+            <button type="button" id="tabDaily" class="tab-btn" onclick="switchTab('daily')">日班明细</button>
+          </div>
+
           <div class="card p-5">
             <div class="flex flex-wrap gap-3 items-end">
               <div>
@@ -85,7 +99,7 @@
                 <label class="block text-xs text-slate-500 mb-1">开班日（止）</label>
                 <input id="filterDateTo" type="date" value="2026-07-29" class="border border-slate-200 rounded-xl px-3 py-2" />
               </div>
-              <div>
+              <div id="shiftFilterWrap">
                 <label class="block text-xs text-slate-500 mb-1">班次</label>
                 <select class="border border-slate-200 rounded-xl px-3 py-2">
                   <option>全部</option>
@@ -93,16 +107,18 @@
                   <option>夜班</option>
                 </select>
               </div>
-              <div>
-                <label class="block text-xs text-slate-500 mb-1">货种（效率对比必选）</label>
-                <select id="filterCargo" class="border border-slate-200 rounded-xl px-3 py-2" onchange="onCargoFilterChange()">
-                  <option selected>氧化钙</option>
-                  <option>氮磷肥</option>
-                  <option>硫矿</option>
-                </select>
+              <div id="cargoFilterWrap" class="flex flex-wrap gap-3 items-end">
+                <div>
+                  <label class="block text-xs text-slate-500 mb-1" id="cargoLabelL1">货种一级</label>
+                  <select id="filterCargoL1" class="border border-slate-200 rounded-xl px-3 py-2"></select>
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-500 mb-1" id="cargoLabelL2">货种二级</label>
+                  <select id="filterCargoL2" class="border border-slate-200 rounded-xl px-3 py-2"></select>
+                </div>
               </div>
-              <div>
-                <label class="block text-xs text-slate-500 mb-1">师傅</label>
+              <div id="driverFilterWrap">
+                <label class="block text-xs text-slate-500 mb-1">司机</label>
                 <select class="border border-slate-200 rounded-xl px-3 py-2">
                   <option>全部</option>
                   <option>涂峰</option>
@@ -110,18 +126,12 @@
                   <option>刘志显</option>
                 </select>
               </div>
-              <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="onCargoFilterChange(); showToast('已按货种刷新效率分析')">查询</button>
+              <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="onFilterChange(); showToast('已刷新分析数据')">查询</button>
               <div class="text-xs text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2">状态固定：已通过</div>
             </div>
           </div>
 
-          <div class="flex gap-2">
-            <button type="button" id="tabMaster" class="tab-btn active" onclick="switchTab('master')">师傅效率</button>
-            <button type="button" id="tabDaily" class="tab-btn" onclick="switchTab('daily')">日班明细</button>
-          </div>
-
           <div id="panelMaster" class="space-y-5">
-            <!-- 统计卡片：单排（仅总产量 + 正常维） -->
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
               <div class="card card-hover p-4">
                 <div class="text-xs text-slate-500">本货种总产量(吨)</div>
@@ -144,23 +154,25 @@
               </div>
             </div>
 
-            <!-- 证据折线图（筛选统一用顶部栏） -->
             <div class="card p-5">
-              <div class="mb-4">
-                <div class="text-sm font-medium">证据折线图 · 作业日产量对比</div>
-                <p class="text-xs text-slate-500 mt-1">横轴开班日 · 纵轴作业量(吨) · 平均/最大/最小基准线 + 各师傅每日产量；范围与货种随顶部筛选变更</p>
+              <div class="mb-4 flex items-start justify-between gap-3">
+                <div>
+                  <div class="text-sm font-medium">每日作业量趋势</div>
+                  <p class="text-xs text-slate-500 mt-1">横轴开班日 · 纵轴作业量(吨) · 平均/最大/最小基准线 + 各司机每日产量；随顶部筛选变更</p>
+                </div>
+                <button type="button" class="info-btn shrink-0" title="图表说明" onclick="openChartHelp()"><i class="fa-solid fa-exclamation"></i></button>
               </div>
               <div class="relative h-72">
                 <canvas id="evidenceChart"></canvas>
               </div>
-              <div class="mt-3 text-xs text-slate-400">虚线：平均 / 最大 / 最小作业量基准；实线：每日每位师傅作业量。跨货种不混比。</div>
+              <div class="mt-3 text-xs text-slate-400">虚线：平均 / 最大 / 最小作业量基准；实线：每日每位司机作业量。跨货种不混比。</div>
             </div>
 
             <div class="card overflow-hidden">
               <div class="px-5 py-4 border-b flex flex-wrap items-center justify-between gap-2">
                 <div>
-                  <div class="text-sm font-medium">师傅效率榜 · <span id="rankCargoLabel" class="text-teal-700">氧化钙</span></div>
-                  <p class="text-xs text-slate-500 mt-0.5">仅同货种内对比吨/小时；切换顶部或图表货种后刷新</p>
+                  <div class="text-sm font-medium">司机效率榜 · <span id="rankCargoLabel" class="text-teal-700">氧化钙</span></div>
+                  <p class="text-xs text-slate-500 mt-0.5">仅同货种内对比吨/小时；切换顶部货种后刷新</p>
                 </div>
                 <div class="text-xs text-slate-400">排序：正常平均吨/小时 ↓</div>
               </div>
@@ -169,7 +181,7 @@
                   <thead class="bg-slate-50 text-slate-500 text-left">
                     <tr>
                       <th class="px-4 py-3">排名</th>
-                      <th class="px-4 py-3">师傅</th>
+                      <th class="px-4 py-3">司机</th>
                       <th class="px-4 py-3">货种</th>
                       <th class="px-4 py-3">班次</th>
                       <th class="px-4 py-3">产量(吨)</th>
@@ -181,6 +193,98 @@
                     </tr>
                   </thead>
                   <tbody id="rankBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- 作业总量统计（领导总览） -->
+          <div id="panelVolume" class="hidden space-y-5">
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div class="card card-hover p-4">
+                <div class="text-xs text-slate-500">本范围总产量(吨)</div>
+                <div class="text-xl font-semibold mt-1 tabular-nums text-teal-800">19,920.00</div>
+              </div>
+              <div class="card card-hover p-4">
+                <div class="text-xs text-slate-500">日均产量(吨)</div>
+                <div class="text-xl font-semibold mt-1 tabular-nums">2,213.33</div>
+              </div>
+              <div class="card card-hover p-4">
+                <div class="text-xs text-slate-500">作业天数</div>
+                <div class="text-xl font-semibold mt-1 tabular-nums">9</div>
+              </div>
+              <div class="card card-hover p-4">
+                <div class="text-xs text-slate-500">环比（示意）</div>
+                <div class="text-xl font-semibold mt-1 tabular-nums text-emerald-600">+6.8%</div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+              <div class="card p-5 xl:col-span-2">
+                <div class="text-sm font-medium">货种作业量排行榜</div>
+                <p class="text-xs text-slate-500 mt-1 mb-3">柱状堆积：白班 + 夜班 · 按总产量排序</p>
+                <div class="relative h-72">
+                  <canvas id="cargoRankChart"></canvas>
+                </div>
+              </div>
+              <div class="card p-5">
+                <div class="text-sm font-medium">白班 / 夜班占比</div>
+                <p class="text-xs text-slate-500 mt-1 mb-3">本范围产量结构（环形图）</p>
+                <div class="relative h-64">
+                  <canvas id="shiftRatioChart"></canvas>
+                </div>
+              </div>
+            </div>
+
+            <div class="card p-5">
+              <div class="flex flex-wrap items-start justify-between gap-3 mb-1">
+                <div>
+                  <div class="text-sm font-medium" id="volumeTrendTitle">总量日趋势（折线）</div>
+                  <p class="text-xs text-slate-500 mt-1" id="volumeTrendHint">货种=全部：每日各货种总量；货种=单选：该货种白班/夜班日产量</p>
+                </div>
+                <div class="shrink-0 flex flex-wrap gap-2 items-end">
+                  <div>
+                    <label class="block text-xs text-slate-500 mb-1">货种一级</label>
+                    <select id="volumeTrendCargoL1" class="border border-slate-200 rounded-xl px-3 py-2 text-sm"></select>
+                  </div>
+                  <div>
+                    <label class="block text-xs text-slate-500 mb-1">货种二级</label>
+                    <select id="volumeTrendCargoL2" class="border border-slate-200 rounded-xl px-3 py-2 text-sm"></select>
+                  </div>
+                </div>
+              </div>
+              <div class="relative h-72 mt-3">
+                <canvas id="volumeChart"></canvas>
+              </div>
+            </div>
+
+            <div class="card overflow-hidden">
+              <div class="px-5 py-4 border-b flex flex-wrap items-center justify-between gap-3">
+                <div class="text-sm font-medium">日班产量明细（简表）</div>
+                <div class="flex flex-wrap gap-2 items-end">
+                  <div>
+                    <label class="block text-xs text-slate-500 mb-1">货种一级</label>
+                    <select id="volumeTableCargoL1" class="border border-slate-200 rounded-xl px-3 py-2 text-sm"></select>
+                  </div>
+                  <div>
+                    <label class="block text-xs text-slate-500 mb-1">货种二级</label>
+                    <select id="volumeTableCargoL2" class="border border-slate-200 rounded-xl px-3 py-2 text-sm"></select>
+                  </div>
+                </div>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                  <thead class="bg-slate-50 text-slate-500 text-left">
+                    <tr>
+                      <th class="px-4 py-3">开班日</th>
+                      <th class="px-4 py-3">作业总量</th>
+                      <th class="px-4 py-3">白班总量</th>
+                      <th class="px-4 py-3">白班占比</th>
+                      <th class="px-4 py-3">夜班总量</th>
+                      <th class="px-4 py-3">夜班占比</th>
+                    </tr>
+                  </thead>
+                  <tbody id="volumeDayBody"></tbody>
                 </table>
               </div>
             </div>
@@ -240,6 +344,26 @@
     </div>
   </div>
 
+  <!-- 每日作业量趋势说明 -->
+  <div id="chartHelpMask" class="modal-mask" onclick="closeChartHelp(event)">
+    <div class="card w-full max-w-lg p-6" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-3">
+        <div class="font-semibold">每日作业量趋势 · 说明</div>
+        <button type="button" class="text-slate-400" onclick="document.getElementById('chartHelpMask').classList.remove('open')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <ul class="text-sm text-slate-600 space-y-2 list-disc pl-5">
+        <li>横轴为开班日（作业日），纵轴为作业量（吨）。</li>
+        <li>三条虚线分别为当前筛选货种下的平均 / 最大 / 最小作业量基准。</li>
+        <li>彩色实线为各司机在对应开班日的产量，用于同货种内直观对比。</li>
+        <li>须先选定货种；跨货种不混比，避免难度差异导致误判。</li>
+        <li>数据范围与顶部「开班日、货种」筛选一致，仅含已通过数据。</li>
+      </ul>
+      <div class="mt-5 text-right">
+        <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="document.getElementById('chartHelpMask').classList.remove('open')">知道了</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     function showToast(msg, type) {
       type = type || 'ok';
@@ -249,18 +373,84 @@
       document.body.appendChild(el);
       setTimeout(function(){ el.remove(); }, 2600);
     }
-    function switchTab(name) {
-      var master = name === 'master';
-      document.getElementById('panelMaster').classList.toggle('hidden', !master);
-      document.getElementById('panelDaily').classList.toggle('hidden', master);
-      document.getElementById('tabMaster').classList.toggle('active', master);
-      document.getElementById('tabDaily').classList.toggle('active', !master);
-      if (master && window.__evidenceChart) {
-        window.__evidenceChart.resize();
+
+    var currentTab = 'master';
+    var topCargoCtl = null;
+    var trendCargoCtl = null;
+    var tableCargoCtl = null;
+
+    function openChartHelp() {
+      document.getElementById('chartHelpMask').classList.add('open');
+    }
+    function closeChartHelp(e) {
+      if (e.target === document.getElementById('chartHelpMask')) {
+        document.getElementById('chartHelpMask').classList.remove('open');
       }
     }
 
-    /* 证据折线：按货种的演示数据（开班日 → 各师傅日产量） */
+    function syncTopCargoCascade() {
+      var l1 = document.getElementById('filterCargoL1');
+      var l2 = document.getElementById('filterCargoL2');
+      if (!l1 || !l2 || typeof CargoCascade === 'undefined') return;
+      var allowAll = currentTab === 'daily';
+      var prev = topCargoCtl ? topCargoCtl.getValue() : { l1: '散货', l2: '氧化钙' };
+      topCargoCtl = CargoCascade.bindPair(l1, l2, {
+        allowAll: allowAll,
+        defaultL1: allowAll ? '全部' : (prev.l1 === '全部' ? '散货' : prev.l1),
+        defaultL2: allowAll ? '全部' : (prev.l2 === '全部' ? '氧化钙' : prev.l2),
+        onChange: function () { onFilterChange(); }
+      });
+      document.getElementById('cargoLabelL1').textContent = allowAll ? '货种一级' : '货种一级（必选）';
+      document.getElementById('cargoLabelL2').textContent = allowAll ? '货种二级' : '货种二级（效率对比）';
+      document.getElementById('cargoFilterWrap').classList.toggle('hidden', currentTab === 'volume');
+      document.getElementById('driverFilterWrap').classList.toggle('hidden', currentTab === 'volume');
+      document.getElementById('shiftFilterWrap').classList.toggle('hidden', currentTab === 'volume');
+    }
+
+    function switchTab(name) {
+      currentTab = name;
+      document.getElementById('panelMaster').classList.toggle('hidden', name !== 'master');
+      document.getElementById('panelVolume').classList.toggle('hidden', name !== 'volume');
+      document.getElementById('panelDaily').classList.toggle('hidden', name !== 'daily');
+      document.getElementById('tabMaster').classList.toggle('active', name === 'master');
+      document.getElementById('tabVolume').classList.toggle('active', name === 'volume');
+      document.getElementById('tabDaily').classList.toggle('active', name === 'daily');
+      syncTopCargoCascade();
+      if (name === 'master' && window.__evidenceChart) window.__evidenceChart.resize();
+      if (name === 'volume') {
+        refreshVolumeCharts();
+        renderVolumeDayTable();
+        setTimeout(function() {
+          if (window.__cargoRankChart) window.__cargoRankChart.resize();
+          if (window.__shiftRatioChart) window.__shiftRatioChart.resize();
+          if (window.__volumeChart) window.__volumeChart.resize();
+        }, 30);
+      }
+    }
+
+    function onFilterChange() {
+      if (currentTab === 'master') {
+        renderRankBoard(getEfficiencyCargo());
+        refreshEvidenceChart(true);
+      } else if (currentTab === 'volume') {
+        refreshVolumeCharts();
+        renderVolumeDayTable();
+      }
+    }
+    function onCargoFilterChange() { onFilterChange(); }
+    function onVolumeTrendCargoChange() {
+      renderVolumeTrendChart();
+    }
+    function getVolumeTrendCargo() {
+      if (!trendCargoCtl) return { l1: '全部', l2: '全部' };
+      return trendCargoCtl.getValue();
+    }
+    function getVolumeTableCargo() {
+      if (!tableCargoCtl) return { l1: '全部', l2: '全部' };
+      return tableCargoCtl.getValue();
+    }
+
+    /* 每日作业量趋势：按货种的演示数据（开班日 → 各司机日产量） */
     var EVIDENCE_DATA = {
       '氧化钙': {
         days: ['07-21','07-22','07-23','07-24','07-25','07-26','07-27','07-28','07-29'],
@@ -291,7 +481,7 @@
       }
     };
 
-    /* 师傅效率榜：按货种（同货种内对比） */
+    /* 司机效率榜：按货种（同货种内对比） */
     var RANK_BY_CARGO = {
       '氧化钙': {
         total: '8,640.00', avg: '118.50', max: '148.00', min: '96.00',
@@ -325,9 +515,321 @@
       '刘志显': '#7c3aed'
     };
 
+    var VOLUME_DAYS = ['07-21','07-22','07-23','07-24','07-25','07-26','07-27','07-28','07-29'];
+    /* 货种排行：白班/夜班堆积（按总量降序） */
+    var CARGO_RANK = [
+      { name: '氧化钙', l1: '散货', day: 5120, night: 3520 },
+      { name: '氮磷肥', l1: '散货', day: 3780, night: 2640 },
+      { name: '硫矿', l1: '散货', day: 2950, night: 1910 },
+      { name: '磷肥', l1: '吨包袋', day: 1680, night: 1120 },
+      { name: '工铵吨包', l1: '吨包袋', day: 920, night: 640 }
+    ];
+    var VOLUME_BY_CARGO_DAY = {
+      '氧化钙': [900, 980, 940, 1020, 1050, 880, 990, 1140, 1140],
+      '氮磷肥': [700, 740, 720, 760, 790, 680, 750, 860, 860],
+      '硫矿':   [500, 530, 520, 540, 570, 490, 540, 660, 660],
+      '磷肥':   [320, 340, 330, 350, 360, 300, 340, 400, 400],
+      '工铵吨包': [180, 190, 185, 195, 200, 170, 190, 220, 220]
+    };
+    var VOLUME_CARGO_COLORS = {
+      '氧化钙': '#0f766e', '氮磷肥': '#2563eb', '硫矿': '#7c3aed', '磷肥': '#d97706', '工铵吨包': '#db2777'
+    };
+    var VOLUME_SHIFT_BY_CARGO = {
+      '氧化钙': { day: [540, 580, 560, 600, 620, 520, 580, 680, 680], night: [360, 400, 380, 420, 430, 360, 410, 460, 460] },
+      '氮磷肥': { day: [420, 440, 430, 450, 470, 400, 450, 510, 510], night: [280, 300, 290, 310, 320, 280, 300, 350, 350] },
+      '硫矿':   { day: [300, 320, 310, 320, 340, 290, 320, 390, 390], night: [200, 210, 210, 220, 230, 200, 220, 270, 270] },
+      '磷肥':   { day: [190, 200, 195, 210, 215, 180, 200, 240, 240], night: [130, 140, 135, 140, 145, 120, 140, 160, 160] },
+      '工铵吨包': { day: [110, 115, 112, 118, 120, 100, 115, 130, 130], night: [70, 75, 73, 77, 80, 70, 75, 90, 90] }
+    };
+    var VOLUME_DAY_ROWS_ALL = [
+      { date: '2026-07-29', day: 1420, night: 1240.5 },
+      { date: '2026-07-28', day: 2106, night: 980 },
+      { date: '2026-07-27', day: 1980, night: 860 },
+      { date: '2026-07-26', day: 1200, night: 1650 },
+      { date: '2026-07-25', day: 1760, night: 920 }
+    ];
+    var VOLUME_DAY_ROWS_BY_CARGO = {
+      '氧化钙': [
+        { date: '2026-07-29', day: 680, night: 460 },
+        { date: '2026-07-28', day: 680, night: 460 },
+        { date: '2026-07-27', day: 580, night: 410 },
+        { date: '2026-07-26', day: 520, night: 360 },
+        { date: '2026-07-25', day: 620, night: 430 }
+      ],
+      '氮磷肥': [
+        { date: '2026-07-29', day: 510, night: 350 },
+        { date: '2026-07-28', day: 510, night: 350 },
+        { date: '2026-07-27', day: 450, night: 300 },
+        { date: '2026-07-26', day: 400, night: 280 },
+        { date: '2026-07-25', day: 470, night: 320 }
+      ],
+      '硫矿': [
+        { date: '2026-07-29', day: 390, night: 270 },
+        { date: '2026-07-28', day: 390, night: 270 },
+        { date: '2026-07-27', day: 320, night: 220 },
+        { date: '2026-07-26', day: 290, night: 200 },
+        { date: '2026-07-25', day: 340, night: 230 }
+      ],
+      '磷肥': [
+        { date: '2026-07-29', day: 240, night: 160 },
+        { date: '2026-07-28', day: 240, night: 160 },
+        { date: '2026-07-27', day: 200, night: 140 },
+        { date: '2026-07-26', day: 180, night: 120 },
+        { date: '2026-07-25', day: 215, night: 145 }
+      ],
+      '工铵吨包': [
+        { date: '2026-07-29', day: 130, night: 90 },
+        { date: '2026-07-28', day: 130, night: 90 },
+        { date: '2026-07-27', day: 115, night: 75 },
+        { date: '2026-07-26', day: 100, night: 70 },
+        { date: '2026-07-25', day: 120, night: 80 }
+      ]
+    };
+
+    function fmtNum(n) {
+      return Number(n).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+    function fmtPct(part, total) {
+      if (!total) return '0.0%';
+      return (Math.round(part * 1000 / total) / 10).toFixed(1) + '%';
+    }
+
+    function renderVolumeDayTable() {
+      var body = document.getElementById('volumeDayBody');
+      if (!body) return;
+      var sel = getVolumeTableCargo();
+      var rows;
+      if (sel.l1 === '全部' || sel.l2 === '全部') {
+        if (sel.l1 !== '全部' && sel.l2 === '全部') {
+          var kids = CargoCascade.childrenOf(sel.l1);
+          var map = {};
+          kids.forEach(function (c) {
+            (VOLUME_DAY_ROWS_BY_CARGO[c] || []).forEach(function (r) {
+              if (!map[r.date]) map[r.date] = { date: r.date, day: 0, night: 0 };
+              map[r.date].day += r.day;
+              map[r.date].night += r.night;
+            });
+          });
+          rows = Object.keys(map).sort().reverse().map(function (k) { return map[k]; });
+        } else {
+          rows = VOLUME_DAY_ROWS_ALL;
+        }
+      } else {
+        rows = VOLUME_DAY_ROWS_BY_CARGO[sel.l2] || VOLUME_DAY_ROWS_ALL;
+      }
+      body.innerHTML = rows.map(function (r) {
+        var total = r.day + r.night;
+        return '<tr class="table-row border-t">' +
+          '<td class="px-4 py-3">' + r.date + '</td>' +
+          '<td class="px-4 py-3 tabular-nums font-medium">' + fmtNum(total) + '</td>' +
+          '<td class="px-4 py-3 tabular-nums">' + fmtNum(r.day) + '</td>' +
+          '<td class="px-4 py-3">' + fmtPct(r.day, total) + '</td>' +
+          '<td class="px-4 py-3 tabular-nums">' + fmtNum(r.night) + '</td>' +
+          '<td class="px-4 py-3">' + fmtPct(r.night, total) + '</td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    function refreshVolumeCharts() {
+      if (typeof Chart === 'undefined') return;
+      renderCargoRankChart();
+      renderShiftRatioChart();
+      renderVolumeTrendChart();
+    }
+
+    function renderCargoRankChart() {
+      var canvas = document.getElementById('cargoRankChart');
+      if (!canvas) return;
+      var labels = CARGO_RANK.map(function(r){ return r.name; });
+      var dayData = CARGO_RANK.map(function(r){ return r.day; });
+      var nightData = CARGO_RANK.map(function(r){ return r.night; });
+      if (window.__cargoRankChart) {
+        window.__cargoRankChart.data.labels = labels;
+        window.__cargoRankChart.data.datasets[0].data = dayData;
+        window.__cargoRankChart.data.datasets[1].data = nightData;
+        window.__cargoRankChart.update();
+        return;
+      }
+      window.__cargoRankChart = new Chart(canvas, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            { label: '白班', data: dayData, backgroundColor: '#0f766e', stack: 's' },
+            { label: '夜班', data: nightData, backgroundColor: '#38bdf8', stack: 's' }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+            title: { display: true, text: '货种产量排行（白班+夜班堆积）', color: '#475569', font: { size: 13 } },
+            tooltip: {
+              callbacks: {
+                footer: function(items) {
+                  var sum = 0;
+                  items.forEach(function(i){ sum += i.parsed.y || 0; });
+                  return '合计：' + sum + ' 吨';
+                }
+              }
+            }
+          },
+          scales: {
+            x: { stacked: true, grid: { display: false } },
+            y: { stacked: true, beginAtZero: true, title: { display: true, text: '产量（吨）', color: '#64748b' }, grid: { color: '#f1f5f9' } }
+          }
+        }
+      });
+    }
+
+    function renderShiftRatioChart() {
+      var canvas = document.getElementById('shiftRatioChart');
+      if (!canvas) return;
+      var daySum = CARGO_RANK.reduce(function(s, r){ return s + r.day; }, 0);
+      var nightSum = CARGO_RANK.reduce(function(s, r){ return s + r.night; }, 0);
+      if (window.__shiftRatioChart) {
+        window.__shiftRatioChart.data.datasets[0].data = [daySum, nightSum];
+        window.__shiftRatioChart.update();
+        return;
+      }
+      window.__shiftRatioChart = new Chart(canvas, {
+        type: 'doughnut',
+        data: {
+          labels: ['白班', '夜班'],
+          datasets: [{
+            data: [daySum, nightSum],
+            backgroundColor: ['#0f766e', '#38bdf8'],
+            borderWidth: 0,
+            hoverOffset: 4
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '62%',
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) {
+                  var total = daySum + nightSum;
+                  var v = ctx.parsed;
+                  var pct = total ? Math.round(v * 1000 / total) / 10 : 0;
+                  return ctx.label + '：' + v.toLocaleString() + ' 吨（' + pct + '%）';
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function renderVolumeTrendChart() {
+      var canvas = document.getElementById('volumeChart');
+      if (!canvas) return;
+      var sel = getVolumeTrendCargo();
+      var titleEl = document.getElementById('volumeTrendTitle');
+      var hintEl = document.getElementById('volumeTrendHint');
+      var datasets = [];
+      var title = '';
+      var mode = 'all';
+      var cargoNames = [];
+
+      if (sel.l1 === '全部' || (sel.l2 === '全部' && sel.l1 === '全部')) {
+        mode = 'all';
+        cargoNames = Object.keys(VOLUME_BY_CARGO_DAY);
+        title = '每日各货种作业总量';
+        if (titleEl) titleEl.textContent = '总量日趋势（折线）· 全部货种';
+        if (hintEl) hintEl.textContent = '每条折线对应一种二级货种的当日合计产量';
+      } else if (sel.l2 === '全部') {
+        mode = 'l1all';
+        cargoNames = CargoCascade.childrenOf(sel.l1);
+        title = '一级「' + sel.l1 + '」下各货种日总量';
+        if (titleEl) titleEl.textContent = '总量日趋势（折线）· ' + sel.l1 + ' / 全部';
+        if (hintEl) hintEl.textContent = '每条折线对应本一级下一种二级货种的当日合计产量';
+      } else {
+        mode = 'one';
+        var pack = VOLUME_SHIFT_BY_CARGO[sel.l2] || VOLUME_SHIFT_BY_CARGO['氧化钙'];
+        title = '货种「' + sel.l1 + ' / ' + sel.l2 + '」· 白班 / 夜班日产量';
+        if (titleEl) titleEl.textContent = '总量日趋势（折线）· ' + sel.l2;
+        if (hintEl) hintEl.textContent = '两条折线分别为该货种每日白班、夜班作业总量';
+        datasets = [
+          { label: '白班', data: pack.day, borderColor: '#0f766e', backgroundColor: '#0f766e', tension: 0.25, pointRadius: 3, borderWidth: 2.5, fill: false },
+          { label: '夜班', data: pack.night, borderColor: '#38bdf8', backgroundColor: '#38bdf8', tension: 0.25, pointRadius: 3, borderWidth: 2.5, fill: false }
+        ];
+      }
+
+      if (mode !== 'one') {
+        datasets = cargoNames.map(function (name) {
+          var color = VOLUME_CARGO_COLORS[name] || '#64748b';
+          return {
+            label: name,
+            data: VOLUME_BY_CARGO_DAY[name] || [],
+            borderColor: color,
+            backgroundColor: color,
+            tension: 0.25,
+            pointRadius: 3,
+            borderWidth: 2.5,
+            fill: false
+          };
+        });
+      }
+
+      var modeKey = mode + ':' + sel.l1 + ':' + sel.l2;
+      if (window.__volumeChart && window.__volumeTrendMode === modeKey) {
+        window.__volumeChart.data.labels = VOLUME_DAYS;
+        window.__volumeChart.data.datasets = datasets;
+        window.__volumeChart.options.plugins.title.text = title;
+        window.__volumeChart.update();
+        return;
+      }
+      if (window.__volumeChart) {
+        window.__volumeChart.destroy();
+        window.__volumeChart = null;
+      }
+      window.__volumeTrendMode = modeKey;
+      window.__volumeChart = new Chart(canvas, {
+        type: 'line',
+        data: { labels: VOLUME_DAYS, datasets: datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+            title: { display: true, text: title, color: '#475569', font: { size: 13 } },
+            tooltip: {
+              callbacks: {
+                label: function(ctx) { return ctx.dataset.label + '：' + ctx.parsed.y + ' 吨'; }
+              }
+            }
+          },
+          scales: {
+            x: { title: { display: true, text: '开班日', color: '#64748b' }, grid: { color: '#f1f5f9' } },
+            y: { title: { display: true, text: '产量（吨）', color: '#64748b' }, beginAtZero: true, grid: { color: '#f1f5f9' } }
+          }
+        }
+      });
+    }
+
     function getActiveCargo() {
-      var el = document.getElementById('filterCargo');
-      return (el && el.value) || '氧化钙';
+      if (currentTab === 'volume') {
+        var s = getVolumeTrendCargo();
+        if (s.l2 === '全部' || s.l1 === '全部') return '全部';
+        return s.l2;
+      }
+      if (!topCargoCtl) return '氧化钙';
+      var v = topCargoCtl.getValue();
+      if (v.l2 === '全部' || v.l1 === '全部') return '全部';
+      return v.l2 || '氧化钙';
+    }
+
+    function getEfficiencyCargo() {
+      if (!topCargoCtl) return '氧化钙';
+      var v = topCargoCtl.getValue();
+      if (!v.l2 || v.l2 === '全部') return '氧化钙';
+      return v.l2;
     }
 
     function getFilterRange() {
@@ -371,12 +873,6 @@
           '</tr>';
       });
       body.innerHTML = html;
-    }
-
-    function onCargoFilterChange() {
-      var cargo = getActiveCargo();
-      renderRankBoard(cargo);
-      refreshEvidenceChart(true);
     }
 
     function buildEvidenceDatasets(cargo) {
@@ -433,7 +929,7 @@
     }
 
     function refreshEvidenceChart(silent) {
-      var cargo = getActiveCargo();
+      var cargo = getEfficiencyCargo();
       var built = buildEvidenceDatasets(cargo);
       if (window.__evidenceChart) {
         window.__evidenceChart.data.labels = built.labels;
@@ -441,13 +937,27 @@
         window.__evidenceChart.options.plugins.title.text = chartTitleText(cargo);
         window.__evidenceChart.update();
       }
-      if (!silent) showToast('已按「' + cargo + '」刷新证据折线图');
+      if (!silent) showToast('已按「' + cargo + '」刷新每日作业量趋势');
     }
 
     function initEvidenceChart() {
+      syncTopCargoCascade();
+      if (typeof CargoCascade !== 'undefined') {
+        trendCargoCtl = CargoCascade.bindPair(
+          document.getElementById('volumeTrendCargoL1'),
+          document.getElementById('volumeTrendCargoL2'),
+          { allowAll: true, defaultL1: '全部', defaultL2: '全部', onChange: function () { onVolumeTrendCargoChange(); } }
+        );
+        tableCargoCtl = CargoCascade.bindPair(
+          document.getElementById('volumeTableCargoL1'),
+          document.getElementById('volumeTableCargoL2'),
+          { allowAll: true, defaultL1: '全部', defaultL2: '全部', onChange: function () { renderVolumeDayTable(); } }
+        );
+        renderVolumeDayTable();
+      }
       var canvas = document.getElementById('evidenceChart');
       if (!canvas || typeof Chart === 'undefined') return;
-      var cargo = getActiveCargo();
+      var cargo = getEfficiencyCargo();
       renderRankBoard(cargo);
       var built = buildEvidenceDatasets(cargo);
       window.__evidenceChart = new Chart(canvas, {
@@ -511,9 +1021,9 @@
       <div>
         <div class="text-xs text-slate-500 mb-2">系统预置快捷</div>
         <div class="flex flex-wrap gap-2" id="askChipsPreset">
-          <button type="button" class="ask-chip" data-q="氧化钙师傅效率排名">氧化钙师傅效率排名</button>
+          <button type="button" class="ask-chip" data-q="氧化钙司机效率排名">氧化钙司机效率排名</button>
           <button type="button" class="ask-chip" data-q="今日各货种作业量合计">今日各货种作业量合计</button>
-          <button type="button" class="ask-chip" data-q="氮磷肥师傅效率排名">氮磷肥师傅效率排名</button>
+          <button type="button" class="ask-chip" data-q="氮磷肥司机效率排名">氮磷肥司机效率排名</button>
           <button type="button" class="ask-chip" data-q="今日全港总作业量">今日全港总作业量</button>
         </div>
       </div>
@@ -531,7 +1041,7 @@
         <button type="button" class="btn border border-slate-200 bg-white px-3 py-2 text-xs" onclick="saveCurrentAsShortcut()"><i class="fa-solid fa-bookmark mr-1"></i>将上次问法存为快捷</button>
       </div>
       <form id="askForm" class="flex gap-2" onsubmit="return sendAsk(event)">
-        <input id="askInput" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="例如：师傅效率排名" />
+        <input id="askInput" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="例如：司机效率排名" />
         <button type="submit" class="btn btn-brand px-4 py-2 text-sm">发送</button>
       </form>
     </div>
@@ -545,11 +1055,11 @@
       <div class="space-y-3 text-sm">
         <div>
           <label class="block text-xs text-slate-500 mb-1">快捷名称</label>
-          <input id="shortcutName" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="例如：师傅效率" />
+          <input id="shortcutName" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="例如：司机效率" />
         </div>
         <div>
           <label class="block text-xs text-slate-500 mb-1">查询问法</label>
-          <input id="shortcutQuery" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="例如：师傅效率排名" />
+          <input id="shortcutQuery" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="例如：司机效率排名" />
         </div>
       </div>
       <div class="flex justify-end gap-2 mt-5">
@@ -625,8 +1135,8 @@ function resultEfficiency(cargo) {
     '硫矿': [['陈迪政','93.00'],['涂峰','90.50'],['刘志显','80.00']]
   };
   var list = rows[cargo] || rows['氧化钙'];
-  var html = '<div class="font-medium mb-2">师傅效率排名（货种：' + cargo + ' · 正常维 · 吨/小时）</div>' +
-    '<table class="w-full text-xs bg-white rounded-lg overflow-hidden"><thead><tr class="bg-slate-100 text-left"><th class="p-2">排名</th><th class="p-2">师傅</th><th class="p-2">正常平均</th></tr></thead><tbody>';
+  var html = '<div class="font-medium mb-2">司机效率排名（货种：' + cargo + ' · 正常维 · 吨/小时）</div>' +
+    '<table class="w-full text-xs bg-white rounded-lg overflow-hidden"><thead><tr class="bg-slate-100 text-left"><th class="p-2">排名</th><th class="p-2">司机</th><th class="p-2">正常平均</th></tr></thead><tbody>';
   list.forEach(function(r, i) {
     html += '<tr class="border-t"><td class="p-2">' + (i + 1) + '</td><td class="p-2">' + r[0] + '</td><td class="p-2">' + r[1] + '</td></tr>';
   });
@@ -646,10 +1156,10 @@ function answerQuestion(q) {
   if (q.indexOf('货种') >= 0 && (q.indexOf('合计') >= 0 || q.indexOf('作业量') >= 0)) { appendBot(resultCargo()); return; }
   if (q.indexOf('氮磷肥') >= 0) { appendBot(resultEfficiency('氮磷肥')); return; }
   if (q.indexOf('硫矿') >= 0) { appendBot(resultEfficiency('硫矿')); return; }
-  if (q.indexOf('效率') >= 0 || q.indexOf('师傅') >= 0 || q.indexOf('排名') >= 0 || q.indexOf('氧化钙') >= 0) { appendBot(resultEfficiency('氧化钙')); return; }
+  if (q.indexOf('效率') >= 0 || q.indexOf('司机') >= 0 || q.indexOf('师傅') >= 0 || q.indexOf('排名') >= 0 || q.indexOf('氧化钙') >= 0) { appendBot(resultEfficiency('氧化钙')); return; }
   if (q.indexOf('货种') >= 0) { appendBot(resultCargo()); return; }
   if (q.indexOf('总作业') >= 0 || q.indexOf('全港') >= 0) { appendBot(resultTotal('今日全港总作业量', '2,660.50')); return; }
-  appendBot('我可能没理解。你可以试试快捷问数，例如「氧化钙师傅效率排名」（须带货种）。');
+  appendBot('我可能没理解。你可以试试快捷问数，例如「氧化钙司机效率排名」（须带货种）。');
 }
 function sendAsk(e) {
   e.preventDefault();

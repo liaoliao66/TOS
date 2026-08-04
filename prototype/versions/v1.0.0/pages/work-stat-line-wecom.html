@@ -6,6 +6,7 @@
   <title>添加一条作业 · 企微H5</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../assets/cargo-cascade.js"></script>
   <style>
     :root { --brand: #0f766e; --brand-hover: #0d9488; }
     body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; font-size: 14px; background: #f1f5f9; }
@@ -91,12 +92,12 @@
               </select>
             </div>
             <div class="field">
-              <label>货种</label>
-              <select id="fCargo">
-                <option>氧化钙</option>
-                <option>氮磷肥</option>
-                <option>硫矿</option>
-              </select>
+              <label>货种一级</label>
+              <select id="fCargoL1"></select>
+            </div>
+            <div class="field">
+              <label>货种二级</label>
+              <select id="fCargoL2"></select>
             </div>
             <div class="field">
               <label>作业量（吨）</label>
@@ -175,12 +176,19 @@
         showToast('非正常作业须选择原因', 'err');
         return;
       }
+      var cargoVal = (window.__lineCargo && window.__lineCargo.getValue()) || {};
+      if (!cargoVal.l1 || !cargoVal.l2) {
+        showToast('请选择货种（一级 + 二级）', 'err');
+        return;
+      }
       var line = {
         slot: document.getElementById('fSlot').value,
         berth: document.getElementById('fBerth').value,
         machine: document.getElementById('fMachine').value,
         driver: document.getElementById('fDriver').value,
-        cargo: document.getElementById('fCargo').value,
+        cargo: cargoVal.l1 + ' / ' + cargoVal.l2,
+        cargoL1: cargoVal.l1,
+        cargoL2: cargoVal.l2,
         qty: Number(qty),
         normal: normal,
         reason: normal ? '' : reason
@@ -198,6 +206,16 @@
         }
       }, 700);
     }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      if (typeof CargoCascade !== 'undefined') {
+        window.__lineCargo = CargoCascade.bindPair(
+          document.getElementById('fCargoL1'),
+          document.getElementById('fCargoL2'),
+          { entryMode: true, presetL2: '氧化钙' }
+        );
+      }
+    });
   </script>
 </body>
 </html>

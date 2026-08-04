@@ -1008,6 +1008,12 @@ document.querySelectorAll('#askChipsPreset .ask-chip').forEach(function(btn){
 });
 renderMyShortcuts();
 </script>
+<script src="../assets/cargo-cascade.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (window.CargoCascade) CargoCascade.upgradeLegacySelects(document);
+});
+</script>
 
 </body>
 </html>

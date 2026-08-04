@@ -97,37 +97,164 @@
           
 <div class="card p-5">
   <div class="flex flex-wrap gap-3 items-center">
-    <div class="flex gap-2 text-sm">
-      <button type="button" class="btn btn-brand px-4 py-2 tab-btn" data-tab="driver">司机</button>
-      <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 tab-btn" data-tab="cargo">货种</button>
-      <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 tab-btn" data-tab="remark">备注原因</button>
+    <div class="flex gap-2 text-sm" id="dictTabs">
+      <button type="button" class="btn btn-brand px-4 py-2 tab-btn" data-tab="driver" onclick="switchDictTab('driver')">司机</button>
+      <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 tab-btn" data-tab="cargo" onclick="switchDictTab('cargo')">货种</button>
+      <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 tab-btn" data-tab="abnormal" onclick="switchDictTab('abnormal')">异常原因</button>
     </div>
     <div class="flex-1"></div>
-    <a href="work-stat-dict-edit-modal-pc.html" class="btn btn-brand px-5 py-2 text-sm"><i class="fa-solid fa-plus mr-1"></i>新增字典项</a>
+    <a id="btnAddDict" href="work-stat-dict-edit-modal-pc.html?type=driver" class="btn btn-brand px-5 py-2 text-sm"><i class="fa-solid fa-plus mr-1"></i><span id="btnAddLabel">新增司机</span></a>
   </div>
+  <p id="tabHint" class="text-xs text-slate-500 mt-3">司机为扁平字典，可启停与编辑。</p>
 </div>
+
 <div class="card overflow-hidden">
-  <table class="min-w-full text-sm">
-    <thead class="bg-slate-50 text-slate-500 text-left"><tr><th class="px-4 py-3">名称</th><th class="px-4 py-3">类型</th><th class="px-4 py-3">状态</th><th class="px-4 py-3">操作</th></tr></thead>
-    <tbody id="dictBody">
-      <tr class="table-row border-t"><td class="px-4 py-3">涂峰</td><td class="px-4 py-3">司机</td><td class="px-4 py-3"><span class="badge badge-ok">启用</span></td><td class="px-4 py-3"><a class="text-teal-700" href="work-stat-dict-edit-modal-pc.html">编辑</a></td></tr>
-      <tr class="table-row border-t"><td class="px-4 py-3">陈迪政</td><td class="px-4 py-3">司机</td><td class="px-4 py-3"><span class="badge badge-ok">启用</span></td><td class="px-4 py-3"><a class="text-teal-700" href="work-stat-dict-edit-modal-pc.html">编辑</a></td></tr>
-      <tr class="table-row border-t"><td class="px-4 py-3">氧化钙</td><td class="px-4 py-3">货种</td><td class="px-4 py-3"><span class="badge badge-ok">启用</span></td><td class="px-4 py-3"><a class="text-teal-700" href="work-stat-dict-edit-modal-pc.html">编辑</a></td></tr>
-      <tr class="table-row border-t"><td class="px-4 py-3">氮磷肥</td><td class="px-4 py-3">货种</td><td class="px-4 py-3"><span class="badge badge-ok">启用</span></td><td class="px-4 py-3"><a class="text-teal-700" href="work-stat-dict-edit-modal-pc.html">编辑</a></td></tr>
-      <tr class="table-row border-t"><td class="px-4 py-3">停电/无生产作业</td><td class="px-4 py-3">备注原因</td><td class="px-4 py-3"><span class="badge badge-ok">启用</span></td><td class="px-4 py-3"><a class="text-teal-700" href="work-stat-dict-edit-modal-pc.html">编辑</a></td></tr>
-      <tr class="table-row border-t"><td class="px-4 py-3">车辆断档</td><td class="px-4 py-3">备注原因</td><td class="px-4 py-3"><span class="badge badge-draft">停用</span></td><td class="px-4 py-3"><a class="text-teal-700" href="work-stat-dict-edit-modal-pc.html">编辑</a></td></tr>
-    </tbody>
-  </table>
-  <div class="px-5 py-4 border-t text-sm text-slate-500">共 6 条 · 1 / 1</div>
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50 text-slate-500 text-left" id="dictHead"></thead>
+      <tbody id="dictBody"></tbody>
+    </table>
+  </div>
+  <div class="px-5 py-4 border-t text-sm text-slate-500" id="dictPager">共 0 条</div>
 </div>
+
 <script>
-document.querySelectorAll('.tab-btn').forEach(function(btn){
-  btn.addEventListener('click', function(){
-    document.querySelectorAll('.tab-btn').forEach(function(b){ b.className = 'btn border border-slate-200 bg-white px-4 py-2 tab-btn'; });
-    this.className = 'btn btn-brand px-4 py-2 tab-btn';
-    showToast('已切换：' + this.textContent.trim());
+var currentTab = 'driver';
+var DICT = {
+  driver: [
+    { id: 'd1', name: '涂峰', status: '启用' },
+    { id: 'd2', name: '陈迪政', status: '启用' },
+    { id: 'd3', name: '刘志显', status: '启用' },
+    { id: 'd4', name: '柯力', status: '停用' }
+  ],
+  abnormal: [
+    { id: 'a1', name: '停电/无生产作业', status: '启用' },
+    { id: 'a2', name: '吃饭休息', status: '启用' },
+    { id: 'a3', name: '车辆断档', status: '停用' },
+    { id: 'a4', name: '交接班', status: '启用' },
+    { id: 'a5', name: '避高温，暂停作业', status: '启用' },
+    { id: 'a6', name: '下雨，暂停作业', status: '启用' },
+    { id: 'a7', name: '完船', status: '启用' }
+  ],
+  /* 货种：先一级大类，再二级货种 */
+  cargo: [
+    {
+      id: 'c1', name: '吨包袋', status: '启用', open: true,
+      children: [
+        { id: 'c1-1', name: '磷肥', status: '启用' },
+        { id: 'c1-2', name: '工铵吨包', status: '启用' }
+      ]
+    },
+    {
+      id: 'c2', name: '散货', status: '启用', open: true,
+      children: [
+        { id: 'c2-1', name: '氧化钙', status: '启用' },
+        { id: 'c2-2', name: '氮磷肥', status: '启用' },
+        { id: 'c2-3', name: '硫矿', status: '停用' }
+      ]
+    }
+  ]
+};
+
+function statusBadge(s) {
+  return s === '启用'
+    ? '<span class="badge badge-ok">启用</span>'
+    : '<span class="badge badge-draft">停用</span>';
+}
+
+function switchDictTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('#dictTabs .tab-btn').forEach(function(b) {
+    var on = b.getAttribute('data-tab') === tab;
+    b.className = on
+      ? 'btn btn-brand px-4 py-2 tab-btn'
+      : 'btn border border-slate-200 bg-white px-4 py-2 tab-btn';
   });
-});
+  var hint = document.getElementById('tabHint');
+  var add = document.getElementById('btnAddDict');
+  var label = document.getElementById('btnAddLabel');
+  if (tab === 'driver') {
+    hint.textContent = '司机为扁平字典，可启停与编辑。';
+    add.href = 'work-stat-dict-edit-modal-pc.html?type=driver';
+    label.textContent = '新增司机';
+  } else if (tab === 'abnormal') {
+    hint.textContent = '异常原因为扁平字典（原「备注原因」已更名）。';
+    add.href = 'work-stat-dict-edit-modal-pc.html?type=abnormal';
+    label.textContent = '新增异常原因';
+  } else {
+    hint.textContent = '货种为二级树：先维护一级大类（如吨包袋），再在大类下新增二级货种（如磷肥）。';
+    add.href = 'work-stat-dict-edit-modal-pc.html?type=cargo_l1';
+    label.textContent = '新增一级货种';
+  }
+  renderDict();
+}
+
+function toggleCargo(id) {
+  DICT.cargo.forEach(function(g) {
+    if (g.id === id) g.open = !g.open;
+  });
+  renderDict();
+}
+
+function renderDict() {
+  var head = document.getElementById('dictHead');
+  var body = document.getElementById('dictBody');
+  var pager = document.getElementById('dictPager');
+  var html = '';
+  var count = 0;
+
+  if (currentTab === 'driver' || currentTab === 'abnormal') {
+    var typeName = currentTab === 'driver' ? '司机' : '异常原因';
+    var list = DICT[currentTab];
+    head.innerHTML = '<tr><th class="px-4 py-3">名称</th><th class="px-4 py-3">类型</th><th class="px-4 py-3">状态</th><th class="px-4 py-3">操作</th></tr>';
+    list.forEach(function(item) {
+      count++;
+      html += '<tr class="table-row border-t">' +
+        '<td class="px-4 py-3 font-medium">' + item.name + '</td>' +
+        '<td class="px-4 py-3">' + typeName + '</td>' +
+        '<td class="px-4 py-3">' + statusBadge(item.status) + '</td>' +
+        '<td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="work-stat-dict-edit-modal-pc.html?type=' + currentTab + '&id=' + item.id + '&name=' + encodeURIComponent(item.name) + '&status=' + encodeURIComponent(item.status) + '">编辑</a></td>' +
+      '</tr>';
+    });
+  } else {
+    head.innerHTML = '<tr><th class="px-4 py-3">名称</th><th class="px-4 py-3">层级</th><th class="px-4 py-3">状态</th><th class="px-4 py-3">操作</th></tr>';
+    DICT.cargo.forEach(function(g) {
+      count++;
+      var icon = g.open ? 'fa-chevron-down' : 'fa-chevron-right';
+      html += '<tr class="table-row border-t bg-slate-50/80">' +
+        '<td class="px-4 py-3">' +
+          '<button type="button" class="text-slate-500 mr-2 w-5" onclick="toggleCargo(\'' + g.id + '\')"><i class="fa-solid ' + icon + '"></i></button>' +
+          '<span class="font-medium">' + g.name + '</span>' +
+          '<span class="ml-2 text-[11px] text-slate-400">一级大类 · ' + (g.children ? g.children.length : 0) + ' 个二级</span>' +
+        '</td>' +
+        '<td class="px-4 py-3"><span class="badge bg-teal-50 text-teal-800">一级</span></td>' +
+        '<td class="px-4 py-3">' + statusBadge(g.status) + '</td>' +
+        '<td class="px-4 py-3 space-x-3">' +
+          '<a class="text-teal-700 hover:underline" href="work-stat-dict-edit-modal-pc.html?type=cargo_l1&id=' + g.id + '&name=' + encodeURIComponent(g.name) + '&status=' + encodeURIComponent(g.status) + '">编辑</a>' +
+          '<a class="text-teal-700 hover:underline" href="work-stat-dict-edit-modal-pc.html?type=cargo_l2&parent=' + g.id + '&parentName=' + encodeURIComponent(g.name) + '">新增二级</a>' +
+        '</td>' +
+      '</tr>';
+      if (g.open && g.children) {
+        g.children.forEach(function(c) {
+          count++;
+          html += '<tr class="table-row border-t">' +
+            '<td class="px-4 py-3 pl-12 text-slate-700">' +
+              '<span class="text-slate-300 mr-2">└</span>' + c.name +
+            '</td>' +
+            '<td class="px-4 py-3"><span class="badge bg-slate-100 text-slate-600">二级 · 隶属 ' + g.name + '</span></td>' +
+            '<td class="px-4 py-3">' + statusBadge(c.status) + '</td>' +
+            '<td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="work-stat-dict-edit-modal-pc.html?type=cargo_l2&id=' + c.id + '&parent=' + g.id + '&parentName=' + encodeURIComponent(g.name) + '&name=' + encodeURIComponent(c.name) + '&status=' + encodeURIComponent(c.status) + '">编辑</a></td>' +
+          '</tr>';
+        });
+      }
+    });
+  }
+
+  body.innerHTML = html || '<tr><td class="px-4 py-10 text-center text-slate-400" colspan="4">暂无数据</td></tr>';
+  pager.textContent = '共 ' + count + ' 条 · 1 / 1';
+}
+
+switchDictTab('driver');
 </script>
 
         </div>

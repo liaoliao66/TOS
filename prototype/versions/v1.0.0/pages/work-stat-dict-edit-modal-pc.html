@@ -4,89 +4,131 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>编辑字典项</title>
-  
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
-
-  
   <style>
     :root { --brand: #0f766e; --brand-hover: #0d9488; }
     body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
-    .sidebar { background: #1e293b; }
     .card { background: #fff; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-    .card-hover { transition: transform .2s ease, box-shadow .2s ease; }
-    .card-hover:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
     .btn { border-radius: 20px; transition: all .15s ease; }
     .btn:active { transform: scale(0.95); }
     .btn-brand { background: var(--brand); color: #fff; }
     .btn-brand:hover { background: var(--brand-hover); }
-    .table-row:hover { background: #f8fafc; }
-    .badge { border-radius: 999px; font-size: 12px; padding: 2px 10px; }
-    .badge-draft { background: #e2e8f0; color: #475569; }
-    .badge-pending { background: #fef3c7; color: #b45309; }
-    .badge-reject { background: #fee2e2; color: #b91c1c; }
-    .badge-ok { background: #d1fae5; color: #047857; }
-    .matrix-wrap { overflow: auto; max-height: calc(100vh - 280px); }
-    .matrix th, .matrix td { border: 1px solid #e2e8f0; padding: 6px 8px; font-size: 12px; vertical-align: top; }
-    .matrix th { background: #f1f5f9; position: sticky; top: 0; z-index: 2; }
-    .matrix .sticky-col { position: sticky; left: 0; background: #fff; z-index: 1; }
-    .matrix th.sticky-col { z-index: 3; background: #f1f5f9; }
     .toast { position: fixed; top: 24px; right: 24px; z-index: 80; min-width: 240px; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
     .modal-mask { background: rgba(15,23,42,0.45); }
     .fade-in { animation: fadeIn .2s ease; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
     input, select, textarea { font-size: 14px; }
   </style>
-
 </head>
 <body class="min-h-screen modal-mask flex items-center justify-center p-6">
   <div class="card fade-in w-full max-w-lg p-6" style="box-shadow:0 12px 40px rgba(0,0,0,0.12)">
     <div class="flex items-center justify-between mb-4">
-      <h2 class="text-lg font-semibold">编辑字典项</h2>
+      <h2 id="modalTitle" class="text-lg font-semibold">编辑字典项</h2>
       <a href="work-stat-dict-pc.html" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></a>
     </div>
-    
-<form class="space-y-4" onsubmit="event.preventDefault(); if(!this.name.value.trim()){showToast('名称不能为空','err');return;} showToast('字典已保存'); setTimeout(function(){location.href='work-stat-dict-pc.html';},700);">
-  <div>
-    <label class="block text-sm mb-1">类型</label>
-    <select class="w-full border border-slate-200 rounded-xl px-3 py-2"><option>司机</option><option>货种</option><option>备注原因</option></select>
-  </div>
-  <div>
-    <label class="block text-sm mb-1">名称</label>
-    <input name="name" class="w-full border border-slate-200 rounded-xl px-3 py-2" value="涂峰" required />
-  </div>
-  <div>
-    <label class="block text-sm mb-1">状态</label>
-    <select class="w-full border border-slate-200 rounded-xl px-3 py-2"><option>启用</option><option>停用</option></select>
-  </div>
-  <div class="flex justify-end gap-2">
-    <a href="work-stat-dict-pc.html" class="btn border border-slate-200 bg-white px-4 py-2 text-sm">取消</a>
-    <button class="btn btn-brand px-5 py-2 text-sm" type="submit">保存</button>
-  </div>
-</form>
 
+    <form class="space-y-4" onsubmit="return saveDict(event)">
+      <div>
+        <label class="block text-sm mb-1">类型</label>
+        <select id="fType" class="w-full border border-slate-200 rounded-xl px-3 py-2" onchange="onTypeChange()">
+          <option value="driver">司机（扁平）</option>
+          <option value="abnormal">异常原因（扁平）</option>
+          <option value="cargo_l1">货种 · 一级大类</option>
+          <option value="cargo_l2">货种 · 二级货种</option>
+        </select>
+      </div>
+      <div id="parentWrap" class="hidden">
+        <label class="block text-sm mb-1">隶属一级大类</label>
+        <select id="fParent" class="w-full border border-slate-200 rounded-xl px-3 py-2">
+          <option value="c1">吨袋</option>
+          <option value="c2">散货</option>
+        </select>
+        <p class="text-xs text-slate-400 mt-1">须先有一级大类，再维护二级货种。</p>
+      </div>
+      <div>
+        <label class="block text-sm mb-1" id="nameLabel">名称</label>
+        <input id="fName" name="name" class="w-full border border-slate-200 rounded-xl px-3 py-2" value="" required placeholder="请输入名称" />
+      </div>
+      <div>
+        <label class="block text-sm mb-1">状态</label>
+        <select id="fStatus" class="w-full border border-slate-200 rounded-xl px-3 py-2">
+          <option>启用</option>
+          <option>停用</option>
+        </select>
+      </div>
+      <div class="flex justify-end gap-2">
+        <a href="work-stat-dict-pc.html" class="btn border border-slate-200 bg-white px-4 py-2 text-sm">取消</a>
+        <button class="btn btn-brand px-5 py-2 text-sm" type="submit">保存</button>
+      </div>
+    </form>
   </div>
-  
-<script>
-function showToast(msg, type) {
-  type = type || 'ok';
-  var el = document.createElement('div');
-  el.className = 'toast fade-in px-4 py-3 text-sm text-white ' + (type === 'err' ? 'bg-red-500' : type === 'warn' ? 'bg-amber-500' : 'bg-emerald-500');
-  el.textContent = msg;
-  document.body.appendChild(el);
-  setTimeout(function(){ el.remove(); }, 2600);
-}
-function showLoading(on) {
-  var box = document.getElementById('globalLoading');
-  if (!box) return;
-  box.classList.toggle('hidden', !on);
-}
-function showNetError(on) {
-  var box = document.getElementById('netError');
-  if (!box) return;
-  box.classList.toggle('hidden', !on);
-}
-</script>
 
+  <script>
+    function showToast(msg, type) {
+      type = type || 'ok';
+      var el = document.createElement('div');
+      el.className = 'toast fade-in px-4 py-3 text-sm text-white ' + (type === 'err' ? 'bg-red-500' : 'bg-emerald-500');
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function(){ el.remove(); }, 2600);
+    }
+
+    function onTypeChange() {
+      var t = document.getElementById('fType').value;
+      var parentWrap = document.getElementById('parentWrap');
+      var title = document.getElementById('modalTitle');
+      var nameLabel = document.getElementById('nameLabel');
+      parentWrap.classList.toggle('hidden', t !== 'cargo_l2');
+      if (t === 'driver') { title.textContent = '编辑司机'; nameLabel.textContent = '司机姓名'; }
+      else if (t === 'abnormal') { title.textContent = '编辑异常原因'; nameLabel.textContent = '原因名称'; }
+      else if (t === 'cargo_l1') { title.textContent = '编辑货种 · 一级大类'; nameLabel.textContent = '一级名称（如：吨袋）'; }
+      else { title.textContent = '编辑货种 · 二级货种'; nameLabel.textContent = '二级名称（如：磷肥）'; }
+    }
+
+    function initFromQuery() {
+      var q = new URLSearchParams(window.location.search || '');
+      var type = q.get('type') || 'driver';
+      if (['driver','abnormal','cargo_l1','cargo_l2'].indexOf(type) < 0) type = 'driver';
+      document.getElementById('fType').value = type;
+      if (q.get('name')) document.getElementById('fName').value = q.get('name');
+      if (q.get('status')) document.getElementById('fStatus').value = q.get('status');
+      if (q.get('parent')) document.getElementById('fParent').value = q.get('parent');
+      if (q.get('parentName')) {
+        var sel = document.getElementById('fParent');
+        var found = false;
+        for (var i = 0; i < sel.options.length; i++) {
+          if (sel.options[i].value === q.get('parent')) { found = true; break; }
+        }
+        if (!found && q.get('parent')) {
+          var opt = document.createElement('option');
+          opt.value = q.get('parent');
+          opt.textContent = q.get('parentName');
+          sel.appendChild(opt);
+          sel.value = q.get('parent');
+        }
+      }
+      onTypeChange();
+      if (!q.get('id') && !q.get('name')) {
+        document.getElementById('modalTitle').textContent = document.getElementById('modalTitle').textContent.replace('编辑', '新增');
+      }
+    }
+
+    function saveDict(e) {
+      e.preventDefault();
+      var name = document.getElementById('fName').value.trim();
+      var type = document.getElementById('fType').value;
+      if (!name) { showToast('名称不能为空', 'err'); return false; }
+      if (type === 'cargo_l2' && !document.getElementById('fParent').value) {
+        showToast('请先选择隶属的一级大类', 'err');
+        return false;
+      }
+      showToast('字典已保存');
+      setTimeout(function(){ location.href = 'work-stat-dict-pc.html'; }, 700);
+      return false;
+    }
+
+    initFromQuery();
+  </script>
 </body>
 </html>

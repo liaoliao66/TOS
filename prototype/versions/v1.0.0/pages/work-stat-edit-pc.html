@@ -1054,5 +1054,11 @@ function toggleReason(sel){
   else { reason.classList.add('hidden'); reason.selectedIndex = 0; }
 }
 </script>
+<script src="../assets/cargo-cascade.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  if (window.CargoCascade) CargoCascade.upgradeLegacySelects(document);
+});
+</script>
 </body>
 </html>
