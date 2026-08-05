@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
   <title>武港联投 · 单机作业量统计 · v1.0.0 PRD</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
   <style>
     :root { --toc-w: 240px; }
@@ -761,7 +761,7 @@ flowchart LR
       startOnLoad: false,
       theme: "neutral",
       securityLevel: "loose",
-      flowchart: { htmlLabels: true, curve: "basis", padding: 12 }
+      flowchart: { htmlLabels: false, curve: "linear", padding: 16, useMaxWidth: true }
     });
 
     function slugify(text) {
@@ -792,67 +792,93 @@ flowchart LR
         .replace(/>/g, "&gt;");
     }
 
-    function promoteMermaidBlocks(root) {
-      root.querySelectorAll("pre code.language-mermaid, pre code.lang-mermaid").forEach((code) => {
-        const pre = code.closest("pre");
+    /* 先抽出 mermaid，彻底绕开 marked code 渲染差异 */
+    function extractMermaid(md) {
+      var blocks = [];
+      var out = md.replace(/```mermaid\s*\r?\n([\s\S]*?)```/g, function (_, code) {
+        var i = blocks.length;
+        blocks.push(String(code).trim());
+        return "\n\n@@MERMAID_" + i + "@@\n\n";
+      });
+      return { md: out, blocks: blocks };
+    }
+
+    function mermaidDivHtml(src) {
+      return (
+        '<div class="mermaid">' +
+        escapeHtml(src) +
+        "</div>"
+      );
+    }
+
+    function injectMermaidPlaceholders(html, blocks) {
+      html = html.replace(/<p>\s*@@MERMAID_(\d+)@@\s*<\/p>/g, function (_, idx) {
+        return mermaidDivHtml(blocks[Number(idx)] || "");
+      });
+      html = html.replace(/@@MERMAID_(\d+)@@/g, function (_, idx) {
+        return mermaidDivHtml(blocks[Number(idx)] || "");
+      });
+      return html;
+    }
+
+    function promoteFallbackCodeBlocks(root) {
+      root.querySelectorAll("pre > code").forEach(function (code) {
+        var text = (code.textContent || "").trim();
+        var lang = (code.className || "").toLowerCase();
+        var looksMermaid =
+          /language-mermaid|lang-mermaid/.test(lang) ||
+          /^(flowchart|graph|sequenceDiagram|stateDiagram|classDiagram|erDiagram|journey|gantt|pie)\b/.test(text);
+        if (!looksMermaid) return;
+        var pre = code.closest("pre");
         if (!pre) return;
-        const div = document.createElement("div");
+        var div = document.createElement("div");
         div.className = "mermaid";
-        div.textContent = code.textContent || "";
+        div.setAttribute("data-src", text);
+        div.textContent = text;
         pre.replaceWith(div);
       });
     }
 
-    async function render() {
-      const loading = document.getElementById("loading");
-      const content = document.getElementById("content");
-      const error = document.getElementById("error");
+    async function renderOneMermaid(el, index) {
+      /* textContent 会自动解码 HTML 实体，得到原始 mermaid 源码 */
+      var src = (el.textContent || "").trim();
+      if (!src) return;
+      el.removeAttribute("data-processed");
       try {
-        let md = document.getElementById("prd-embedded").textContent.trim();
+        var id = "prd-mmd-" + index + "-" + Date.now();
+        var result = await mermaid.render(id, src);
+        el.innerHTML = result.svg;
+        el.classList.add("mermaid-done");
+      } catch (diagramErr) {
+        var msg = diagramErr && diagramErr.message ? diagramErr.message : String(diagramErr);
+        el.innerHTML =
+          '<div style="color:#e11d48;font-size:13px;margin-bottom:8px;">本流程图渲染失败：' +
+          escapeHtml(msg) +
+          '</div><pre style="margin:0;white-space:pre-wrap;background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;font-size:12px;">' +
+          escapeHtml(src) +
+          "</pre>";
+      }
+    }
+
+    async function render() {
+      var loading = document.getElementById("loading");
+      var content = document.getElementById("content");
+      var error = document.getElementById("error");
+      try {
+        var md = document.getElementById("prd-embedded").textContent.trim();
         md = md.replace(/\n## 目录\n[\s\S]*?\n---\n/, "\n---\n");
 
-        /* marked v13+：renderer.code 接收 token 对象；兼容旧版多参数 */
-        marked.use({
-          gfm: true,
-          breaks: false,
-          renderer: {
-            code(token) {
-              let text = "";
-              let lang = "";
-              if (token && typeof token === "object" && "text" in token) {
-                text = token.text || "";
-                lang = String(token.lang || "").trim().split(/\s+/)[0] || "";
-              } else {
-                text = String(token || "");
-                lang = String(arguments[1] || "").trim().split(/\s+/)[0] || "";
-              }
-              if (lang === "mermaid") {
-                return '<div class="mermaid">' + escapeHtml(text) + "</div>\n";
-              }
-              return false;
-            }
-          }
-        });
+        var extracted = extractMermaid(md);
+        var html = marked.parse(extracted.md, { gfm: true, breaks: false });
+        html = injectMermaidPlaceholders(html, extracted.blocks);
+        content.innerHTML = html;
+        promoteFallbackCodeBlocks(content);
 
-        content.innerHTML = marked.parse(md);
-        promoteMermaidBlocks(content);
-        const diagrams = Array.from(content.querySelectorAll(".mermaid"));
-        for (const el of diagrams) {
-          const src = (el.textContent || "").trim();
-          el.setAttribute("data-src", src);
-          el.textContent = src;
-          try {
-            await mermaid.run({ nodes: [el] });
-          } catch (diagramErr) {
-            const msg = diagramErr && diagramErr.message ? diagramErr.message : String(diagramErr);
-            el.innerHTML =
-              '<div style="color:#e11d48;font-size:13px;margin-bottom:8px;">本流程图渲染失败：' +
-              escapeHtml(msg) +
-              "</div><pre style=\"margin:0;white-space:pre-wrap;background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;font-size:12px;\">" +
-              escapeHtml(src) +
-              "</pre>";
-          }
+        var diagrams = Array.from(content.querySelectorAll(".mermaid"));
+        for (var i = 0; i < diagrams.length; i++) {
+          await renderOneMermaid(diagrams[i], i);
         }
+
         buildToc(content);
         loading.classList.add("hidden");
         content.classList.remove("hidden");
