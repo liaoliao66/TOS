@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>日班单据 · 企微H5</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="../assets/abnormal-fill.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   <style>
     :root { --brand: #0f766e; --brand-hover: #0d9488; }
@@ -148,9 +149,9 @@
 
   <script>
     var DEMO_LINES = [
-      { slot: '08:00-09:00', berth: '5#泊位', machine: '1#门机', driver: '涂峰', cargo: '氧化钙', qty: 108.00, normal: true, reason: '' },
-      { slot: '08:00-09:00', berth: '6#泊位', machine: '2#门机', driver: '陈迪政', cargo: '氮磷肥', qty: 96.50, normal: true, reason: '' },
-      { slot: '09:00-10:00', berth: '5#泊位', machine: '1#门机', driver: '涂峰', cargo: '氧化钙', qty: 42.00, normal: false, reason: '避高温，暂停作业' }
+      { slot: '08:00-09:00', berth: '5#泊位', machine: '1#门机', driver: '涂峰', cargo: '氧化钙', qty: 108.00, normal: true, reason: '', abFrom: '', abTo: '', remark: '' },
+      { slot: '08:00-09:00', berth: '6#泊位', machine: '2#门机', driver: '陈迪政', cargo: '氮磷肥', qty: 96.50, normal: true, reason: '', abFrom: '', abTo: '', remark: '货损已核对' },
+      { slot: '09:00-10:00', berth: '5#泊位', machine: '1#门机', driver: '涂峰', cargo: '氧化钙', qty: 42.00, normal: false, reason: '避高温，暂停作业', abFrom: '09:10', abTo: '09:40', remark: '' }
     ];
 
     /* 其他已存在单据（不含当前单），用于编辑冲突校验 */
@@ -243,6 +244,8 @@
               : '<span class="badge" style="background:#fef3c7;color:#b45309">非正常</span>') +
           '</div>' +
           (!r.normal && r.reason ? '<div class="mt-1 text-xs text-amber-700">原因：' + r.reason + '</div>' : '') +
+          (!r.normal && r.abFrom && r.abTo ? '<div class="mt-1 text-xs text-amber-700">非正常时段：' + r.abFrom + '-' + r.abTo + '</div>' : '') +
+          (r.remark ? '<div class="mt-1 text-xs text-slate-500">备注：' + r.remark + '</div>' : '') +
           '<div class="mt-3 flex gap-3 text-xs">' +
             '<a href="work-stat-line-wecom.html?edit=' + i + '" class="text-teal-700">编辑</a>' +
             '<button type="button" class="text-rose-600" onclick="removeLine(' + i + ')">删除本条</button>' +
@@ -268,9 +271,25 @@
         showToast('请至少添加一条作业明细后再提交', 'err');
         return;
       }
-      var bad = DEMO_LINES.some(function(r){ return !r.normal && !r.reason; });
-      if (bad) {
-        showToast('存在非正常未选原因的明细，请先补全', 'err');
+      var err = '';
+      DEMO_LINES.some(function(r) {
+        if (r.normal) return false;
+        if (!r.reason) { err = '存在非正常未选原因的明细，请先补全'; return true; }
+        if (typeof AbnormalFill !== 'undefined') {
+          var perr = AbnormalFill.validatePeriod(r.slot, r.abFrom, r.abTo);
+          if (perr) { err = perr; return true; }
+        } else if (!r.abFrom || !r.abTo) {
+          err = '非正常须填写非正常时段（开始/结束）';
+          return true;
+        }
+        if (r.reason === '其他' && !String(r.remark || '').trim()) {
+          err = '选择「其他」时必须填写备注';
+          return true;
+        }
+        return false;
+      });
+      if (err) {
+        showToast(err, 'err');
         return;
       }
       showToast('已提交审核，审批由平台处理');

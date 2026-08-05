@@ -6,6 +6,7 @@
   <title>添加一条作业 · 企微H5</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../assets/abnormal-fill.js"></script>
   <script src="../assets/cargo-cascade.js"></script>
   <style>
     :root { --brand: #0f766e; --brand-hover: #0d9488; }
@@ -112,7 +113,7 @@
             </div>
             <div class="field hidden" id="reasonWrap">
               <label>非正常原因</label>
-              <select id="fReason">
+              <select id="fReason" onchange="onReasonChangeLine()">
                 <option value="">请选择原因</option>
                 <option>停电/无生产作业</option>
                 <option>吃饭休息</option>
@@ -121,7 +122,22 @@
                 <option>避高温，暂停作业</option>
                 <option>下雨，暂停作业</option>
                 <option>完船</option>
+                <option>设备异常</option>
+                <option>其他</option>
               </select>
+            </div>
+            <div class="field hidden" id="periodWrap">
+              <label>非正常时段</label>
+              <div class="flex items-center gap-2">
+                <input id="fAbFrom" type="time" />
+                <span class="text-slate-400 text-sm">至</span>
+                <input id="fAbTo" type="time" />
+              </div>
+              <div class="mt-1 text-[11px] text-slate-400">须落在所选作业时段内</div>
+            </div>
+            <div class="field">
+              <label>备注</label>
+              <input id="fRemark" type="text" placeholder="备注（选填）" value="" />
             </div>
           </div>
 
@@ -159,22 +175,53 @@
       var berth = document.getElementById('fBerth').value;
       document.getElementById('fMachine').value = berth.indexOf('6') >= 0 ? '2#门机' : '1#门机';
     }
+    function syncRemarkHint() {
+      var reason = document.getElementById('fReason').value;
+      var remark = document.getElementById('fRemark');
+      var need = document.getElementById('fNormal').value === 'no' && reason === '其他';
+      remark.placeholder = need ? '选「其他」时必填备注' : '备注（选填）';
+      remark.style.boxShadow = need ? '0 0 0 1px #fbbf24' : '';
+    }
+    function onReasonChangeLine() {
+      syncRemarkHint();
+    }
     function toggleReason() {
       var no = document.getElementById('fNormal').value === 'no';
       document.getElementById('reasonWrap').classList.toggle('hidden', !no);
-      if (!no) document.getElementById('fReason').value = '';
+      document.getElementById('periodWrap').classList.toggle('hidden', !no);
+      if (!no) {
+        document.getElementById('fReason').value = '';
+        document.getElementById('fAbFrom').value = '';
+        document.getElementById('fAbTo').value = '';
+      }
+      syncRemarkHint();
     }
     function saveLine(continueAdd) {
       var normal = document.getElementById('fNormal').value === 'yes';
       var reason = document.getElementById('fReason').value;
       var qty = document.getElementById('fQty').value;
+      var abFrom = document.getElementById('fAbFrom').value;
+      var abTo = document.getElementById('fAbTo').value;
+      var remark = String(document.getElementById('fRemark').value || '').trim();
+      var slot = document.getElementById('fSlot').value;
       if (qty === '' || Number(qty) < 0) {
         showToast('请填写有效作业量', 'err');
         return;
       }
-      if (!normal && !reason) {
-        showToast('非正常作业须选择原因', 'err');
-        return;
+      if (!normal) {
+        if (!reason) {
+          showToast('非正常作业须选择原因', 'err');
+          return;
+        }
+        var perr = AbnormalFill.validatePeriod(slot, abFrom, abTo);
+        if (perr) {
+          showToast(perr, 'err');
+          return;
+        }
+        if (reason === '其他' && !remark) {
+          showToast('选择「其他」时必须填写备注', 'err');
+          return;
+        }
       }
       var cargoVal = (window.__lineCargo && window.__lineCargo.getValue()) || {};
       if (!cargoVal.l1 || !cargoVal.l2) {
@@ -182,7 +229,7 @@
         return;
       }
       var line = {
-        slot: document.getElementById('fSlot').value,
+        slot: slot,
         berth: document.getElementById('fBerth').value,
         machine: document.getElementById('fMachine').value,
         driver: document.getElementById('fDriver').value,
@@ -191,7 +238,10 @@
         cargoL2: cargoVal.l2,
         qty: Number(qty),
         normal: normal,
-        reason: normal ? '' : reason
+        reason: normal ? '' : reason,
+        abFrom: normal ? '' : abFrom,
+        abTo: normal ? '' : abTo,
+        remark: remark
       };
       try { sessionStorage.setItem('wecomNewLine', JSON.stringify(line)); } catch (e) {}
       showToast('本条已保存');
@@ -199,6 +249,7 @@
         if (continueAdd) {
           document.getElementById('fQty').value = '';
           document.getElementById('fNormal').value = 'yes';
+          document.getElementById('fRemark').value = '';
           toggleReason();
           showToast('可继续填写下一条');
         } else {
