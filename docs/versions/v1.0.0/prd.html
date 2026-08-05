@@ -6,7 +6,7 @@
   <title>武港联投 · 单机作业量统计 · v1.0.0 PRD</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
   <style>
     :root { --toc-w: 240px; }
     body {
@@ -78,7 +78,7 @@
     <div class="prd-main" style="padding-top:12px;padding-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
       <div>
         <div class="text-sm font-semibold text-slate-900">武港联投 · 每日每班单机作业量统计 · 产品 PRD</div>
-        <div class="text-xs text-slate-500 mt-0.5">版本 v1.0.0 · 更新日期 2026-08-04 · 本地预览与 GitHub Pages 阅读页</div>
+        <div class="text-xs text-slate-500 mt-0.5">版本 v1.0.0 · 更新日期 2026-08-05 · 本地预览与 GitHub Pages 阅读页</div>
       </div>
       <div class="flex items-center gap-2">
         <a href="../../../prototype/index.html" class="text-xs px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 no-underline">返回总入口</a>
@@ -236,35 +236,33 @@
 
 ```mermaid
 flowchart TD
-    A[统一登录] --> B{终端}
-    B -->|PC/企微| C[日班填报含是否正常作业]
+    A[统一登录] --> B{终端选择}
+    B -->|PC或企微| C[日班填报含是否正常作业]
     C --> D[提交发起平台审批]
     D -->|通过| E[单据已通过锁定]
     D -->|驳回| C
-    E --> F[作业效率分析-司机效率]
-    E --> G[作业总量统计Tab]
-    E --> I[日班明细Tab]
+    E --> F[作业效率分析司机效率]
+    E --> G[作业总量统计]
+    E --> I[日班明细]
     E --> H[智能问数]
-    B -->|PC| F
-    B -->|PC| H
 ```
 
-**文字解读：** 填报（含条件标记）→ 平台审批 → 已通过数据进入效率分析（司机效率 / 作业总量 / 日班明细）与问数；企微侧重填报发起，分析在 PC。
+**文字解读：** 填报（含条件标记）→ 平台审批 → 已通过数据进入效率分析（司机效率 / 作业总量 / 日班明细）与问数；企微侧重填报发起，分析与问数在 PC（PC 亦可从菜单直达效率分析与问数）。
 
 ### 4.2 子流程：正常/非正常填报
 
 ```mermaid
 flowchart TD
-    A[选择时段×机械位] --> B{是否正常作业}
-    B -->|是| C[可填货种与作业量·备注选填]
+    A[选择时段与机械位] --> B{是否正常作业}
+    B -->|是| C[填货种作业量备注选填]
     B -->|否| D[必选非正常原因]
-    D --> D1[必填非正常时段·须落在本行时段内]
+    D --> D1[必填非正常时段须落在本行时段内]
     D1 --> D2{原因是否其他}
     D2 -->|是| D3[备注必填]
     D2 -->|否| E[备注选填]
-    D3 --> E
-    E --> F[作业量仍可编辑]
-    F --> G[参与汇总与效率/总量统计]
+    D3 --> F[作业量仍可编辑]
+    E --> F
+    F --> G[参与汇总与效率总量统计]
     C --> G
 ```
 
@@ -274,33 +272,37 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-    L[填报列表PC/企微] --> E[填报编辑]
+    L[填报列表PC或企微] --> E[填报编辑]
     L --> V[填报只读]
-    F[作业效率分析] --> T1[司机效率Tab]
-    F --> T2[作业总量统计Tab]
-    F --> T3[日班明细Tab]
+    F[作业效率分析] --> T1[司机效率]
+    F --> T2[作业总量统计]
+    F --> T3[日班明细]
     T1 --> V
     T2 --> V
     T3 --> V
     F --> A[智能问数]
     L --> A
     FAB[全局问数悬浮] --> A
-    M[泊位机械配置PC]
-    D[字典管理PC]
+    M[泊位机械配置] --> L
+    D[字典管理] --> E
 ```
 
 ### 4.4 填报单状态机
 
 ```mermaid
 stateDiagram-v2
-    [*] --> 草稿: 新建并保存
-    草稿 --> 草稿: 再次保存
-    草稿 --> 审批中: 提交发起
-    审批中 --> 已通过: 平台审批通过
-    审批中 --> 已驳回: 平台审批驳回
-    已驳回 --> 草稿: 修改后保存
-    已驳回 --> 审批中: 再次提交
-    已通过 --> [*]
+    [*] --> draft: 新建并保存
+    draft --> draft: 再次保存
+    draft --> reviewing: 提交发起
+    reviewing --> approved: 平台审批通过
+    reviewing --> rejected: 平台审批驳回
+    rejected --> draft: 修改后保存
+    rejected --> reviewing: 再次提交
+    approved --> [*]
+    draft: 草稿
+    reviewing: 审批中
+    approved: 已通过
+    rejected: 已驳回
 ```
 
 **说明：** 效率分析与问数仅消费「已通过」。审批操作由平台承接，本版原型不交付审批页。
@@ -755,7 +757,12 @@ flowchart LR
   </script>
 
   <script>
-    mermaid.initialize({ startOnLoad: false, theme: "neutral", securityLevel: "loose" });
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: "neutral",
+      securityLevel: "loose",
+      flowchart: { htmlLabels: true, curve: "basis", padding: 12 }
+    });
 
     function slugify(text) {
       return String(text)
@@ -778,6 +785,24 @@ flowchart LR
       });
     }
 
+    function escapeHtml(s) {
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+    }
+
+    function promoteMermaidBlocks(root) {
+      root.querySelectorAll("pre code.language-mermaid, pre code.lang-mermaid").forEach((code) => {
+        const pre = code.closest("pre");
+        if (!pre) return;
+        const div = document.createElement("div");
+        div.className = "mermaid";
+        div.textContent = code.textContent || "";
+        pre.replaceWith(div);
+      });
+    }
+
     async function render() {
       const loading = document.getElementById("loading");
       const content = document.getElementById("content");
@@ -785,19 +810,49 @@ flowchart LR
       try {
         let md = document.getElementById("prd-embedded").textContent.trim();
         md = md.replace(/\n## 目录\n[\s\S]*?\n---\n/, "\n---\n");
-        const renderer = new marked.Renderer();
-        const originCode = renderer.code.bind(renderer);
-        renderer.code = function (code, infostring, escaped) {
-          const lang = (infostring || "").trim();
-          if (lang === "mermaid") {
-            return '<div class="mermaid">' + code.replace(/</g, "&lt;") + "</div>";
+
+        /* marked v13+：renderer.code 接收 token 对象；兼容旧版多参数 */
+        marked.use({
+          gfm: true,
+          breaks: false,
+          renderer: {
+            code(token) {
+              let text = "";
+              let lang = "";
+              if (token && typeof token === "object" && "text" in token) {
+                text = token.text || "";
+                lang = String(token.lang || "").trim().split(/\s+/)[0] || "";
+              } else {
+                text = String(token || "");
+                lang = String(arguments[1] || "").trim().split(/\s+/)[0] || "";
+              }
+              if (lang === "mermaid") {
+                return '<div class="mermaid">' + escapeHtml(text) + "</div>\n";
+              }
+              return false;
+            }
           }
-          return originCode(code, infostring, escaped);
-        };
-        marked.setOptions({ renderer, gfm: true, breaks: false });
+        });
+
         content.innerHTML = marked.parse(md);
-        content.querySelectorAll(".mermaid").forEach((el) => { el.innerHTML = el.textContent; });
-        await mermaid.run({ nodes: content.querySelectorAll(".mermaid") });
+        promoteMermaidBlocks(content);
+        const diagrams = Array.from(content.querySelectorAll(".mermaid"));
+        for (const el of diagrams) {
+          const src = (el.textContent || "").trim();
+          el.setAttribute("data-src", src);
+          el.textContent = src;
+          try {
+            await mermaid.run({ nodes: [el] });
+          } catch (diagramErr) {
+            const msg = diagramErr && diagramErr.message ? diagramErr.message : String(diagramErr);
+            el.innerHTML =
+              '<div style="color:#e11d48;font-size:13px;margin-bottom:8px;">本流程图渲染失败：' +
+              escapeHtml(msg) +
+              "</div><pre style=\"margin:0;white-space:pre-wrap;background:#0f172a;color:#e2e8f0;padding:12px;border-radius:8px;font-size:12px;\">" +
+              escapeHtml(src) +
+              "</pre>";
+          }
+        }
         buildToc(content);
         loading.classList.add("hidden");
         content.classList.remove("hidden");
