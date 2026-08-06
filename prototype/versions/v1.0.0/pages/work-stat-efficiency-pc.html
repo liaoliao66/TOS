@@ -22,8 +22,6 @@
     .table-row:hover { background: #f8fafc; }
     .badge { border-radius: 999px; font-size: 12px; padding: 2px 10px; }
     .badge-ok { background: #d1fae5; color: #047857; }
-    .tab-btn { border-radius: 999px; padding: 8px 18px; font-size: 14px; color: #64748b; background: #f1f5f9; }
-    .tab-btn.active { background: #0f766e; color: #fff; }
     .toast { position: fixed; top: 24px; right: 24px; z-index: 80; min-width: 240px; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
     .fade-in { animation: fadeIn .2s ease; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
@@ -66,6 +64,59 @@
     .ms-item:hover { background: #f8fafc; }
     .ms-actions { display: flex; gap: 8px; padding: 6px 8px 4px; border-bottom: 1px solid #f1f5f9; margin-bottom: 4px; }
     .ms-actions button { font-size: 12px; color: #0f766e; background: none; border: 0; cursor: pointer; padding: 0; }
+    /* 产量结构分析 · 四图合一 */
+    .structure-panel {
+      background: #fff;
+      border-radius: 24px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      border: 1px solid #e2e8f0;
+      overflow: hidden;
+    }
+    .structure-panel__head {
+      background: linear-gradient(135deg, #f8fafc 0%, #f0fdfa 55%, #f8fafc 100%);
+      border-bottom: 1px solid #e2e8f0;
+      padding: 18px 20px;
+    }
+    .structure-panel__badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
+      color: #0f766e; background: #ccfbf1; border: 1px solid #99f6e4;
+      border-radius: 999px; padding: 3px 10px;
+    }
+    .structure-tile {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 18px;
+      padding: 16px;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    .structure-tile:hover {
+      border-color: #99f6e4;
+      box-shadow: 0 6px 18px rgba(15, 118, 110, 0.06);
+    }
+    .structure-tile__title {
+      font-size: 13px; font-weight: 600; color: #0f172a;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .structure-tile__title i { color: #0f766e; width: 1rem; text-align: center; }
+    .structure-tile__desc { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+    .structure-date {
+      border: 1px solid #e2e8f0; border-radius: 12px;
+      padding: 7px 10px; font-size: 13px; background: #fff; color: #334155;
+    }
+    .structure-date:focus {
+      outline: none; border-color: #0f766e; box-shadow: 0 0 0 3px rgba(15,118,110,0.12);
+    }
+    .structure-link-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; color: #0f766e; background: #f0fdfa;
+      border: 1px solid #99f6e4; border-radius: 999px; padding: 2px 10px;
+    }
+    .structure-link-chip button {
+      border: 0; background: none; color: #64748b; cursor: pointer; padding: 0; line-height: 1;
+    }
+    .structure-link-chip button:hover { color: #0f766e; }
+    #cargoRankChart, #shiftRatioChart, #normalAbnormalChart, #abnormalTypeChart { cursor: pointer; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen">
@@ -76,12 +127,7 @@
         <div class="text-lg font-semibold leading-snug">单机作业量统计</div>
         <div class="mt-2 text-xs text-slate-400">v1.0.0 · 录入 · 效率分析 · 问数</div>
       </div>
-      <nav class="p-3 space-y-1 flex-1">
-        <a href="work-stat-efficiency-pc.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm bg-slate-700 text-white"><i class="fa-solid fa-gauge-high w-5 text-center"></i><span>作业效率分析</span></a>
-        <a href="work-stat-list-pc.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-300 hover:bg-slate-700 hover:text-white"><i class="fa-solid fa-table-list w-5 text-center"></i><span>作业填报列表</span></a>
-        <a href="work-stat-berth-machine-pc.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-300 hover:bg-slate-700 hover:text-white"><i class="fa-solid fa-anchor w-5 text-center"></i><span>泊位机械配置</span></a>
-        <a href="work-stat-dict-pc.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-300 hover:bg-slate-700 hover:text-white"><i class="fa-solid fa-book w-5 text-center"></i><span>字典管理</span></a>
-      </nav>
+      <nav id="pcSidebarNav" class="p-3 flex-1 overflow-y-auto" data-active="efficiency-master"></nav>
       <div class="p-4 text-xs text-slate-500 border-t border-slate-700">
         <a href="../index.html" class="hover:text-slate-300">返回版本入口</a>
       </div>
@@ -89,8 +135,8 @@
     <div class="flex-1 min-w-0 flex flex-col">
       <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
         <div>
-          <h1 class="text-lg font-semibold">作业效率分析</h1>
-          <p class="text-xs text-slate-500">版本 v1.0.0 · 仅已通过数据 · 考核司机单位时间作业量（吨/小时）</p>
+          <h1 class="text-lg font-semibold" id="pageTitle">司机效率</h1>
+          <p class="text-xs text-slate-500" id="pageSub">作业效率分析 · 仅已通过数据</p>
         </div>
         <div class="flex items-center gap-3">
           <button type="button" class="btn btn-brand px-4 py-2 text-sm" onclick="openAsk('氧化钙司机效率排名')"><i class="fa-solid fa-comments mr-1"></i>智能问数</button>
@@ -99,22 +145,17 @@
       </header>
       <main class="flex-1 p-6 overflow-auto">
         <div class="max-w-7xl mx-auto space-y-5">
-          <!-- 页签在筛选栏顶部 -->
-          <div class="flex flex-wrap gap-2">
-            <button type="button" id="tabMaster" class="tab-btn active" onclick="switchTab('master')">司机效率</button>
-            <button type="button" id="tabVolume" class="tab-btn" onclick="switchTab('volume')">作业总量统计</button>
-            <button type="button" id="tabDaily" class="tab-btn" onclick="switchTab('daily')">日班明细</button>
-          </div>
-
-          <div class="card p-5">
+          <div class="card p-5" id="topFilterCard">
             <div class="flex flex-wrap gap-3 items-end">
-              <div>
-                <label class="block text-xs text-slate-500 mb-1">开班日（起）</label>
-                <input id="filterDateFrom" type="date" value="2026-07-21" class="border border-slate-200 rounded-xl px-3 py-2" />
-              </div>
-              <div>
-                <label class="block text-xs text-slate-500 mb-1">开班日（止）</label>
-                <input id="filterDateTo" type="date" value="2026-07-29" class="border border-slate-200 rounded-xl px-3 py-2" />
+              <div id="dateFilterWrap" class="flex flex-wrap gap-3 items-end">
+                <div>
+                  <label class="block text-xs text-slate-500 mb-1">开班日（起）</label>
+                  <input id="filterDateFrom" type="date" value="2026-07-21" class="border border-slate-200 rounded-xl px-3 py-2" />
+                </div>
+                <div>
+                  <label class="block text-xs text-slate-500 mb-1">开班日（止）</label>
+                  <input id="filterDateTo" type="date" value="2026-07-29" class="border border-slate-200 rounded-xl px-3 py-2" />
+                </div>
               </div>
               <div id="shiftFilterWrap">
                 <label class="block text-xs text-slate-500 mb-1">班次</label>
@@ -223,32 +264,69 @@
 
           <!-- 作业总量统计（领导总览） -->
           <div id="panelVolume" class="hidden space-y-5">
-            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <div class="card card-hover p-4">
-                <div class="text-xs text-slate-500">本范围总产量(吨)</div>
-                <div class="text-xl font-semibold mt-1 tabular-nums text-teal-800">19,920.00</div>
-              </div>
-              <div class="card card-hover p-4">
-                <div class="text-xs text-slate-500">日均产量(吨)</div>
-                <div class="text-xl font-semibold mt-1 tabular-nums">2,213.33</div>
-              </div>
-              <div class="card card-hover p-4">
-                <div class="text-xs text-slate-500">作业天数</div>
-                <div class="text-xl font-semibold mt-1 tabular-nums">9</div>
-              </div>
-              <div class="card card-hover p-4">
-                <div class="text-xs text-slate-500">环比（示意）</div>
-                <div class="text-xl font-semibold mt-1 tabular-nums text-emerald-600">+6.8%</div>
+            <!-- KPI：年/季/月/周/日 · 相对今天 · 全货种 · 环比=上一完整自然周期 · 周=周一至周日 -->
+            <div>
+              <p class="text-xs text-slate-500 mb-2">周期产量 KPI · 相对今天 · 全货种 · 不受下方货种筛选影响 · 环比对比上一完整自然周期</p>
+              <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                <div class="card card-hover p-4">
+                  <div class="text-xs text-slate-500">年总产量(吨)</div>
+                  <div class="text-xl font-semibold mt-1 tabular-nums text-teal-800">1,286,420.00</div>
+                  <div class="mt-2 flex items-center justify-between gap-2">
+                    <span class="text-xs text-slate-400">环比上年</span>
+                    <span class="text-sm font-medium tabular-nums text-emerald-600">+8.2%</span>
+                  </div>
+                </div>
+                <div class="card card-hover p-4">
+                  <div class="text-xs text-slate-500">季总产量(吨)</div>
+                  <div class="text-xl font-semibold mt-1 tabular-nums text-teal-800">312,680.00</div>
+                  <div class="mt-2 flex items-center justify-between gap-2">
+                    <span class="text-xs text-slate-400">环比上季</span>
+                    <span class="text-sm font-medium tabular-nums text-emerald-600">+3.5%</span>
+                  </div>
+                </div>
+                <div class="card card-hover p-4">
+                  <div class="text-xs text-slate-500">月总产量(吨)</div>
+                  <div class="text-xl font-semibold mt-1 tabular-nums text-teal-800">98,560.00</div>
+                  <div class="mt-2 flex items-center justify-between gap-2">
+                    <span class="text-xs text-slate-400">环比上月</span>
+                    <span class="text-sm font-medium tabular-nums text-rose-600">-2.1%</span>
+                  </div>
+                </div>
+                <div class="card card-hover p-4">
+                  <div class="text-xs text-slate-500">周总产量(吨)</div>
+                  <div class="text-xl font-semibold mt-1 tabular-nums text-teal-800">24,180.00</div>
+                  <div class="mt-2 flex items-center justify-between gap-2">
+                    <span class="text-xs text-slate-400">环比上周</span>
+                    <span class="text-sm font-medium tabular-nums text-emerald-600">+5.4%</span>
+                  </div>
+                </div>
+                <div class="card card-hover p-4">
+                  <div class="text-xs text-slate-500">日总产量(吨)</div>
+                  <div class="text-xl font-semibold mt-1 tabular-nums text-teal-800">3,860.00</div>
+                  <div class="mt-2 flex items-center justify-between gap-2">
+                    <span class="text-xs text-slate-400">环比上日</span>
+                    <span class="text-sm font-medium tabular-nums text-slate-500">0.0%</span>
+                  </div>
+                </div>
               </div>
             </div>
 
             <div class="card p-5">
               <div class="flex flex-wrap items-start justify-between gap-3 mb-1">
                 <div>
-                  <div class="text-sm font-medium" id="volumeTrendTitle">总量日趋势（折线）</div>
-                  <p class="text-xs text-slate-500 mt-1" id="volumeTrendHint">货种=全部：每日各货种总量；货种=单选：该货种白班/夜班日产量</p>
+                  <div class="text-sm font-medium" id="volumeTrendTitle">总量趋势（折线）</div>
+                  <p class="text-xs text-slate-500 mt-1" id="volumeTrendHint">时间范围与下方「产量结构分析」共用；坐标轴可按月/周/日/班切换；班维度横轴示例：07-21-白、07-21-黑</p>
                 </div>
                 <div class="shrink-0 flex flex-wrap gap-2 items-end">
+                  <div>
+                    <label class="block text-xs text-slate-500 mb-1">坐标轴单位</label>
+                    <select id="volumeTrendAxisUnit" class="border border-slate-200 rounded-xl px-3 py-2 text-sm" onchange="onVolumeTrendCargoChange()">
+                      <option value="month">月</option>
+                      <option value="week">周</option>
+                      <option value="day" selected>日</option>
+                      <option value="shift">班</option>
+                    </select>
+                  </div>
                   <div>
                     <label class="block text-xs text-slate-500 mb-1">货种一级</label>
                     <select id="volumeTrendCargoL1" class="border border-slate-200 rounded-xl px-3 py-2 text-sm"></select>
@@ -264,37 +342,73 @@
               </div>
             </div>
 
-            <div class="card p-5">
-              <div class="text-sm font-medium">货种作业量排行榜</div>
-              <p class="text-xs text-slate-500 mt-1 mb-3">柱状堆积：白班 + 夜班 · 按总产量排序 · 独占整行</p>
-              <div class="relative h-72">
-                <canvas id="cargoRankChart"></canvas>
+            <!-- 四图合一：货种排行 + 白夜/正常异常/异常类型占比 -->
+            <section class="structure-panel" aria-label="产量结构分析">
+              <div class="structure-panel__head">
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                  <div class="min-w-0">
+                    <div class="flex flex-wrap items-center gap-2 mb-1.5">
+                      <span class="structure-panel__badge"><i class="fa-solid fa-chart-pie"></i>结构分析</span>
+                      <span class="text-[11px] text-slate-400">四图共用时间范围 · 点击图表可联动筛选</span>
+                    </div>
+                    <h2 class="text-base font-semibold text-slate-800">产量结构分析</h2>
+                    <p class="text-xs text-slate-500 mt-1" id="cargoRankHint">货种排行 · 白夜占比 · 正常/异常占比 · 异常类型占比 · 默认全部数据开班日起止</p>
+                    <div id="structureLinkBar" class="mt-2 hidden flex flex-wrap items-center gap-2">
+                      <span class="text-[11px] text-slate-400">当前联动：</span>
+                      <span id="structureLinkChips" class="flex flex-wrap gap-1.5"></span>
+                      <button type="button" class="text-[11px] text-teal-700 hover:underline ml-1" onclick="clearStructureLink()">清除筛选</button>
+                    </div>
+                  </div>
+                  <div class="flex flex-wrap items-end gap-2 shrink-0 bg-white/80 border border-slate-200 rounded-2xl px-3 py-2.5 shadow-sm">
+                    <div>
+                      <label class="block text-[11px] text-slate-500 mb-1">时间范围（起）</label>
+                      <input id="volumeSharedDateFrom" type="date" value="2026-07-21" class="structure-date" onchange="onVolumeSharedRangeChange()" />
+                    </div>
+                    <div class="text-slate-300 pb-2 hidden sm:block">—</div>
+                    <div>
+                      <label class="block text-[11px] text-slate-500 mb-1">时间范围（止）</label>
+                      <input id="volumeSharedDateTo" type="date" value="2026-07-29" class="structure-date" onchange="onVolumeSharedRangeChange()" />
+                    </div>
+                  </div>
+                </div>
               </div>
-            </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-              <div class="card p-5">
-                <div class="text-sm font-medium">白班 / 夜班占比</div>
-                <p class="text-xs text-slate-500 mt-1 mb-3">按产量（吨）· 环形图</p>
-                <div class="relative h-56">
-                  <canvas id="shiftRatioChart"></canvas>
+              <div class="p-4 sm:p-5 space-y-4">
+                <div class="structure-tile">
+                  <div class="mb-3">
+                    <div class="structure-tile__title"><i class="fa-solid fa-ranking-star"></i>货种作业量排行榜</div>
+                    <p class="structure-tile__desc">点击柱体筛选货种；点白班/夜班堆段可同时锁定班次 · 再次点击取消</p>
+                  </div>
+                  <div class="relative h-72 bg-white rounded-2xl border border-slate-100 px-2 py-3">
+                    <canvas id="cargoRankChart"></canvas>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  <div class="structure-tile">
+                    <div class="structure-tile__title"><i class="fa-solid fa-moon"></i>白班 / 夜班占比</div>
+                    <p class="structure-tile__desc mb-3">点击扇区联动筛选班次</p>
+                    <div class="relative h-56 bg-white rounded-2xl border border-slate-100 px-2 py-2">
+                      <canvas id="shiftRatioChart"></canvas>
+                    </div>
+                  </div>
+                  <div class="structure-tile">
+                    <div class="structure-tile__title"><i class="fa-solid fa-circle-check"></i>正常 / 异常占比</div>
+                    <p class="structure-tile__desc mb-3">点击扇区联动筛选作业状态</p>
+                    <div class="relative h-56 bg-white rounded-2xl border border-slate-100 px-2 py-2">
+                      <canvas id="normalAbnormalChart"></canvas>
+                    </div>
+                  </div>
+                  <div class="structure-tile">
+                    <div class="structure-tile__title"><i class="fa-solid fa-triangle-exclamation"></i>异常类型占比</div>
+                    <p class="structure-tile__desc mb-3">点击扇区联动筛选异常原因</p>
+                    <div class="relative h-56 bg-white rounded-2xl border border-slate-100 px-2 py-2">
+                      <canvas id="abnormalTypeChart"></canvas>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div class="card p-5">
-                <div class="text-sm font-medium">正常 / 异常占比</div>
-                <p class="text-xs text-slate-500 mt-1 mb-3">按产量（吨）· 环形图</p>
-                <div class="relative h-56">
-                  <canvas id="normalAbnormalChart"></canvas>
-                </div>
-              </div>
-              <div class="card p-5">
-                <div class="text-sm font-medium">异常类型占比</div>
-                <p class="text-xs text-slate-500 mt-1 mb-3">按产量（吨）· 字典异常原因</p>
-                <div class="relative h-56">
-                  <canvas id="abnormalTypeChart"></canvas>
-                </div>
-              </div>
-            </div>
+            </section>
 
             <div class="card overflow-hidden">
               <div class="px-5 py-4 border-b flex flex-wrap items-center justify-between gap-3">
@@ -442,6 +556,10 @@
       document.getElementById('cargoLabelL2').textContent = '货种二级';
       document.getElementById('cargoFilterWrap').classList.toggle('hidden', currentTab === 'volume');
       document.getElementById('shiftFilterWrap').classList.toggle('hidden', currentTab === 'volume');
+      var dateWrap = document.getElementById('dateFilterWrap');
+      if (dateWrap) dateWrap.classList.toggle('hidden', currentTab === 'volume');
+      var topCard = document.getElementById('topFilterCard');
+      if (topCard) topCard.classList.toggle('hidden', currentTab === 'volume');
     }
 
     function switchTab(name) {
@@ -449,9 +567,23 @@
       document.getElementById('panelMaster').classList.toggle('hidden', name !== 'master');
       document.getElementById('panelVolume').classList.toggle('hidden', name !== 'volume');
       document.getElementById('panelDaily').classList.toggle('hidden', name !== 'daily');
-      document.getElementById('tabMaster').classList.toggle('active', name === 'master');
-      document.getElementById('tabVolume').classList.toggle('active', name === 'volume');
-      document.getElementById('tabDaily').classList.toggle('active', name === 'daily');
+      var titles = {
+        master: { t: '司机效率', s: '作业效率分析 · 按二级货种考核吨/小时' },
+        volume: { t: '作业统计', s: '作业效率分析 · 产量结构与趋势总览' },
+        daily: { t: '日报明细', s: '作业效率分析 · 已通过日班单据浏览' }
+      };
+      var meta = titles[name] || titles.master;
+      var titleEl = document.getElementById('pageTitle');
+      var subEl = document.getElementById('pageSub');
+      if (titleEl) titleEl.textContent = meta.t;
+      if (subEl) subEl.textContent = meta.s;
+      try { history.replaceState(null, '', '?tab=' + name); } catch (e) {}
+      var nav = document.getElementById('pcSidebarNav');
+      if (nav) {
+        var map = { master: 'efficiency-master', volume: 'efficiency-volume', daily: 'efficiency-daily' };
+        nav.setAttribute('data-active', map[name] || 'efficiency-master');
+        if (typeof window.renderPcSidebar === 'function') window.renderPcSidebar();
+      }
       syncTopCargoCascade();
       if (name === 'master') {
         renderRankBoard();
@@ -483,6 +615,137 @@
     function onCargoFilterChange() { onFilterChange(); }
     function onVolumeTrendCargoChange() {
       renderVolumeTrendChart();
+    }
+    function onVolumeSharedRangeChange() {
+      refreshVolumeCharts();
+    }
+    function getVolumeDataDateBounds() {
+      if (!VOLUME_DAYS || !VOLUME_DAYS.length) {
+        return { from: '2026-07-21', to: '2026-07-29' };
+      }
+      return {
+        from: volumeDayFullDate(VOLUME_DAYS[0]),
+        to: volumeDayFullDate(VOLUME_DAYS[VOLUME_DAYS.length - 1])
+      };
+    }
+    function syncVolumeTrendRangeDefaults() {
+      var bounds = getVolumeDataDateBounds();
+      var fromEl = document.getElementById('volumeSharedDateFrom');
+      var toEl = document.getElementById('volumeSharedDateTo');
+      if (fromEl && !fromEl.dataset.inited) {
+        fromEl.value = bounds.from;
+        fromEl.min = bounds.from;
+        fromEl.max = bounds.to;
+        fromEl.dataset.inited = '1';
+      }
+      if (toEl && !toEl.dataset.inited) {
+        toEl.value = bounds.to;
+        toEl.min = bounds.from;
+        toEl.max = bounds.to;
+        toEl.dataset.inited = '1';
+      }
+    }
+    function getVolumeSharedRangeValues() {
+      syncVolumeTrendRangeDefaults();
+      var bounds = getVolumeDataDateBounds();
+      var fromEl = document.getElementById('volumeSharedDateFrom');
+      var toEl = document.getElementById('volumeSharedDateTo');
+      var from = (fromEl && fromEl.value) || bounds.from;
+      var to = (toEl && toEl.value) || bounds.to;
+      if (from > to) {
+        var tmp = from; from = to; to = tmp;
+      }
+      return { from: from, to: to, bounds: bounds, isFull: from === bounds.from && to === bounds.to };
+    }
+    function getVolumeTrendAxisUnit() {
+      var el = document.getElementById('volumeTrendAxisUnit');
+      return (el && el.value) || 'day';
+    }
+    function volumeDayFullDate(mmdd) {
+      return '2026-' + mmdd;
+    }
+    function getVolumeDayIndexesInRange() {
+      var range = getVolumeSharedRangeValues();
+      return VOLUME_DAYS.reduce(function (acc, d, i) {
+        var full = volumeDayFullDate(d);
+        if (full >= range.from && full <= range.to) acc.push(i);
+        return acc;
+      }, []);
+    }
+    /** 按共用时间范围折算产量（示意：按选中天数占全部天数比例缩放） */
+    function volumeRangeScale() {
+      var all = (VOLUME_DAYS && VOLUME_DAYS.length) ? VOLUME_DAYS.length : 1;
+      var n = getVolumeDayIndexesInRange().length;
+      if (!n) return 0;
+      return n / all;
+    }
+    function scaleTons(v) {
+      return Math.round(v * volumeRangeScale());
+    }
+    /** 周一为一周起始；返回周标签与日下标分组 */
+    function groupVolumeIndexesByUnit(indexes, unit) {
+      if (unit === 'day') {
+        return indexes.map(function (i) {
+          return { label: VOLUME_DAYS[i], indexes: [i] };
+        });
+      }
+      if (unit === 'month') {
+        var monthMap = {};
+        var monthOrder = [];
+        indexes.forEach(function (i) {
+          var full = volumeDayFullDate(VOLUME_DAYS[i]);
+          var key = full.slice(0, 7);
+          if (!monthMap[key]) {
+            monthMap[key] = [];
+            monthOrder.push(key);
+          }
+          monthMap[key].push(i);
+        });
+        return monthOrder.map(function (key) {
+          return { label: key, indexes: monthMap[key] };
+        });
+      }
+      if (unit === 'week') {
+        var weekMap = {};
+        var weekOrder = [];
+        function fmtMD(d) {
+          var m = d.getMonth() + 1;
+          var day = d.getDate();
+          return (m < 10 ? '0' : '') + m + '-' + (day < 10 ? '0' : '') + day;
+        }
+        indexes.forEach(function (i) {
+          var full = volumeDayFullDate(VOLUME_DAYS[i]);
+          var dt = new Date(full + 'T12:00:00');
+          var day = dt.getDay();
+          var diff = day === 0 ? -6 : 1 - day;
+          var mon = new Date(dt);
+          mon.setDate(dt.getDate() + diff);
+          var sun = new Date(mon);
+          sun.setDate(mon.getDate() + 6);
+          var key = fmtMD(mon) + '~' + fmtMD(sun);
+          if (!weekMap[key]) {
+            weekMap[key] = [];
+            weekOrder.push(key);
+          }
+          weekMap[key].push(i);
+        });
+        return weekOrder.map(function (key) {
+          return { label: key, indexes: weekMap[key] };
+        });
+      }
+      /* shift：每个开班日拆白/黑 */
+      var groups = [];
+      indexes.forEach(function (i) {
+        groups.push({ label: VOLUME_DAYS[i] + '-白', indexes: [i], shift: 'day' });
+        groups.push({ label: VOLUME_DAYS[i] + '-黑', indexes: [i], shift: 'night' });
+      });
+      return groups;
+    }
+    function sumAtIndexes(series, indexes) {
+      return indexes.reduce(function (s, i) { return s + (series[i] || 0); }, 0);
+    }
+    function axisUnitLabel(unit) {
+      return ({ month: '月', week: '周', day: '日', shift: '班' })[unit] || '日';
     }
     function getVolumeTrendCargo() {
       if (!trendCargoCtl) return { l1: '全部', l2: '全部' };
@@ -762,11 +1025,8 @@
 
     function refreshVolumeCharts() {
       if (typeof Chart === 'undefined') return;
-      renderCargoRankChart();
-      renderShiftRatioChart();
-      renderNormalAbnormalChart();
-      renderAbnormalTypeChart();
       renderVolumeTrendChart();
+      refreshStructureCharts();
     }
 
     /* 异常类型产量（吨）· 与字典异常原因对齐（示意） */
@@ -794,15 +1054,106 @@
       };
     }
 
-    function upsertDoughnut(chartKey, canvasId, labels, data, colors) {
+    /* —— 产量结构分析 · 四图联动 —— */
+    var structureLink = { cargo: null, shift: null, status: null, abnormalType: null };
+
+    function hexToRgba(hex, alpha) {
+      var h = (hex || '#94a3b8').replace('#', '');
+      if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+      var r = parseInt(h.slice(0, 2), 16);
+      var g = parseInt(h.slice(2, 4), 16);
+      var b = parseInt(h.slice(4, 6), 16);
+      return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+    }
+
+    function highlightColors(labels, colors, activeLabel) {
+      if (!activeLabel) return colors.slice();
+      return labels.map(function (lab, i) {
+        var c = colors[i] || '#94a3b8';
+        return lab === activeLabel ? c : hexToRgba(c, 0.22);
+      });
+    }
+
+    function hasStructureLink() {
+      return !!(structureLink.cargo || structureLink.shift || structureLink.status || structureLink.abnormalType);
+    }
+
+    function clearStructureLink() {
+      structureLink = { cargo: null, shift: null, status: null, abnormalType: null };
+      refreshStructureCharts();
+    }
+
+    function toggleStructureLink(key, value) {
+      if (structureLink[key] === value) {
+        structureLink[key] = null;
+      } else {
+        structureLink[key] = value;
+      }
+      if (key === 'abnormalType' && structureLink.abnormalType) {
+        structureLink.status = '非正常作业';
+      }
+      if (key === 'status' && structureLink.status === '正常作业') {
+        structureLink.abnormalType = null;
+      }
+      refreshStructureCharts();
+    }
+
+    function refreshStructureCharts() {
+      renderCargoRankChart();
+      renderShiftRatioChart();
+      renderNormalAbnormalChart();
+      renderAbnormalTypeChart();
+      syncStructureLinkChips();
+    }
+
+    function syncStructureLinkChips() {
+      var bar = document.getElementById('structureLinkBar');
+      var box = document.getElementById('structureLinkChips');
+      if (!bar || !box) return;
+      if (!hasStructureLink()) {
+        bar.classList.add('hidden');
+        bar.classList.remove('flex');
+        box.innerHTML = '';
+        return;
+      }
+      bar.classList.remove('hidden');
+      bar.classList.add('flex');
+      var chips = [];
+      if (structureLink.cargo) chips.push({ key: 'cargo', label: '货种 · ' + structureLink.cargo });
+      if (structureLink.shift) chips.push({ key: 'shift', label: '班次 · ' + structureLink.shift });
+      if (structureLink.status) chips.push({ key: 'status', label: '状态 · ' + structureLink.status });
+      if (structureLink.abnormalType) chips.push({ key: 'abnormalType', label: '异常 · ' + structureLink.abnormalType });
+      box.innerHTML = chips.map(function (c) {
+        return '<span class="structure-link-chip">' + c.label +
+          '<button type="button" title="移除" onclick="removeStructureLinkKey(\'' + c.key + '\')">&times;</button></span>';
+      }).join('');
+    }
+
+    function removeStructureLinkKey(key) {
+      structureLink[key] = null;
+      if (key === 'status') structureLink.abnormalType = null;
+      if (key === 'abnormalType' && structureLink.status === '非正常作业') {
+        /* 仅移除类型，保留异常状态 */
+      }
+      refreshStructureCharts();
+    }
+
+    function upsertDoughnut(chartKey, canvasId, labels, data, colors, onPick) {
       var canvas = document.getElementById(canvasId);
       if (!canvas) return;
       var total = data.reduce(function (s, n) { return s + n; }, 0);
+      var clickFn = function (evt, elements) {
+        if (!onPick) return;
+        if (!elements || !elements.length) return;
+        var idx = elements[0].index;
+        onPick(labels[idx], idx);
+      };
       if (window[chartKey]) {
         window[chartKey].data.labels = labels;
         window[chartKey].data.datasets[0].data = data;
         window[chartKey].data.datasets[0].backgroundColor = colors;
         window[chartKey].options.plugins.tooltip = doughnutTooltipTons(total);
+        window[chartKey].options.onClick = clickFn;
         window[chartKey].update();
         return;
       }
@@ -821,6 +1172,7 @@
           responsive: true,
           maintainAspectRatio: false,
           cutout: '58%',
+          onClick: clickFn,
           plugins: {
             legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
             tooltip: doughnutTooltipTons(total)
@@ -829,16 +1181,144 @@
       });
     }
 
+    function statusFactorForRow() {
+      /* 示意：正常约 88%，异常约 12%；选定异常类型时按该类型占异常份额再折 */
+      if (structureLink.status === '正常作业') return 0.88;
+      if (structureLink.status === '非正常作业' || structureLink.abnormalType) {
+        var types = getAbnormalTonsInRangeRaw();
+        var abSum = types.reduce(function (s, r) { return s + r.tons; }, 0) || 1;
+        if (structureLink.abnormalType) {
+          var hit = types.filter(function (r) { return r.name === structureLink.abnormalType; })[0];
+          var share = hit ? hit.tons / abSum : 0.15;
+          return 0.12 * share;
+        }
+        return 0.12;
+      }
+      return 1;
+    }
+
+    function getAbnormalTonsInRangeRaw() {
+      return ABNORMAL_TYPE_TONS.map(function (r) {
+        return { name: r.name, tons: scaleTons(r.tons) };
+      }).filter(function (r) { return r.tons > 0; });
+    }
+
+    function getCargoRankInRange() {
+      var factor = statusFactorForRow();
+      var rows = CARGO_RANK.map(function (r) {
+        var day = scaleTons(r.day);
+        var night = scaleTons(r.night);
+        if (structureLink.shift === '白班') night = 0;
+        if (structureLink.shift === '夜班') day = 0;
+        day = Math.round(day * factor);
+        night = Math.round(night * factor);
+        return { name: r.name, l1: r.l1, day: day, night: night };
+      }).filter(function (r) {
+        if (structureLink.cargo && r.name !== structureLink.cargo) return false;
+        return (r.day + r.night) > 0;
+      }).sort(function (a, b) {
+        return (b.day + b.night) - (a.day + a.night);
+      });
+      return rows;
+    }
+
+    function getCargoRankBaseInRange() {
+      /* 未叠加状态因子，供占比图按货种/班次联动 */
+      return CARGO_RANK.map(function (r) {
+        return {
+          name: r.name,
+          l1: r.l1,
+          day: scaleTons(r.day),
+          night: scaleTons(r.night)
+        };
+      }).filter(function (r) {
+        if (structureLink.cargo && r.name !== structureLink.cargo) return false;
+        return (r.day + r.night) > 0;
+      });
+    }
+
+    function getAbnormalTonsInRange() {
+      var rows = getAbnormalTonsInRangeRaw();
+      if (structureLink.status === '正常作业') {
+        return rows.map(function (r) { return { name: r.name, tons: 0 }; });
+      }
+      var cargoRows = getCargoRankBaseInRange();
+      var allTons = CARGO_RANK.reduce(function (s, r) { return s + scaleTons(r.day) + scaleTons(r.night); }, 0) || 1;
+      var cargoTons = cargoRows.reduce(function (s, r) { return s + r.day + r.night; }, 0);
+      var cargoShare = structureLink.cargo ? (cargoTons / allTons) : 1;
+      rows = rows.map(function (r) {
+        return { name: r.name, tons: Math.round(r.tons * cargoShare) };
+      }).filter(function (r) { return r.tons > 0; });
+      if (structureLink.abnormalType) {
+        rows = rows.filter(function (r) { return r.name === structureLink.abnormalType; });
+      }
+      if (structureLink.shift === '白班') {
+        rows = rows.map(function (r) { return { name: r.name, tons: Math.round(r.tons * 0.58) }; });
+      } else if (structureLink.shift === '夜班') {
+        rows = rows.map(function (r) { return { name: r.name, tons: Math.round(r.tons * 0.42) }; });
+      }
+      return rows.filter(function (r) { return r.tons > 0; });
+    }
+
+    function syncStructureRangeHint() {
+      var range = getVolumeSharedRangeValues();
+      var hint = document.getElementById('cargoRankHint');
+      var base = range.isFull
+        ? ('全部数据 ' + range.bounds.from + ' ~ ' + range.bounds.to)
+        : ('已选 ' + range.from + ' ~ ' + range.to);
+      var text = '货种排行 · 白夜占比 · 正常/异常占比 · 异常类型占比 · ' + base + ' · 点击图表联动';
+      if (hint) hint.textContent = text;
+    }
+
+    function rankBarColors(kind, labels) {
+      var active = kind === 'day' ? '#0f766e' : '#38bdf8';
+      var muted = kind === 'day' ? hexToRgba('#0f766e', 0.2) : hexToRgba('#38bdf8', 0.2);
+      var shiftSel = structureLink.shift;
+      var cargoSel = structureLink.cargo;
+      return labels.map(function (lab) {
+        var shiftOk = !shiftSel || (shiftSel === '白班' && kind === 'day') || (shiftSel === '夜班' && kind === 'night');
+        var cargoOk = !cargoSel || cargoSel === lab;
+        return (shiftOk && cargoOk) ? active : muted;
+      });
+    }
+
     function renderCargoRankChart() {
       var canvas = document.getElementById('cargoRankChart');
       if (!canvas) return;
-      var labels = CARGO_RANK.map(function(r){ return r.name; });
-      var dayData = CARGO_RANK.map(function(r){ return r.day; });
-      var nightData = CARGO_RANK.map(function(r){ return r.night; });
+      syncStructureRangeHint();
+      var rows = getCargoRankInRange();
+      if (!rows.length && hasStructureLink()) {
+        rows = [{ name: '无匹配', day: 0, night: 0 }];
+      }
+      var labels = rows.map(function(r){ return r.name; });
+      var dayData = rows.map(function(r){ return r.day; });
+      var nightData = rows.map(function(r){ return r.night; });
+      var dayColors = rankBarColors('day', labels);
+      var nightColors = rankBarColors('night', labels);
+      var title = hasStructureLink() ? '货种产量排行（联动筛选中）' : '货种产量排行（白班+夜班堆积）';
+      var onClick = function (evt, elements) {
+        if (!elements || !elements.length) return;
+        var el = elements[0];
+        var cargo = this.data.labels[el.index];
+        if (!cargo || cargo === '无匹配') return;
+        var shiftName = this.data.datasets[el.datasetIndex].label;
+        if (structureLink.cargo === cargo && structureLink.shift === shiftName) {
+          structureLink.cargo = null;
+          structureLink.shift = null;
+        } else {
+          structureLink.cargo = cargo;
+          structureLink.shift = shiftName;
+        }
+        refreshStructureCharts();
+      };
       if (window.__cargoRankChart) {
         window.__cargoRankChart.data.labels = labels;
         window.__cargoRankChart.data.datasets[0].data = dayData;
+        window.__cargoRankChart.data.datasets[0].backgroundColor = dayColors;
         window.__cargoRankChart.data.datasets[1].data = nightData;
+        window.__cargoRankChart.data.datasets[1].backgroundColor = nightColors;
+        window.__cargoRankChart.options.plugins.title.text = title;
+        window.__cargoRankChart.options.onClick = onClick;
         window.__cargoRankChart.update();
         return;
       }
@@ -847,22 +1327,23 @@
         data: {
           labels: labels,
           datasets: [
-            { label: '白班', data: dayData, backgroundColor: '#0f766e', stack: 's' },
-            { label: '夜班', data: nightData, backgroundColor: '#38bdf8', stack: 's' }
+            { label: '白班', data: dayData, backgroundColor: dayColors, stack: 's' },
+            { label: '夜班', data: nightData, backgroundColor: nightColors, stack: 's' }
           ]
         },
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          onClick: onClick,
           plugins: {
             legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
-            title: { display: true, text: '货种产量排行（白班+夜班堆积）', color: '#475569', font: { size: 13 } },
+            title: { display: true, text: title, color: '#475569', font: { size: 13 } },
             tooltip: {
               callbacks: {
                 footer: function(items) {
                   var sum = 0;
                   items.forEach(function(i){ sum += i.parsed.y || 0; });
-                  return '合计：' + sum + ' 吨';
+                  return '合计：' + sum + ' 吨 · 点击可联动';
                 }
               }
             }
@@ -876,34 +1357,68 @@
     }
 
     function renderShiftRatioChart() {
-      var daySum = CARGO_RANK.reduce(function(s, r){ return s + r.day; }, 0);
-      var nightSum = CARGO_RANK.reduce(function(s, r){ return s + r.night; }, 0);
-      upsertDoughnut('__shiftRatioChart', 'shiftRatioChart', ['白班', '夜班'], [daySum, nightSum], ['#0f766e', '#38bdf8']);
+      var rows = getCargoRankBaseInRange();
+      var daySum = rows.reduce(function(s, r){ return s + r.day; }, 0);
+      var nightSum = rows.reduce(function(s, r){ return s + r.night; }, 0);
+      var factor = 1;
+      if (structureLink.status === '正常作业') factor = 0.88;
+      else if (structureLink.status === '非正常作业' || structureLink.abnormalType) factor = statusFactorForRow();
+      daySum = Math.round(daySum * factor);
+      nightSum = Math.round(nightSum * factor);
+      var labels = ['白班', '夜班'];
+      var colors = highlightColors(labels, ['#0f766e', '#38bdf8'], structureLink.shift);
+      upsertDoughnut('__shiftRatioChart', 'shiftRatioChart', labels, [daySum, nightSum], colors, function (lab) {
+        toggleStructureLink('shift', lab);
+      });
     }
 
     function renderNormalAbnormalChart() {
-      var total = CARGO_RANK.reduce(function(s, r){ return s + r.day + r.night; }, 0);
-      var abnormal = ABNORMAL_TYPE_TONS.reduce(function(s, r){ return s + r.tons; }, 0);
+      var rows = getCargoRankBaseInRange();
+      var total = rows.reduce(function(s, r){ return s + r.day + r.night; }, 0);
+      if (structureLink.shift === '白班') total = rows.reduce(function(s, r){ return s + r.day; }, 0);
+      if (structureLink.shift === '夜班') total = rows.reduce(function(s, r){ return s + r.night; }, 0);
+      var abnormalRows = getAbnormalTonsInRange();
+      var abnormal = abnormalRows.reduce(function(s, r){ return s + r.tons; }, 0);
+      if (structureLink.status === '正常作业') abnormal = 0;
       if (abnormal > total) abnormal = Math.round(total * 0.12);
       var normal = Math.max(0, total - abnormal);
+      if (structureLink.status === '非正常作业' || structureLink.abnormalType) {
+        normal = 0;
+        if (!abnormal) abnormal = Math.round(total * 0.12);
+      }
+      var labels = ['正常作业', '非正常作业'];
+      var colors = highlightColors(labels, ['#0f766e', '#f59e0b'], structureLink.status);
       upsertDoughnut(
         '__normalAbnormalChart',
         'normalAbnormalChart',
-        ['正常作业', '非正常作业'],
+        labels,
         [normal, abnormal],
-        ['#0f766e', '#f59e0b']
+        colors,
+        function (lab) { toggleStructureLink('status', lab); }
       );
     }
 
     function renderAbnormalTypeChart() {
-      var labels = ABNORMAL_TYPE_TONS.map(function(r){ return r.name; });
-      var data = ABNORMAL_TYPE_TONS.map(function(r){ return r.tons; });
+      var rows = getAbnormalTonsInRange();
+      var labels = rows.map(function(r){ return r.name; });
+      var data = rows.map(function(r){ return r.tons; });
+      if (!labels.length) {
+        labels = ['暂无异常'];
+        data = [0];
+      }
+      var baseColors = ABNORMAL_TYPE_COLORS.slice(0, labels.length);
+      while (baseColors.length < labels.length) baseColors.push('#94a3b8');
+      var colors = highlightColors(labels, baseColors, structureLink.abnormalType);
       upsertDoughnut(
         '__abnormalTypeChart',
         'abnormalTypeChart',
         labels,
         data,
-        ABNORMAL_TYPE_COLORS
+        colors,
+        function (lab) {
+          if (lab === '暂无异常') return;
+          toggleStructureLink('abnormalType', lab);
+        }
       );
     }
 
@@ -911,43 +1426,97 @@
       var canvas = document.getElementById('volumeChart');
       if (!canvas) return;
       var sel = getVolumeTrendCargo();
+      var unit = getVolumeTrendAxisUnit();
       var titleEl = document.getElementById('volumeTrendTitle');
       var hintEl = document.getElementById('volumeTrendHint');
+      var dayIndexes = getVolumeDayIndexesInRange();
+      var groups = groupVolumeIndexesByUnit(dayIndexes, unit);
+      var labels = groups.map(function (g) { return g.label; });
       var datasets = [];
       var title = '';
       var mode = 'all';
       var cargoNames = [];
+      var xTitle = '坐标轴 · ' + axisUnitLabel(unit);
+      var range = getVolumeSharedRangeValues();
+      var fromVal = range.from;
+      var toVal = range.to;
+      var rangeHint = range.isFull
+        ? ('全部数据 ' + range.bounds.from + ' ~ ' + range.bounds.to)
+        : ('已选 ' + fromVal + ' ~ ' + toVal);
 
       if (sel.l1 === '全部' || (sel.l2 === '全部' && sel.l1 === '全部')) {
         mode = 'all';
         cargoNames = Object.keys(VOLUME_BY_CARGO_DAY);
-        title = '每日各货种作业总量';
-        if (titleEl) titleEl.textContent = '总量日趋势（折线）· 全部货种';
-        if (hintEl) hintEl.textContent = '每条折线对应一种二级货种的当日合计产量';
+        title = '各货种作业总量 · 按' + axisUnitLabel(unit);
+        if (titleEl) titleEl.textContent = '总量趋势（折线）· 全部货种 · ' + axisUnitLabel(unit);
+        if (hintEl) hintEl.textContent = rangeHint + ' · 每条折线对应一种二级货种；单位=班时横轴为 MM-DD-白 / MM-DD-黑';
       } else if (sel.l2 === '全部') {
         mode = 'l1all';
         cargoNames = CargoCascade.childrenOf(sel.l1);
-        title = '一级「' + sel.l1 + '」下各货种日总量';
-        if (titleEl) titleEl.textContent = '总量日趋势（折线）· ' + sel.l1 + ' / 全部';
-        if (hintEl) hintEl.textContent = '每条折线对应本一级下一种二级货种的当日合计产量';
+        title = '一级「' + sel.l1 + '」各货种 · 按' + axisUnitLabel(unit);
+        if (titleEl) titleEl.textContent = '总量趋势（折线）· ' + sel.l1 + ' / 全部 · ' + axisUnitLabel(unit);
+        if (hintEl) hintEl.textContent = rangeHint + ' · 本一级下各二级货种序列；单位=班时横轴为 MM-DD-白 / MM-DD-黑';
       } else {
         mode = 'one';
         var pack = VOLUME_SHIFT_BY_CARGO[sel.l2] || VOLUME_SHIFT_BY_CARGO['氧化钙'];
-        title = '货种「' + sel.l1 + ' / ' + sel.l2 + '」· 白班 / 夜班日产量';
-        if (titleEl) titleEl.textContent = '总量日趋势（折线）· ' + sel.l2;
-        if (hintEl) hintEl.textContent = '两条折线分别为该货种每日白班、夜班作业总量';
-        datasets = [
-          { label: '白班', data: pack.day, borderColor: '#0f766e', backgroundColor: '#0f766e', tension: 0.25, pointRadius: 3, borderWidth: 2.5, fill: false },
-          { label: '夜班', data: pack.night, borderColor: '#38bdf8', backgroundColor: '#38bdf8', tension: 0.25, pointRadius: 3, borderWidth: 2.5, fill: false }
-        ];
+        title = '货种「' + sel.l1 + ' / ' + sel.l2 + '」· 按' + axisUnitLabel(unit);
+        if (titleEl) titleEl.textContent = '总量趋势（折线）· ' + sel.l2 + ' · ' + axisUnitLabel(unit);
+        if (unit === 'shift') {
+          if (hintEl) hintEl.textContent = rangeHint + ' · 班维度：横轴 07-21-白、07-21-黑 …；单线为该货种各班产量';
+          datasets = [{
+            label: sel.l2,
+            data: groups.map(function (g) {
+              var arr = g.shift === 'night' ? pack.night : pack.day;
+              return sumAtIndexes(arr, g.indexes);
+            }),
+            borderColor: '#0f766e',
+            backgroundColor: '#0f766e',
+            tension: 0.25,
+            pointRadius: 3,
+            borderWidth: 2.5,
+            fill: false
+          }];
+        } else {
+          if (hintEl) hintEl.textContent = rangeHint + ' · 白班 / 夜班两条折线（按所选坐标轴单位汇总）';
+          datasets = [
+            {
+              label: '白班',
+              data: groups.map(function (g) { return sumAtIndexes(pack.day, g.indexes); }),
+              borderColor: '#0f766e',
+              backgroundColor: '#0f766e',
+              tension: 0.25,
+              pointRadius: 3,
+              borderWidth: 2.5,
+              fill: false
+            },
+            {
+              label: '夜班',
+              data: groups.map(function (g) { return sumAtIndexes(pack.night, g.indexes); }),
+              borderColor: '#38bdf8',
+              backgroundColor: '#38bdf8',
+              tension: 0.25,
+              pointRadius: 3,
+              borderWidth: 2.5,
+              fill: false
+            }
+          ];
+        }
       }
 
       if (mode !== 'one') {
         datasets = cargoNames.map(function (name) {
           var color = VOLUME_CARGO_COLORS[name] || '#64748b';
+          var daySeries = VOLUME_BY_CARGO_DAY[name] || [];
+          var shiftPack = VOLUME_SHIFT_BY_CARGO[name];
           return {
             label: name,
-            data: VOLUME_BY_CARGO_DAY[name] || [],
+            data: groups.map(function (g) {
+              if (unit === 'shift' && shiftPack) {
+                var arr = g.shift === 'night' ? shiftPack.night : shiftPack.day;
+                return sumAtIndexes(arr, g.indexes);
+              }
+              return sumAtIndexes(daySeries, g.indexes);
+            }),
             borderColor: color,
             backgroundColor: color,
             tension: 0.25,
@@ -958,11 +1527,19 @@
         });
       }
 
-      var modeKey = mode + ':' + sel.l1 + ':' + sel.l2;
+      if (!labels.length) {
+        labels = ['暂无数据'];
+        datasets = datasets.map(function (ds) {
+          return Object.assign({}, ds, { data: [0] });
+        });
+      }
+
+      var modeKey = [mode, sel.l1, sel.l2, unit, fromVal, toVal, labels.join('|')].join(':');
       if (window.__volumeChart && window.__volumeTrendMode === modeKey) {
-        window.__volumeChart.data.labels = VOLUME_DAYS;
+        window.__volumeChart.data.labels = labels;
         window.__volumeChart.data.datasets = datasets;
         window.__volumeChart.options.plugins.title.text = title;
+        window.__volumeChart.options.scales.x.title.text = xTitle;
         window.__volumeChart.update();
         return;
       }
@@ -973,7 +1550,7 @@
       window.__volumeTrendMode = modeKey;
       window.__volumeChart = new Chart(canvas, {
         type: 'line',
-        data: { labels: VOLUME_DAYS, datasets: datasets },
+        data: { labels: labels, datasets: datasets },
         options: {
           responsive: true,
           maintainAspectRatio: false,
@@ -988,7 +1565,11 @@
             }
           },
           scales: {
-            x: { title: { display: true, text: '开班日', color: '#64748b' }, grid: { color: '#f1f5f9' } },
+            x: {
+              title: { display: true, text: xTitle, color: '#64748b' },
+              grid: { color: '#f1f5f9' },
+              ticks: { maxRotation: unit === 'shift' ? 45 : 0, minRotation: unit === 'shift' ? 30 : 0, autoSkip: true, maxTicksLimit: unit === 'shift' ? 18 : 12 }
+            },
             y: { title: { display: true, text: '产量（吨）', color: '#64748b' }, beginAtZero: true, grid: { color: '#f1f5f9' } }
           }
         }
@@ -1253,6 +1834,7 @@
     }
 
     function initEvidenceChart() {
+      syncVolumeTrendRangeDefaults();
       syncTopCargoCascade();
       initRankDriverMultiSelect();
       if (typeof CargoCascade !== 'undefined') {
@@ -1310,7 +1892,22 @@
       });
     }
 
-    document.addEventListener('DOMContentLoaded', initEvidenceChart);
+    document.addEventListener('DOMContentLoaded', function () {
+      initEvidenceChart();
+      var tab = 'master';
+      try {
+        tab = new URLSearchParams(location.search).get('tab') || 'master';
+      } catch (e) {}
+      if (['master', 'volume', 'daily'].indexOf(tab) < 0) tab = 'master';
+      if (tab !== 'master') switchTab(tab);
+      else {
+        var nav = document.getElementById('pcSidebarNav');
+        if (nav) {
+          nav.setAttribute('data-active', 'efficiency-master');
+          if (typeof window.renderPcSidebar === 'function') window.renderPcSidebar();
+        }
+      }
+    });
   </script>
 
   <div id="askMask" class="ask-mask" onclick="closeAsk()"></div>
@@ -1576,5 +2173,6 @@ document.querySelectorAll('#askChipsPreset .ask-chip').forEach(function(btn){
 });
 renderMyShortcuts();
 </script>
+  <script src="../assets/pc-sidebar.js"></script>
 </body>
 </html>

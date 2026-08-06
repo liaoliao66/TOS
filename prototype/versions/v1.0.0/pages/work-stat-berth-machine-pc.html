@@ -65,12 +65,7 @@
         <div class="text-lg font-semibold leading-snug">单机作业量统计</div>
         <div class="mt-2 text-xs text-slate-400">v1.0.0 · 录入 · 效率分析 · 问数</div>
       </div>
-            <nav class="p-3 space-y-1 flex-1">
-        <a href="work-stat-efficiency-pc.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-300 hover:bg-slate-700 hover:text-white"><i class="fa-solid fa-gauge-high w-5 text-center"></i><span>作业效率分析</span></a>
-        <a href="work-stat-list-pc.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-300 hover:bg-slate-700 hover:text-white"><i class="fa-solid fa-table-list w-5 text-center"></i><span>作业填报列表</span></a>
-        <a href="work-stat-berth-machine-pc.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm bg-slate-700 text-white"><i class="fa-solid fa-anchor w-5 text-center"></i><span>泊位机械配置</span></a>
-        <a href="work-stat-dict-pc.html" class="flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-slate-300 hover:bg-slate-700 hover:text-white"><i class="fa-solid fa-book w-5 text-center"></i><span>字典管理</span></a>
-      </nav>
+            <nav id="pcSidebarNav" class="p-3 flex-1 overflow-y-auto" data-active="cfg-berth"></nav>
       <div class="p-4 text-xs text-slate-500 border-t border-slate-700">
         <a href="../index.html" class="hover:text-slate-300">返回版本入口</a>
       </div>
@@ -432,5 +427,6 @@ document.querySelectorAll('#askChipsPreset .ask-chip').forEach(function(btn){
 renderMyShortcuts();
 </script>
 
+  <script src="../assets/pc-sidebar.js"></script>
 </body>
 </html>

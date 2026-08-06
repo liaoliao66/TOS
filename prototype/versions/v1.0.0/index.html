@@ -11,24 +11,41 @@
     .card { background:#fff; border-radius:24px; box-shadow:0 4px 12px rgba(0,0,0,0.05); }
     .card-hover { transition: transform .2s ease, box-shadow .2s ease; }
     .card-hover:hover { transform: translateY(-4px); box-shadow:0 8px 24px rgba(0,0,0,0.08); }
+    .sec { font-size:13px; font-weight:600; color:#0f766e; margin:24px 0 10px; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen">
   <main class="max-w-5xl mx-auto px-6 py-10">
-    <div class="mb-2 text-xs text-slate-500">版本 v1.0.0 · 2026-08-03</div>
+    <div class="mb-2 text-xs text-slate-500">版本 v1.0.0 · 2026-08-06</div>
     <h1 class="text-2xl font-semibold">每日每班单机作业量统计 · PC 端原型</h1>
-    <p class="mt-2 text-sm text-slate-600">版本说明：唯一工作版本。含日班录入（正常/非正常作业）、作业效率分析、智能问数、企微H5填报。默认近1个月问数；助手只出结果不导出。</p>
-    <div class="mt-8 grid md:grid-cols-2 gap-4">
-      <a class="card card-hover p-5 block" href="pages/work-stat-efficiency-pc.html"><div class="text-teal-800 font-medium"><i class="fa-solid fa-gauge-high mr-2"></i>作业效率分析</div><p class="text-sm text-slate-500 mt-2">师傅吨/小时效率 · 异常分原因 · 日班明细</p></a>
-      <a class="card card-hover p-5 block" href="wecom-index.html"><div class="text-teal-800 font-medium"><i class="fa-brands fa-weixin mr-2"></i>企微H5入口</div><p class="text-sm text-slate-500 mt-2">逐条录入 · 日班单据汇总 · 提交审核</p></a>
-      <a class="card card-hover p-5 block" href="pages/work-stat-efficiency-pc.html"><div class="text-teal-800 font-medium"><i class="fa-solid fa-comments mr-2"></i>智能问数助手</div><p class="text-sm text-slate-500 mt-2">任意页右下角悬浮按钮；含快捷问数</p></a>
-      <a class="card card-hover p-5 block" href="pages/work-stat-list-pc.html"><div class="text-teal-800 font-medium"><i class="fa-solid fa-table-list mr-2"></i>作业填报列表</div><p class="text-sm text-slate-500 mt-2">录入主入口</p></a>
-      <a class="card card-hover p-5 block" href="pages/work-stat-edit-pc.html"><div class="text-teal-800 font-medium"><i class="fa-solid fa-pen-to-square mr-2"></i>作业填报编辑</div><p class="text-sm text-slate-500 mt-2">时段×机械矩阵 · 正常/非正常</p></a>
-      <a class="card card-hover p-5 block" href="pages/work-stat-view-pc.html"><div class="text-teal-800 font-medium"><i class="fa-solid fa-eye mr-2"></i>作业填报只读</div><p class="text-sm text-slate-500 mt-2">已通过锁定查看</p></a>
+    <p class="mt-2 text-sm text-slate-600">菜单已整理为三组：作业效率分析 / 作业填报 / 系统配置。另含企微 H5 填报入口。</p>
+
+    <div class="sec">一、作业效率分析</div>
+    <div class="grid md:grid-cols-3 gap-4">
+      <a class="card card-hover p-5 block" href="pages/work-stat-efficiency-pc.html?tab=master"><div class="text-teal-800 font-medium"><i class="fa-solid fa-user-gear mr-2"></i>司机效率</div><p class="text-sm text-slate-500 mt-2">吨/小时榜 · 每日作业量趋势</p></a>
+      <a class="card card-hover p-5 block" href="pages/work-stat-efficiency-pc.html?tab=volume"><div class="text-teal-800 font-medium"><i class="fa-solid fa-chart-column mr-2"></i>作业统计</div><p class="text-sm text-slate-500 mt-2">周期 KPI · 趋势 · 结构分析</p></a>
+      <a class="card card-hover p-5 block" href="pages/work-stat-efficiency-pc.html?tab=daily"><div class="text-teal-800 font-medium"><i class="fa-solid fa-calendar-day mr-2"></i>日报明细</div><p class="text-sm text-slate-500 mt-2">已通过日班单据浏览</p></a>
+    </div>
+
+    <div class="sec">二、作业填报</div>
+    <div class="grid md:grid-cols-2 gap-4">
+      <a class="card card-hover p-5 block" href="pages/work-stat-list-pc.html"><div class="text-teal-800 font-medium"><i class="fa-solid fa-clipboard-list mr-2"></i>工班作业</div><p class="text-sm text-slate-500 mt-2">列表 · 按时段逐条录入 · 企微推送</p></a>
+      <a class="card card-hover p-5 block" href="pages/vessel-list-pc.html"><div class="text-teal-800 font-medium"><i class="fa-solid fa-ship mr-2"></i>船舶作业</div><p class="text-sm text-slate-500 mt-2">一船一次靠泊 · 提交审核 · 独立台账</p></a>
+    </div>
+
+    <div class="sec">三、系统配置</div>
+    <div class="grid md:grid-cols-3 gap-4">
       <a class="card card-hover p-5 block" href="pages/work-stat-berth-machine-pc.html"><div class="text-teal-800 font-medium"><i class="fa-solid fa-anchor mr-2"></i>泊位机械配置</div><p class="text-sm text-slate-500 mt-2">1～2 台/泊位</p></a>
       <a class="card card-hover p-5 block" href="pages/work-stat-dict-pc.html"><div class="text-teal-800 font-medium"><i class="fa-solid fa-book mr-2"></i>字典管理</div><p class="text-sm text-slate-500 mt-2">司机 / 货种二级树 / 异常原因</p></a>
+      <a class="card card-hover p-5 block" href="pages/work-stat-wecom-push-pc.html"><div class="text-teal-800 font-medium"><i class="fa-brands fa-weixin mr-2"></i>企业微信推送配置</div><p class="text-sm text-slate-500 mt-2">组织选人/群 · 时段保存推送</p></a>
+    </div>
+
+    <div class="sec">其他入口</div>
+    <div class="grid md:grid-cols-2 gap-4">
+      <a class="card card-hover p-5 block" href="wecom-index.html"><div class="text-teal-800 font-medium"><i class="fa-brands fa-weixin mr-2"></i>企微 H5 入口</div><p class="text-sm text-slate-500 mt-2">现场逐条录入 · 提交审核</p></a>
       <a class="card card-hover p-5 block" href="../../index.html"><div class="text-slate-700 font-medium"><i class="fa-solid fa-house mr-2"></i>返回全局总入口</div><p class="text-sm text-slate-500 mt-2">全部版本与 PRD</p></a>
     </div>
+
     <div class="mt-8 text-sm text-slate-500">对应 PRD：<a class="text-teal-700 hover:underline" href="../../../docs/versions/v1.0.0/prd.html">docs/versions/v1.0.0/prd.html</a></div>
   </main>
 </body>

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>作业船舶填报 · 只读</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <style>
+    :root { --brand: #0f766e; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
+    .sidebar { background: #1e293b; }
+    .card { background: #fff; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .btn { border-radius: 20px; }
+    .badge { border-radius: 999px; font-size: 12px; padding: 2px 10px; }
+    .badge-pending { background: #fef3c7; color: #b45309; }
+    .badge-ok { background: #d1fae5; color: #047857; }
+    .row { display: flex; justify-content: space-between; gap: 16px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
+    .row span:first-child { color: #64748b; flex-shrink: 0; }
+    .file-chip { display: inline-flex; align-items: center; gap: 6px; background: #f1f5f9; border-radius: 999px; padding: 4px 10px; font-size: 12px; margin: 2px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="flex min-h-screen">
+    <aside class="sidebar w-64 shrink-0 text-slate-100 flex flex-col">
+      <div class="px-5 py-6 border-b border-slate-700">
+        <div class="text-xs text-slate-400 mb-1">TOS 子模块</div>
+        <div class="text-lg font-semibold leading-snug">单机作业量统计</div>
+        <div class="mt-2 text-xs text-slate-400">v1.0.0 · 录入 · 效率分析 · 问数</div>
+      </div>
+      <nav id="pcSidebarNav" class="p-3 flex-1 overflow-y-auto" data-active="fill-vessel"></nav>
+      <div class="p-4 text-xs text-slate-500 border-t border-slate-700">
+        <a href="../index.html" class="hover:text-slate-300">返回版本入口</a>
+      </div>
+    </aside>
+    <div class="flex-1 min-w-0 flex flex-col">
+      <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+        <div>
+          <h1 class="text-lg font-semibold">船舶作业单据 · 只读</h1>
+          <p class="text-xs text-slate-500">审批中 / 已通过不可编辑 · 独立台账不进分析</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="badge badge-pending" id="st">审批中</span>
+          <a href="vessel-list-pc.html" class="btn border border-slate-200 bg-white px-4 py-2 text-sm">返回列表</a>
+        </div>
+      </header>
+      <main class="flex-1 p-6 overflow-auto">
+        <div class="max-w-2xl mx-auto space-y-5">
+          <div class="card p-5">
+            <div class="text-sm font-medium mb-2">基本信息</div>
+            <div class="row"><span>船名</span><span class="font-medium">海丰致远</span></div>
+            <div class="row"><span>船舶靠泊时间</span><span class="tabular-nums">2026-07-25 14:10</span></div>
+            <div class="row"><span>开始作业时间</span><span class="tabular-nums">2026-07-25 15:00</span></div>
+            <div class="row"><span>结束作业时间</span><span class="tabular-nums">2026-07-26 20:30</span></div>
+            <div class="row"><span>离泊时间</span><span class="tabular-nums">2026-07-26 22:05</span></div>
+            <div class="row border-0"><span>作业总量（吨）</span><span class="font-semibold text-teal-800 tabular-nums">9,420.50</span></div>
+          </div>
+          <div class="card p-5">
+            <div class="text-sm font-medium mb-2">作业资源</div>
+            <div class="row"><span>作业泊位</span><span>6#泊位</span></div>
+            <div class="row"><span>作业设备</span><span>2#门机、3#门机</span></div>
+            <div class="row"><span>作业司机</span><span>涂峰、刘志显</span></div>
+            <div class="row border-0"><span>备注</span><span>大件配载，交接正常</span></div>
+          </div>
+          <div class="card p-5">
+            <div class="text-sm font-medium mb-2">附件</div>
+            <div class="flex flex-wrap gap-1">
+              <span class="file-chip"><i class="fa-solid fa-paperclip text-slate-400"></i>靠泊确认单.pdf</span>
+              <span class="file-chip"><i class="fa-solid fa-paperclip text-slate-400"></i>作业记录.jpg</span>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script>
+    if (location.search.indexOf('ok') >= 0) {
+      var el = document.getElementById('st');
+      el.textContent = '已通过';
+      el.className = 'badge badge-ok';
+    }
+  </script>
+  <script src="../assets/pc-sidebar.js"></script>
+</body>
+</html>

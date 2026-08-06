@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>企微推送配置 · 日班填报</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../assets/wecom-push.js"></script>
+  <style>
+    :root { --brand: #0f766e; --brand-hover: #0d9488; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
+    .sidebar { background: #1e293b; }
+    .card { background: #fff; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .btn { border-radius: 20px; transition: all .15s ease; }
+    .btn:active { transform: scale(0.95); }
+    .btn-brand { background: var(--brand); color: #fff; }
+    .btn-brand:hover { background: var(--brand-hover); }
+    .toast { position: fixed; top: 24px; right: 24px; z-index: 80; min-width: 240px; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
+    .fade-in { animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .switch { width: 44px; height: 24px; border-radius: 999px; background: #cbd5e1; position: relative; cursor: pointer; transition: background .15s; }
+    .switch.on { background: #0f766e; }
+    .switch i { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 999px; background: #fff; transition: left .15s; box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+    .switch.on i { left: 22px; }
+    .tree { border: 1px solid #e2e8f0; border-radius: 16px; padding: 10px; max-height: 280px; overflow: auto; background: #f8fafc; }
+    .tree-dept { font-size: 12px; color: #64748b; margin: 8px 0 4px; font-weight: 600; }
+    .tree-item { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 10px; font-size: 13px; cursor: pointer; }
+    .tree-item:hover { background: #fff; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; background: #f0fdfa; border: 1px solid #99f6e4; color: #0f766e; border-radius: 999px; padding: 3px 10px; font-size: 12px; margin: 2px; }
+    .chip button { border: 0; background: none; color: #64748b; cursor: pointer; padding: 0; line-height: 1; }
+    .preview {
+      background: #0f172a; color: #e2e8f0; border-radius: 16px; padding: 14px 16px;
+      font-size: 13px; line-height: 1.75; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="flex min-h-screen">
+    <aside class="sidebar w-64 shrink-0 text-slate-100 flex flex-col">
+      <div class="px-5 py-6 border-b border-slate-700">
+        <div class="text-xs text-slate-400 mb-1">TOS 子模块</div>
+        <div class="text-lg font-semibold leading-snug">单机作业量统计</div>
+        <div class="mt-2 text-xs text-slate-400">v1.0.0 · 录入 · 效率分析 · 问数</div>
+      </div>
+      <nav id="pcSidebarNav" class="p-3 flex-1 overflow-y-auto" data-active="cfg-wecom"></nav>
+      <div class="p-4 text-xs text-slate-500 border-t border-slate-700">
+        <a href="../index.html" class="hover:text-slate-300">返回版本入口</a>
+      </div>
+    </aside>
+
+    <div class="flex-1 min-w-0 flex flex-col">
+      <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+        <div>
+          <h1 class="text-lg font-semibold">企业微信推送配置</h1>
+          <p class="text-xs text-slate-500">系统配置 · 全局一套 · 默认开启 · 日班每个时段保存/修改各推一条</p>
+        </div>
+        <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="saveConfig()">保存配置</button>
+      </header>
+
+      <main class="flex-1 p-6 overflow-auto">
+        <div class="max-w-5xl mx-auto space-y-5">
+          <div class="card p-5 flex flex-wrap items-center justify-between gap-4">
+            <div>
+              <div class="text-sm font-medium">启用企微推送</div>
+              <p class="text-xs text-slate-500 mt-1">关闭后，时段保存不再推送人员与群</p>
+            </div>
+            <div id="enableSwitch" class="switch on" onclick="toggleEnable()" title="开关"><i></i></div>
+          </div>
+
+          <div class="card p-5 space-y-3">
+            <div class="text-sm font-medium">推送规则（本版锁定）</div>
+            <ul class="text-sm text-slate-600 list-disc pl-5 space-y-1">
+              <li>仅<strong>日班作业填报</strong>（每个时段一条明细）</li>
+              <li>每保存一条时段明细 → 立即推送一条；修改后再保存 → 再推一条</li>
+              <li>「时间」取明细<strong>时段</strong>，如 <code class="text-xs bg-slate-100 px-1 rounded">09:00-10:00</code></li>
+              <li>配置粒度：全局一套（不按泊位拆分）</li>
+            </ul>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <div class="card p-5 space-y-3">
+              <div class="flex items-center justify-between gap-2">
+                <div class="text-sm font-medium">推送人员 · 从组织架构选择</div>
+                <button type="button" class="text-xs text-teal-700 hover:underline" onclick="openPeoplePicker()">打开选人</button>
+              </div>
+              <div id="peopleChips" class="min-h-[40px]"></div>
+              <div id="peopleTree" class="tree hidden"></div>
+            </div>
+
+            <div class="card p-5 space-y-3">
+              <div class="flex items-center justify-between gap-2">
+                <div class="text-sm font-medium">推送企微群 · 从组织架构选择</div>
+                <button type="button" class="text-xs text-teal-700 hover:underline" onclick="openGroupPicker()">打开选群</button>
+              </div>
+              <div id="groupChips" class="min-h-[40px]"></div>
+              <div id="groupTree" class="tree hidden"></div>
+            </div>
+          </div>
+
+          <div class="card p-5 space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="text-sm font-medium">消息格式预览</div>
+              <button type="button" class="text-xs text-teal-700 hover:underline" onclick="demoPush()">模拟一条推送</button>
+            </div>
+            <div class="preview" id="msgPreview"></div>
+            <p class="text-xs text-slate-400">正式环境对接企微应用消息/群机器人；本原型仅演示配置与推送内容。</p>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    var ORG_PEOPLE = [
+      { dept: '调度中心', list: [
+        { id: 'u001', name: '张调度', dept: '调度中心' },
+        { id: 'u003', name: '王值班', dept: '调度中心' }
+      ]},
+      { dept: '装卸一班', list: [
+        { id: 'u002', name: '李班长', dept: '装卸一班' },
+        { id: 'u004', name: '赵组长', dept: '装卸一班' }
+      ]},
+      { dept: '装卸二班', list: [
+        { id: 'u005', name: '钱班长', dept: '装卸二班' }
+      ]}
+    ];
+    var ORG_GROUPS = [
+      { dept: '现场协作群', list: [
+        { id: 'g001', name: '装卸现场群' },
+        { id: 'g002', name: '调度值班群' },
+        { id: 'g003', name: '夜班交接群' }
+      ]}
+    ];
+
+    var cfg = WecomPush.load();
+
+    function showToast(msg, type) {
+      type = type || 'ok';
+      var el = document.createElement('div');
+      el.className = 'toast fade-in px-4 py-3 text-sm text-white ' + (type === 'err' ? 'bg-red-500' : 'bg-emerald-500');
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function () { el.remove(); }, 2400);
+    }
+
+    function syncSwitch() {
+      document.getElementById('enableSwitch').classList.toggle('on', !!cfg.enabled);
+    }
+
+    function toggleEnable() {
+      cfg.enabled = !cfg.enabled;
+      syncSwitch();
+    }
+
+    function renderChips() {
+      var pBox = document.getElementById('peopleChips');
+      var gBox = document.getElementById('groupChips');
+      pBox.innerHTML = (cfg.people || []).map(function (p) {
+        return '<span class="chip">' + p.name + '<span class="text-slate-400">·' + p.dept + '</span>' +
+          '<button type="button" onclick="removePerson(\'' + p.id + '\')">&times;</button></span>';
+      }).join('') || '<span class="text-xs text-slate-400">尚未选择人员</span>';
+      gBox.innerHTML = (cfg.groups || []).map(function (g) {
+        return '<span class="chip">' + g.name +
+          '<button type="button" onclick="removeGroup(\'' + g.id + '\')">&times;</button></span>';
+      }).join('') || '<span class="text-xs text-slate-400">尚未选择企微群</span>';
+    }
+
+    function removePerson(id) {
+      cfg.people = (cfg.people || []).filter(function (p) { return p.id !== id; });
+      renderChips();
+      renderPeopleTree();
+    }
+    function removeGroup(id) {
+      cfg.groups = (cfg.groups || []).filter(function (g) { return g.id !== id; });
+      renderChips();
+      renderGroupTree();
+    }
+
+    function hasPerson(id) {
+      return (cfg.people || []).some(function (p) { return p.id === id; });
+    }
+    function hasGroup(id) {
+      return (cfg.groups || []).some(function (g) { return g.id === id; });
+    }
+
+    function togglePerson(p) {
+      if (hasPerson(p.id)) {
+        cfg.people = cfg.people.filter(function (x) { return x.id !== p.id; });
+      } else {
+        cfg.people.push(p);
+      }
+      renderChips();
+      renderPeopleTree();
+    }
+    function toggleGroup(g) {
+      if (hasGroup(g.id)) {
+        cfg.groups = cfg.groups.filter(function (x) { return x.id !== g.id; });
+      } else {
+        cfg.groups.push(g);
+      }
+      renderChips();
+      renderGroupTree();
+    }
+
+    function renderPeopleTree() {
+      var box = document.getElementById('peopleTree');
+      box.innerHTML = ORG_PEOPLE.map(function (dept) {
+        var rows = dept.list.map(function (p) {
+          var on = hasPerson(p.id);
+          return '<label class="tree-item"><input type="checkbox" ' + (on ? 'checked' : '') +
+            ' onchange=\'togglePerson(' + JSON.stringify(p) + ')\' />' + p.name +
+            '<span class="text-slate-400 text-xs ml-auto">' + p.dept + '</span></label>';
+        }).join('');
+        return '<div class="tree-dept"><i class="fa-solid fa-sitemap mr-1"></i>' + dept.dept + '</div>' + rows;
+      }).join('');
+    }
+
+    function renderGroupTree() {
+      var box = document.getElementById('groupTree');
+      box.innerHTML = ORG_GROUPS.map(function (dept) {
+        var rows = dept.list.map(function (g) {
+          var on = hasGroup(g.id);
+          return '<label class="tree-item"><input type="checkbox" ' + (on ? 'checked' : '') +
+            ' onchange=\'toggleGroup(' + JSON.stringify(g) + ')\' />' + g.name + '</label>';
+        }).join('');
+        return '<div class="tree-dept"><i class="fa-solid fa-comments mr-1"></i>' + dept.dept + '</div>' + rows;
+      }).join('');
+    }
+
+    function openPeoplePicker() {
+      var box = document.getElementById('peopleTree');
+      box.classList.toggle('hidden');
+      if (!box.classList.contains('hidden')) renderPeopleTree();
+    }
+    function openGroupPicker() {
+      var box = document.getElementById('groupTree');
+      box.classList.toggle('hidden');
+      if (!box.classList.contains('hidden')) renderGroupTree();
+    }
+
+    function refreshPreview() {
+      document.getElementById('msgPreview').textContent = WecomPush.formatMessage({
+        slot: '09:00-10:00',
+        berth: '5#泊位',
+        machine: '1#门机',
+        driver: '涂峰',
+        qty: 108
+      });
+    }
+
+    function demoPush() {
+      WecomPush.save(cfg);
+      WecomPush.notifyAfterSave({
+        slot: '09:00-10:00',
+        berth: '5#泊位',
+        machine: '1#门机',
+        driver: '涂峰',
+        qty: 108
+      }, 'create');
+    }
+
+    function saveConfig() {
+      if (cfg.enabled && !(cfg.people || []).length && !(cfg.groups || []).length) {
+        showToast('开启推送时请至少选择人员或企微群', 'err');
+        return;
+      }
+      WecomPush.save(cfg);
+      showToast('企微推送配置已保存');
+    }
+
+    syncSwitch();
+    renderChips();
+    refreshPreview();
+  </script>
+  <script src="../assets/pc-sidebar.js"></script>
+</body>
+</html>

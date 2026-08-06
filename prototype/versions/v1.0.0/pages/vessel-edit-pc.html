@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>作业船舶填报 · 编辑</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <style>
+    :root { --brand: #0f766e; --brand-hover: #0d9488; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
+    .sidebar { background: #1e293b; }
+    .card { background: #fff; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .btn { border-radius: 20px; transition: all .15s ease; }
+    .btn:active { transform: scale(0.95); }
+    .btn-brand { background: var(--brand); color: #fff; }
+    .btn-brand:hover { background: var(--brand-hover); }
+    .badge { border-radius: 999px; font-size: 12px; padding: 2px 10px; }
+    .badge-draft { background: #e2e8f0; color: #475569; }
+    .field label { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
+    .field input, .field select, .field textarea {
+      width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px;
+      font-size: 14px; background: #fff; box-sizing: border-box;
+    }
+    .ms-box { border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px 10px; max-height: 140px; overflow-y: auto; background: #fff; }
+    .ms-item { display: flex; align-items: center; gap: 8px; padding: 4px 2px; font-size: 13px; }
+    .toast { position: fixed; top: 24px; right: 24px; z-index: 80; min-width: 240px; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
+    .fade-in { animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .file-chip { display: inline-flex; align-items: center; gap: 6px; background: #f1f5f9; border-radius: 999px; padding: 4px 10px; font-size: 12px; margin: 2px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="flex min-h-screen">
+    <aside class="sidebar w-64 shrink-0 text-slate-100 flex flex-col">
+      <div class="px-5 py-6 border-b border-slate-700">
+        <div class="text-xs text-slate-400 mb-1">TOS 子模块</div>
+        <div class="text-lg font-semibold leading-snug">单机作业量统计</div>
+        <div class="mt-2 text-xs text-slate-400">v1.0.0 · 录入 · 效率分析 · 问数</div>
+      </div>
+      <nav id="pcSidebarNav" class="p-3 flex-1 overflow-y-auto" data-active="fill-vessel"></nav>
+      <div class="p-4 text-xs text-slate-500 border-t border-slate-700">
+        <a href="../index.html" class="hover:text-slate-300">返回版本入口</a>
+      </div>
+    </aside>
+    <div class="flex-1 min-w-0 flex flex-col">
+      <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+        <div>
+          <h1 class="text-lg font-semibold">船舶作业单据 · 编辑</h1>
+          <p class="text-xs text-slate-500">一船一次靠泊 · 设备/司机可多选 · 附件选填</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="badge badge-draft" id="statusBadge">草稿</span>
+          <a href="vessel-list-pc.html" class="btn border border-slate-200 bg-white px-4 py-2 text-sm">返回列表</a>
+        </div>
+      </header>
+      <main class="flex-1 p-6 overflow-auto">
+        <div class="max-w-3xl mx-auto space-y-5">
+          <div class="card p-5 space-y-4">
+            <div class="text-sm font-medium">基本信息</div>
+            <div class="field">
+              <label>船名 <span class="text-rose-500">*</span></label>
+              <input id="fShip" type="text" placeholder="请输入船名" value="远航 168" />
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="field">
+                <label>船舶靠泊时间 <span class="text-rose-500">*</span></label>
+                <input id="fBerthIn" type="datetime-local" value="2026-07-28T06:20" />
+              </div>
+              <div class="field">
+                <label>开始作业时间 <span class="text-rose-500">*</span></label>
+                <input id="fWorkStart" type="datetime-local" value="2026-07-28T08:00" />
+              </div>
+              <div class="field">
+                <label>结束作业时间 <span class="text-rose-500">*</span></label>
+                <input id="fWorkEnd" type="datetime-local" value="2026-07-29T16:30" />
+              </div>
+              <div class="field">
+                <label>离泊时间 <span class="text-rose-500">*</span></label>
+                <input id="fBerthOut" type="datetime-local" value="2026-07-29T18:40" />
+              </div>
+            </div>
+            <div class="field">
+              <label>作业总量（吨） <span class="text-rose-500">*</span></label>
+              <input id="fQty" type="number" step="0.01" min="0" value="12860.00" />
+              <div class="mt-1 text-[11px] text-slate-400">不设货重字段；仅此总量口径</div>
+            </div>
+          </div>
+
+          <div class="card p-5 space-y-4">
+            <div class="text-sm font-medium">作业资源</div>
+            <div class="field">
+              <label>作业泊位 <span class="text-rose-500">*</span></label>
+              <select id="fBerth" onchange="syncMachines()">
+                <option value="">请选择</option>
+                <option value="5#" selected>5#泊位</option>
+                <option value="6#">6#泊位</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>作业设备（可多选，至少 1） <span class="text-rose-500">*</span></label>
+              <div class="ms-box" id="machineBox"></div>
+            </div>
+            <div class="field">
+              <label>作业司机（可多选，至少 1） <span class="text-rose-500">*</span></label>
+              <div class="ms-box" id="driverBox">
+                <label class="ms-item"><input type="checkbox" value="涂峰" checked />涂峰</label>
+                <label class="ms-item"><input type="checkbox" value="陈迪政" checked />陈迪政</label>
+                <label class="ms-item"><input type="checkbox" value="刘志显" />刘志显</label>
+                <label class="ms-item"><input type="checkbox" value="柯力" />柯力</label>
+              </div>
+            </div>
+            <div class="field">
+              <label>备注</label>
+              <textarea id="fRemark" rows="2" placeholder="选填">夜班交接顺利</textarea>
+            </div>
+          </div>
+
+          <div class="card p-5 space-y-3">
+            <div class="text-sm font-medium">附件 <span class="text-slate-400 font-normal text-xs">选填 · 可多文件</span></div>
+            <input id="fFiles" type="file" multiple class="text-sm" onchange="onFilesChange()" />
+            <div id="fileList" class="flex flex-wrap gap-1"></div>
+          </div>
+
+          <div class="flex flex-wrap gap-3 justify-end">
+            <button type="button" class="btn border border-slate-200 bg-white px-5 py-2 text-sm" onclick="saveDraft()">保存草稿</button>
+            <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="submitForm()">提交审核</button>
+          </div>
+          <div class="text-xs text-slate-400 text-center pb-6">审批在统一平台处理；本原型仅到「提交审核」，不画通过/驳回页。</div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    var MACHINE_MAP = {
+      '5#': ['1#门机', '2#门机'],
+      '6#': ['2#门机', '3#门机']
+    };
+
+    function showToast(msg, type) {
+      type = type || 'ok';
+      var el = document.createElement('div');
+      el.className = 'toast fade-in px-4 py-3 text-sm text-white ' + (type === 'err' ? 'bg-red-500' : 'bg-emerald-500');
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function () { el.remove(); }, 2600);
+    }
+
+    function syncMachines() {
+      var berth = document.getElementById('fBerth').value;
+      var box = document.getElementById('machineBox');
+      var list = MACHINE_MAP[berth] || [];
+      if (!list.length) {
+        box.innerHTML = '<div class="text-xs text-slate-400 py-2">请先选择泊位</div>';
+        return;
+      }
+      box.innerHTML = list.map(function (m, i) {
+        return '<label class="ms-item"><input type="checkbox" value="' + m + '"' + (i === 0 ? ' checked' : '') + ' />' + m + '</label>';
+      }).join('');
+    }
+
+    function checkedValues(boxId) {
+      return Array.prototype.map.call(
+        document.querySelectorAll('#' + boxId + ' input[type=checkbox]:checked'),
+        function (el) { return el.value; }
+      );
+    }
+
+    function onFilesChange() {
+      var files = document.getElementById('fFiles').files;
+      var box = document.getElementById('fileList');
+      if (!files || !files.length) { box.innerHTML = ''; return; }
+      box.innerHTML = Array.prototype.map.call(files, function (f) {
+        return '<span class="file-chip"><i class="fa-solid fa-paperclip text-slate-400"></i>' + f.name + '</span>';
+      }).join('');
+    }
+
+    function toTs(v) {
+      if (!v) return NaN;
+      return new Date(v).getTime();
+    }
+
+    function validate() {
+      var ship = String(document.getElementById('fShip').value || '').trim();
+      var berthIn = document.getElementById('fBerthIn').value;
+      var workStart = document.getElementById('fWorkStart').value;
+      var workEnd = document.getElementById('fWorkEnd').value;
+      var berthOut = document.getElementById('fBerthOut').value;
+      var qty = document.getElementById('fQty').value;
+      var berth = document.getElementById('fBerth').value;
+      var machines = checkedValues('machineBox');
+      var drivers = checkedValues('driverBox');
+
+      if (!ship) return '请填写船名';
+      if (!berthIn || !workStart || !workEnd || !berthOut) return '请完整填写靠泊/开工/完工/离泊时间';
+      var t1 = toTs(berthIn), t2 = toTs(workStart), t3 = toTs(workEnd), t4 = toTs(berthOut);
+      if (!(t1 <= t2 && t2 <= t3 && t3 <= t4)) return '时间须满足：靠泊 ≤ 开始作业 ≤ 结束作业 ≤ 离泊';
+      if (qty === '' || Number(qty) < 0) return '请填写有效作业总量（≥0）';
+      if (!berth) return '请选择作业泊位';
+      if (!machines.length) return '请至少选择 1 台作业设备';
+      if (!drivers.length) return '请至少选择 1 名作业司机';
+      return '';
+    }
+
+    function saveDraft() {
+      showToast('草稿已保存');
+    }
+
+    function submitForm() {
+      var err = validate();
+      if (err) { showToast(err, 'err'); return; }
+      showToast('已提交审核，等待平台处理');
+      setTimeout(function () { location.href = 'vessel-list-pc.html'; }, 900);
+    }
+
+    if (location.search.indexOf('reject') >= 0) {
+      document.getElementById('statusBadge').textContent = '已驳回';
+      document.getElementById('statusBadge').className = 'badge';
+      document.getElementById('statusBadge').style.background = '#fee2e2';
+      document.getElementById('statusBadge').style.color = '#b91c1c';
+    }
+    syncMachines();
+    if (location.hash === '#submit') {
+      setTimeout(submitForm, 300);
+    }
+  </script>
+  <script src="../assets/pc-sidebar.js"></script>
+</body>
+</html>

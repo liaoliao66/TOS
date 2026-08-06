@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>填写时段 · 单机作业量统计</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../assets/abnormal-fill.js"></script>
+  <script src="../assets/cargo-cascade.js"></script>
+  <script src="../assets/wecom-push.js"></script>
+  <style>
+    :root { --brand: #0f766e; --brand-hover: #0d9488; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
+    .sidebar { background: #1e293b; }
+    .card { background: #fff; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .btn { border-radius: 20px; transition: all .15s ease; }
+    .btn:active { transform: scale(0.95); }
+    .btn-brand { background: var(--brand); color: #fff; }
+    .btn-brand:hover { background: var(--brand-hover); }
+    .field label { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
+    .field select, .field input {
+      width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px;
+      font-size: 14px; min-height: 40px; background: #fff; box-sizing: border-box;
+    }
+    .field select:disabled, .field input:disabled { background: #f8fafc; color: #334155; }
+    .toast { position: fixed; top: 24px; right: 24px; z-index: 80; min-width: 240px; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
+    .fade-in { animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="flex min-h-screen">
+    <aside class="sidebar w-64 shrink-0 text-slate-100 flex flex-col">
+      <div class="px-5 py-6 border-b border-slate-700">
+        <div class="text-xs text-slate-400 mb-1">TOS 子模块</div>
+        <div class="text-lg font-semibold leading-snug">单机作业量统计</div>
+        <div class="mt-2 text-xs text-slate-400">v1.0.0 · 录入 · 效率分析 · 问数</div>
+      </div>
+      <nav id="pcSidebarNav" class="p-3 flex-1 overflow-y-auto" data-active="fill-shift"></nav>
+      <div class="p-4 text-xs text-slate-500 border-t border-slate-700">
+        <a href="../index.html" class="hover:text-slate-300">返回版本入口</a>
+      </div>
+    </aside>
+
+    <div class="flex-1 min-w-0 flex flex-col">
+      <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+        <div>
+          <h1 class="text-lg font-semibold">填写时段</h1>
+          <p class="text-xs text-slate-500">本页只录一个时段 · 与企微「添加一条」同构</p>
+        </div>
+        <a href="work-stat-edit-pc.html" class="text-sm text-teal-700 hover:underline"><i class="fa-solid fa-chevron-left mr-1"></i>返回单据</a>
+      </header>
+
+      <main class="flex-1 p-6 overflow-auto">
+        <div class="max-w-2xl mx-auto space-y-4">
+          <div class="text-xs text-slate-600 bg-slate-100 rounded-xl px-3 py-2" id="echoHint">
+            归属：2026-07-21 · 白班
+          </div>
+
+          <div class="card p-5 space-y-4">
+            <div class="field">
+              <label>时段（顺序锁定）</label>
+              <select id="fSlot" disabled></select>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="field">
+                <label>泊位</label>
+                <select id="fBerth" onchange="syncMachine()">
+                  <option value="">请选择</option>
+                  <option>5#泊位</option>
+                  <option>6#泊位</option>
+                </select>
+              </div>
+              <div class="field">
+                <label>机械</label>
+                <select id="fMachine">
+                  <option value="">请选择</option>
+                  <option>1#门机</option>
+                  <option>2#门机</option>
+                </select>
+              </div>
+            </div>
+            <div class="field">
+              <label>司机</label>
+              <select id="fDriver">
+                <option value="">请选择</option>
+                <option>涂峰</option>
+                <option>陈迪政</option>
+                <option>刘志显</option>
+              </select>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="field">
+                <label>货种一级</label>
+                <select id="fCargoL1"></select>
+              </div>
+              <div class="field">
+                <label>货种二级</label>
+                <select id="fCargoL2"></select>
+              </div>
+            </div>
+            <div class="field">
+              <label>作业量（吨）</label>
+              <input id="fQty" type="number" step="0.01" min="0" value="0.00" />
+              <div class="mt-1 text-[11px] text-slate-400">默认 0，不回显上次产量</div>
+            </div>
+            <div class="field">
+              <label>是否正常作业</label>
+              <select id="fNormal" onchange="toggleReason()">
+                <option value="yes" selected>正常作业</option>
+                <option value="no">非正常</option>
+              </select>
+              <div class="mt-1 text-[11px] text-slate-400">不回显上次；每条重新选择</div>
+            </div>
+            <div class="field hidden" id="reasonWrap">
+              <label>非正常原因</label>
+              <select id="fReason" onchange="syncRemarkHint()">
+                <option value="">请选择原因</option>
+                <option>停电/无生产作业</option>
+                <option>吃饭休息</option>
+                <option>车辆断档</option>
+                <option>交接班</option>
+                <option>避高温，暂停作业</option>
+                <option>下雨，暂停作业</option>
+                <option>完船</option>
+                <option>设备异常</option>
+                <option>其他</option>
+              </select>
+            </div>
+            <div class="field hidden" id="periodWrap">
+              <label>非正常时段</label>
+              <div class="flex items-center gap-2">
+                <input id="fAbFrom" type="time" />
+                <span class="text-slate-400 text-sm">至</span>
+                <input id="fAbTo" type="time" />
+              </div>
+              <div class="mt-1 text-[11px] text-slate-400">须落在本行作业时段内 · 不回显</div>
+            </div>
+            <div class="field">
+              <label>备注</label>
+              <input id="fRemark" type="text" placeholder="备注（选填）" value="" />
+            </div>
+          </div>
+
+          <div class="flex flex-wrap gap-3">
+            <button type="button" class="btn btn-brand px-6 py-2.5 text-sm" onclick="saveLine(false)">保存本时段</button>
+            <button type="button" class="btn border border-slate-200 bg-white px-6 py-2.5 text-sm" onclick="saveLine(true)">保存并继续下一时段</button>
+            <a href="work-stat-edit-pc.html" class="btn border border-slate-200 bg-white px-6 py-2.5 text-sm">取消</a>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    var DAY_SLOTS = [
+      '08:00-09:00','09:00-10:00','10:00-11:00','11:00-12:00',
+      '12:00-13:00','13:00-14:00','14:00-15:00','15:00-16:00',
+      '16:00-17:00','17:00-18:00','18:00-19:00','19:00-20:00'
+    ];
+
+    function showToast(msg, type) {
+      type = type || 'ok';
+      var el = document.createElement('div');
+      el.className = 'toast fade-in px-4 py-3 text-sm text-white ' + (type === 'err' ? 'bg-red-500' : 'bg-emerald-500');
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function () { el.remove(); }, 2400);
+    }
+
+    function syncMachine() {
+      var berth = document.getElementById('fBerth').value;
+      var m = document.getElementById('fMachine');
+      if (!berth) { m.value = ''; return; }
+      m.value = berth.indexOf('6') >= 0 ? '2#门机' : '1#门机';
+    }
+
+    function syncRemarkHint() {
+      var reason = document.getElementById('fReason').value;
+      var remark = document.getElementById('fRemark');
+      var need = document.getElementById('fNormal').value === 'no' && reason === '其他';
+      remark.placeholder = need ? '选「其他」时必填备注' : '备注（选填）';
+    }
+
+    function toggleReason() {
+      var no = document.getElementById('fNormal').value === 'no';
+      document.getElementById('reasonWrap').classList.toggle('hidden', !no);
+      document.getElementById('periodWrap').classList.toggle('hidden', !no);
+      if (!no) {
+        document.getElementById('fReason').value = '';
+        document.getElementById('fAbFrom').value = '';
+        document.getElementById('fAbTo').value = '';
+      }
+      syncRemarkHint();
+    }
+
+    function applyEcho() {
+      var slot = sessionStorage.getItem('pcNextSlot') || DAY_SLOTS[0];
+      var slotSel = document.getElementById('fSlot');
+      slotSel.innerHTML = DAY_SLOTS.map(function (s) {
+        return '<option value="' + s + '"' + (s === slot ? ' selected' : '') + '>' + s + '</option>';
+      }).join('');
+      slotSel.value = slot;
+      slotSel.disabled = true;
+
+      var hint = document.getElementById('echoHint');
+      var lastRaw = sessionStorage.getItem('pcLastLine') || '';
+      var last = null;
+      try { if (lastRaw) last = JSON.parse(lastRaw); } catch (e) {}
+
+      /* 作业量永远默认 0；是否正常/原因/非正常时段不回显 */
+      document.getElementById('fQty').value = '0.00';
+      document.getElementById('fNormal').value = 'yes';
+      toggleReason();
+
+      if (!last) {
+        hint.innerHTML = '归属：2026-07-21 · 白班 · 当前时段 <strong>' + slot + '</strong> · <span class="text-slate-500">首条：其余字段为空，作业量默认 0</span>';
+        document.getElementById('fBerth').value = '';
+        document.getElementById('fMachine').value = '';
+        document.getElementById('fDriver').value = '';
+        document.getElementById('fRemark').value = '';
+        return { slot: slot, last: null };
+      }
+
+      hint.innerHTML = '归属：2026-07-21 · 白班 · 当前时段 <strong>' + slot + '</strong> · <span class="text-teal-700">已回显上一条的泊位/机械/司机/货种/备注</span>';
+      document.getElementById('fBerth').value = last.berth || '';
+      syncMachine();
+      if (last.machine) document.getElementById('fMachine').value = last.machine;
+      document.getElementById('fDriver').value = last.driver || '';
+      document.getElementById('fRemark').value = last.remark || '';
+      return { slot: slot, last: last };
+    }
+
+    function saveLine(continueNext) {
+      var normal = document.getElementById('fNormal').value === 'yes';
+      var reason = document.getElementById('fReason').value;
+      var qty = document.getElementById('fQty').value;
+      var abFrom = document.getElementById('fAbFrom').value;
+      var abTo = document.getElementById('fAbTo').value;
+      var remark = String(document.getElementById('fRemark').value || '').trim();
+      var slot = document.getElementById('fSlot').value;
+      var berth = document.getElementById('fBerth').value;
+      var machine = document.getElementById('fMachine').value;
+      var driver = document.getElementById('fDriver').value;
+
+      if (!berth || !machine || !driver) {
+        showToast('请选择泊位、机械与司机', 'err');
+        return;
+      }
+      if (qty === '' || Number(qty) < 0) {
+        showToast('请填写有效作业量', 'err');
+        return;
+      }
+      if (!normal) {
+        if (!reason) {
+          showToast('非正常作业须选择原因', 'err');
+          return;
+        }
+        if (typeof AbnormalFill !== 'undefined') {
+          var perr = AbnormalFill.validatePeriod(slot, abFrom, abTo);
+          if (perr) { showToast(perr, 'err'); return; }
+        }
+        if (reason === '其他' && !remark) {
+          showToast('选择「其他」时必须填写备注', 'err');
+          return;
+        }
+      }
+      var cargoVal = (window.__lineCargo && window.__lineCargo.getValue()) || {};
+      if (!cargoVal.l1 || !cargoVal.l2 || cargoVal.l1 === '全部' || cargoVal.l2 === '全部') {
+        showToast('请选择货种（一级 + 二级）', 'err');
+        return;
+      }
+
+      var line = {
+        slot: slot,
+        berth: berth,
+        machine: machine,
+        driver: driver,
+        cargo: cargoVal.l1 + ' / ' + cargoVal.l2,
+        cargoL1: cargoVal.l1,
+        cargoL2: cargoVal.l2,
+        qty: Number(qty),
+        normal: normal,
+        reason: normal ? '' : reason,
+        abFrom: normal ? '' : abFrom,
+        abTo: normal ? '' : abTo,
+        remark: remark
+      };
+
+      var editIdxRaw = sessionStorage.getItem('pcEditIndex');
+      var editIdx = editIdxRaw != null && editIdxRaw !== '' ? Number(editIdxRaw) : -1;
+      var isUpdate = editIdx >= 0;
+      if (isUpdate) {
+        try {
+          var linesEdit = JSON.parse(sessionStorage.getItem('pcSheetLines_v1') || '[]');
+          if (editIdx < linesEdit.length) {
+            linesEdit[editIdx] = line;
+            sessionStorage.setItem('pcSheetLines_v1', JSON.stringify(linesEdit));
+          }
+          sessionStorage.removeItem('pcEditIndex');
+          sessionStorage.removeItem('pcEditLine');
+        } catch (e) {}
+      } else {
+        try { sessionStorage.setItem('pcNewLine', JSON.stringify(line)); } catch (e) {}
+      }
+
+      function afterPush() {
+        if (!continueNext || isUpdate) {
+          location.href = 'work-stat-edit-pc.html';
+          return;
+        }
+        var lines = [];
+        try {
+          lines = JSON.parse(sessionStorage.getItem('pcSheetLines_v1') || '[]');
+        } catch (e) {}
+        var expected = DAY_SLOTS[lines.length];
+        if (expected && line.slot === expected) {
+          lines.push(line);
+          try { sessionStorage.setItem('pcSheetLines_v1', JSON.stringify(lines)); } catch (e) {}
+          try { sessionStorage.removeItem('pcNewLine'); } catch (e) {}
+        }
+        if (lines.length >= DAY_SLOTS.length) {
+          location.href = 'work-stat-edit-pc.html';
+          return;
+        }
+        var next = DAY_SLOTS[lines.length];
+        try {
+          sessionStorage.setItem('pcNextSlot', next);
+          sessionStorage.setItem('pcLastLine', JSON.stringify(line));
+        } catch (e) {}
+        location.reload();
+      }
+
+      showToast(isUpdate ? '本时段已修改' : '本时段已保存');
+      if (typeof WecomPush !== 'undefined' && WecomPush.isEnabled()) {
+        WecomPush.notifyAfterSave(line, isUpdate ? 'update' : 'create');
+        setTimeout(afterPush, 600);
+      } else {
+        setTimeout(afterPush, 500);
+      }
+    }
+
+    function applyEditMode() {
+      var raw = sessionStorage.getItem('pcEditLine');
+      if (!raw) return false;
+      var line = null;
+      try { line = JSON.parse(raw); } catch (e) { return false; }
+      if (!line) return false;
+      var slotSel = document.getElementById('fSlot');
+      slotSel.innerHTML = DAY_SLOTS.map(function (s) {
+        return '<option value="' + s + '"' + (s === line.slot ? ' selected' : '') + '>' + s + '</option>';
+      }).join('');
+      slotSel.value = line.slot;
+      slotSel.disabled = true;
+      document.getElementById('echoHint').innerHTML =
+        '修改模式 · 时段 <strong>' + line.slot + '</strong> · 保存后将<strong>再次</strong>企微推送';
+      document.getElementById('fBerth').value = line.berth || '';
+      syncMachine();
+      if (line.machine) document.getElementById('fMachine').value = line.machine;
+      document.getElementById('fDriver').value = line.driver || '';
+      document.getElementById('fQty').value = line.qty != null ? Number(line.qty).toFixed(2) : '0.00';
+      document.getElementById('fRemark').value = line.remark || '';
+      document.getElementById('fNormal').value = line.normal === false ? 'no' : 'yes';
+      toggleReason();
+      if (line.normal === false) {
+        document.getElementById('fReason').value = line.reason || '';
+        document.getElementById('fAbFrom').value = line.abFrom || '';
+        document.getElementById('fAbTo').value = line.abTo || '';
+      }
+      return { slot: line.slot, last: line, editing: true };
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      var ctx = applyEditMode() || applyEcho();
+      if (typeof CargoCascade !== 'undefined') {
+        var defL1 = (ctx.last && ctx.last.cargoL1) ? ctx.last.cargoL1 : '';
+        var defL2 = (ctx.last && ctx.last.cargoL2) ? ctx.last.cargoL2 : '';
+        window.__lineCargo = CargoCascade.bindPair(
+          document.getElementById('fCargoL1'),
+          document.getElementById('fCargoL2'),
+          {
+            allowAll: false,
+            entryMode: true,
+            defaultL1: defL1 || '',
+            defaultL2: defL2 || ''
+          }
+        );
+      }
+    });
+  </script>
+  <script src="../assets/pc-sidebar.js"></script>
+</body>
+</html>

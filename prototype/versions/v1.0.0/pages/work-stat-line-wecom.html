@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   <script src="../assets/abnormal-fill.js"></script>
   <script src="../assets/cargo-cascade.js"></script>
+  <script src="../assets/wecom-push.js"></script>
   <style>
     :root { --brand: #0f766e; --brand-hover: #0d9488; }
     body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; font-size: 14px; background: #f1f5f9; }
@@ -245,6 +246,9 @@
       };
       try { sessionStorage.setItem('wecomNewLine', JSON.stringify(line)); } catch (e) {}
       showToast('本条已保存');
+      if (typeof WecomPush !== 'undefined' && WecomPush.isEnabled()) {
+        WecomPush.notifyAfterSave(line, 'create');
+      }
       setTimeout(function() {
         if (continueAdd) {
           document.getElementById('fQty').value = '';
