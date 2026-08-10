@@ -3,8 +3,8 @@
  */
 (function (global) {
   var TREE = [
-    { name: '吨包袋', children: ['磷肥', '工铵吨包'] },
-    { name: '散货', children: ['氧化钙', '氮磷肥', '硫矿'] }
+    { name: '吨包袋', children: ['工铵吨包'] },
+    { name: '散货', children: ['氧化钙', '氮磷肥', '硫矿', '磷矿', '二氢钾'] }
   ];
 
   function parentOf(l2) {
