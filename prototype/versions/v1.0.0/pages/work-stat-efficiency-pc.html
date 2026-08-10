@@ -220,28 +220,23 @@
               <div class="mb-4 flex items-start justify-between gap-3">
                 <div>
                   <div class="text-sm font-medium">每日作业量趋势</div>
-                  <p class="text-xs text-slate-500 mt-1" id="evidenceHint">默认按货种一级汇总；选定二级后展示该货种各司机产量。横轴默认按日，可切换周/月 · 纵轴作业量(吨)</p>
+                  <p class="text-xs text-slate-500 mt-1" id="evidenceHint">横轴=司机；纵轴=总作业量（吨）与总平均量/有效平均量（吨/小时）；时间取顶部开班日起止；货种筛选保留，序列固定为司机</p>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
-                  <div class="grain-seg" id="evidenceGrainSeg" role="group" aria-label="横轴时间粒度">
-                    <button type="button" class="grain-seg__btn active" data-grain="day" onclick="setEvidenceGrain('day')">日</button>
-                    <button type="button" class="grain-seg__btn" data-grain="week" onclick="setEvidenceGrain('week')">周</button>
-                    <button type="button" class="grain-seg__btn" data-grain="month" onclick="setEvidenceGrain('month')">月</button>
-                  </div>
                   <button type="button" class="info-btn" title="图表说明" onclick="openChartHelp()"><i class="fa-solid fa-exclamation"></i></button>
                 </div>
               </div>
-              <div class="relative h-72">
+              <div class="relative h-96">
                 <canvas id="evidenceChart"></canvas>
               </div>
-              <div class="mt-3 text-xs text-slate-400" id="evidenceFoot">折线（虚线）：平均 / 最大 / 最小基准（最小排除产量为 0 的点）；柱状：当前筛选口径下的作业量序列（按时间并排）。</div>
+              <div class="mt-3 text-xs text-slate-400" id="evidenceFoot">柱状三项：总作业量（左轴·吨）、总平均量=总作业量÷总时长、有效平均量=总作业量÷有效时长（右轴·吨/小时）；有效时长剔除产量为 0 的填报时段。</div>
             </div>
 
             <div class="card overflow-hidden">
               <div class="px-5 py-4 border-b flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <div class="text-sm font-medium">司机效率榜 · <span id="rankCargoLabel" class="text-teal-700">全部货种</span></div>
-                  <p class="text-xs text-slate-500 mt-0.5">同一司机白班/夜班分两行；平均=产量÷作业时长（吨/小时）</p>
+                  <p class="text-xs text-slate-500 mt-0.5">一司机一行；合计 / 白班 / 夜班各含：总工作量、总作业时长、总平均作业量、有效作业时长、有效平均作业量（吨、小时、吨/小时）</p>
                 </div>
                 <div class="flex flex-wrap items-end gap-3">
                   <div class="ms-wrap" id="rankDriverMs">
@@ -258,22 +253,34 @@
                       <div id="rankDriverChecks"></div>
                     </div>
                   </div>
-                  <div class="text-xs text-slate-400 pb-2">排序：正常平均 ↓</div>
+                  <div class="text-xs text-slate-400 pb-2">排序：合计·有效平均作业量 ↓</div>
                 </div>
               </div>
               <div class="overflow-x-auto">
                 <table class="min-w-full text-sm">
                   <thead class="bg-slate-50 text-slate-500 text-left">
+                    <tr class="border-b border-slate-200">
+                      <th class="px-4 py-2 whitespace-nowrap sticky left-0 bg-slate-50 z-10" rowspan="2">司机</th>
+                      <th class="px-4 py-2 text-center text-slate-700 font-medium" colspan="5">合计</th>
+                      <th class="px-4 py-2 text-center text-slate-700 font-medium border-l border-slate-200" colspan="5">白班</th>
+                      <th class="px-4 py-2 text-center text-slate-700 font-medium border-l border-slate-200" colspan="5">夜班</th>
+                    </tr>
                     <tr>
-                      <th class="px-4 py-3">司机</th>
-                      <th class="px-4 py-3">班次</th>
-                      <th class="px-4 py-3">总作业时长</th>
-                      <th class="px-4 py-3">总产量</th>
-                      <th class="px-4 py-3">总平均</th>
-                      <th class="px-4 py-3">正常产量</th>
-                      <th class="px-4 py-3">正常平均</th>
-                      <th class="px-4 py-3">异常产量</th>
-                      <th class="px-4 py-3">异常平均</th>
+                      <th class="px-3 py-2 whitespace-nowrap font-normal">总工作量</th>
+                      <th class="px-3 py-2 whitespace-nowrap font-normal">总作业时长</th>
+                      <th class="px-3 py-2 whitespace-nowrap font-normal">总平均作业量</th>
+                      <th class="px-3 py-2 whitespace-nowrap font-normal">有效作业时长</th>
+                      <th class="px-3 py-2 whitespace-nowrap font-normal">有效平均作业量</th>
+                      <th class="px-3 py-2 whitespace-nowrap font-normal border-l border-slate-200">总工作量</th>
+                      <th class="px-3 py-2 whitespace-nowrap font-normal">总作业时长</th>
+                      <th class="px-3 py-2 whitespace-nowrap font-normal">总平均作业量</th>
+                      <th class="px-3 py-2 whitespace-nowrap font-normal">有效作业时长</th>
+                      <th class="px-3 py-2 whitespace-nowrap font-normal">有效平均作业量</th>
+                      <th class="px-3 py-2 whitespace-nowrap font-normal border-l border-slate-200">总工作量</th>
+                      <th class="px-3 py-2 whitespace-nowrap font-normal">总作业时长</th>
+                      <th class="px-3 py-2 whitespace-nowrap font-normal">总平均作业量</th>
+                      <th class="px-3 py-2 whitespace-nowrap font-normal">有效作业时长</th>
+                      <th class="px-3 py-2 whitespace-nowrap font-normal">有效平均作业量</th>
                     </tr>
                   </thead>
                   <tbody id="rankBody"></tbody>
@@ -524,12 +531,12 @@
         <button type="button" class="text-slate-400" onclick="document.getElementById('chartHelpMask').classList.remove('open')"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <ul class="text-sm text-slate-600 space-y-2 list-disc pl-5">
-        <li>横轴默认按「日」展示，可切换「周」「月」；周为自然周（周一至周日），月为自然月；周/月为日产量加总。</li>
-        <li>纵轴为作业量（吨）。</li>
-        <li>货种一级/二级均为「全部」时：柱状按一级货种（吨包袋、散货）汇总产量，同时间点并排对比。</li>
-        <li>选定一级且二级为「全部」：柱状为该一级下各二级货种产量，同时间点并排对比。</li>
-        <li>一级+二级均选定：柱状为该二级货种下各司机产量；折线（虚线）为平均/最大/最小基准（最小排除产量为 0 的点）。</li>
-        <li>数据范围与顶部「开班日、货种」筛选一致，仅含已通过数据。</li>
+        <li>横轴为司机；每个司机并排展示三项：总作业量、总平均量、有效平均量。</li>
+        <li>纵轴左侧为总作业量（吨），右侧为平均量（吨/小时）；已取消日/周/月切换，时间范围取顶部开班日起止。</li>
+        <li>总平均量 = 总作业量 ÷ 总时长；有效平均量 = 总作业量 ÷ 有效时长。</li>
+        <li>有效时长：剔除产量为 0 的填报时段对应时长（演示数据按日汇总时，以「作业日内产量为 0」近似该口径）。</li>
+        <li>货种筛选保留：全部/一级/二级均按当前范围汇总到司机；不再按货种出柱。</li>
+        <li>已去掉平均/最大/最小基准虚线；数据仅含已通过记录。</li>
       </ul>
       <div class="mt-5 text-right">
         <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="document.getElementById('chartHelpMask').classList.remove('open')">知道了</button>
@@ -803,7 +810,7 @@
     var selectedRankDrivers = [];
     var L1_COLORS = { '吨包袋': '#d97706', '散货': '#0f766e' };
 
-    /* 司机效率榜：白班/夜班分行；时长单位小时 */
+    /* 司机效率榜：一司机一行；白/夜分列；时长单位小时 */
     function makeRankRow(name, shift, hours, totalQty, normalQty, abnormalQty) {
       return {
         name: name,
@@ -1490,167 +1497,107 @@
       return sumSeries(kids.map(l2DaySeries));
     }
 
-    /* 横轴粒度：日（默认）/ 周（周一自然周）/ 月（自然月）；周月按日产量加总 */
-    var evidenceGrain = 'day';
+    /* 每日作业量趋势：横轴=司机；三项=总作业量 / 总平均量 / 有效平均量 */
     var EVIDENCE_YEAR = 2026;
 
     function pad2(n) {
       return (n < 10 ? '0' : '') + n;
     }
 
-    function parseEvidenceDay(mmdd) {
-      var parts = String(mmdd).split('-');
-      return new Date(EVIDENCE_YEAR, parseInt(parts[0], 10) - 1, parseInt(parts[1], 10));
-    }
-
-    function formatMmDd(d) {
-      return pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
-    }
-
-    function mondayOf(d) {
-      var x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-      var dow = x.getDay();
-      var diff = dow === 0 ? -6 : 1 - dow;
-      x.setDate(x.getDate() + diff);
-      return x;
-    }
-
-    function sundayOfMonday(mon) {
-      var x = new Date(mon.getFullYear(), mon.getMonth(), mon.getDate());
-      x.setDate(x.getDate() + 6);
-      return x;
-    }
-
-    function grainUnitLabel() {
-      if (evidenceGrain === 'week') return '周';
-      if (evidenceGrain === 'month') return '月';
-      return '日';
-    }
-
-    function evidenceXAxisTitle() {
-      if (evidenceGrain === 'week') return '开班周（自然周 · 周一至周日）';
-      if (evidenceGrain === 'month') return '开班月';
-      return '开班日（作业日）';
-    }
-
-    function getEvidenceGrainBuckets() {
-      if (evidenceGrain === 'day') {
-        return {
-          labels: EVIDENCE_DAYS.slice(),
-          groups: EVIDENCE_DAYS.map(function (_, i) { return [i]; })
-        };
+    function evidenceFullDate(mmddOrIdx) {
+      var demoDates = (window.RealWorkStatDemo && window.RealWorkStatDemo.EVIDENCE_DATES) || [];
+      if (typeof mmddOrIdx === 'number') {
+        if (demoDates[mmddOrIdx]) return demoDates[mmddOrIdx];
+        mmddOrIdx = EVIDENCE_DAYS[mmddOrIdx];
       }
-      var map = {};
-      var order = [];
-      EVIDENCE_DAYS.forEach(function (mmdd, i) {
-        var d = parseEvidenceDay(mmdd);
-        var key;
-        var label;
-        if (evidenceGrain === 'week') {
-          var mon = mondayOf(d);
-          key = 'W' + mon.getFullYear() + '-' + pad2(mon.getMonth() + 1) + '-' + pad2(mon.getDate());
-          label = formatMmDd(mon) + '~' + formatMmDd(sundayOfMonday(mon));
-        } else {
-          key = d.getFullYear() + '-' + pad2(d.getMonth() + 1);
-          label = key;
-        }
-        if (!map[key]) {
-          map[key] = { label: label, indices: [] };
-          order.push(key);
-        }
-        map[key].indices.push(i);
+      var parts = String(mmddOrIdx || '').split('-');
+      if (parts.length < 2) return '';
+      return EVIDENCE_YEAR + '-' + pad2(parseInt(parts[0], 10)) + '-' + pad2(parseInt(parts[1], 10));
+    }
+
+    function getEvidenceDayIndicesInRange() {
+      var range = getFilterRange();
+      var idxs = [];
+      EVIDENCE_DAYS.forEach(function (_, i) {
+        var d = evidenceFullDate(i);
+        if (!d) return;
+        if (d >= range.from && d <= range.to) idxs.push(i);
       });
+      return idxs;
+    }
+
+    function listEvidenceCargos(v) {
+      if (v.l1 === '全部') return Object.keys(EVIDENCE_DATA || {});
+      if (v.l2 === '全部') {
+        return (typeof CargoCascade !== 'undefined') ? CargoCascade.childrenOf(v.l1) : [];
+      }
+      return [v.l2];
+    }
+
+    function driverDaySeriesInScope(driverName, cargos) {
+      return EVIDENCE_DAYS.map(function (_, i) {
+        return cargos.reduce(function (s, cargo) {
+          var pack = EVIDENCE_DATA[cargo];
+          var arr = pack && pack.masters && pack.masters[driverName];
+          return s + (arr && arr[i] != null ? Number(arr[i]) || 0 : 0);
+        }, 0);
+      });
+    }
+
+    function aggregateRankHoursByDriver(rows) {
+      var map = {};
+      (rows || []).forEach(function (r) {
+        if (!map[r.name]) map[r.name] = { hours: 0, totalQty: 0 };
+        map[r.name].hours += Number(r.hours) || 0;
+        map[r.name].totalQty += Number(r.totalQty) || 0;
+      });
+      return map;
+    }
+
+    /**
+     * 有效时长：剔除产量为 0 的填报时段。
+     * 演示数据仅到「日」：在司机首末有产量日之间，将总时长按日均摊，产量为 0 的日对应时长不计入有效时长。
+     */
+    function calcDriverEvidenceMetrics(driverName, daySeries, dayIdxs, rankHours, rankQty) {
+      var filtered = dayIdxs.map(function (i) { return Number(daySeries[i]) || 0; });
+      var totalQty = filtered.reduce(function (s, v) { return s + v; }, 0);
+      var first = -1;
+      var last = -1;
+      var nonzero = 0;
+      filtered.forEach(function (v, i) {
+        if (v > 0) {
+          if (first < 0) first = i;
+          last = i;
+          nonzero += 1;
+        }
+      });
+      var span = (first >= 0 && last >= first) ? (last - first + 1) : 0;
+      var hours = Number(rankHours) || 0;
+      var rq = Number(rankQty) || 0;
+      /* 开班日筛选后：按时段产量占比缩放总时长；若序列产量为 0 则时长记 0 */
+      if (rq > 0 && Math.abs(rq - totalQty) > 0.01) {
+        hours = hours * (totalQty / rq);
+      } else if (rq <= 0 && dayIdxs.length && EVIDENCE_DAYS.length) {
+        hours = hours * (dayIdxs.length / EVIDENCE_DAYS.length);
+      }
+      var totalHours = hours;
+      var effectiveHours = 0;
+      if (span > 0 && totalHours > 0) {
+        effectiveHours = totalHours * (nonzero / span);
+      }
+      var totalAvg = totalHours > 0 ? totalQty / totalHours : null;
+      var effectiveAvg = effectiveHours > 0 ? totalQty / effectiveHours : null;
       return {
-        labels: order.map(function (k) { return map[k].label; }),
-        groups: order.map(function (k) { return map[k].indices; })
+        name: driverName,
+        totalQty: totalQty,
+        totalHours: totalHours,
+        effectiveHours: effectiveHours,
+        totalAvg: totalAvg,
+        effectiveAvg: effectiveAvg
       };
     }
 
-    function aggregateByGrain(daySeries, groups) {
-      return groups.map(function (idxs) {
-        return idxs.reduce(function (s, i) { return s + (Number(daySeries[i]) || 0); }, 0);
-      });
-    }
-
-    function baselineDatasets(values, labelCount) {
-      var nums = (values || []).map(function (v) { return Number(v) || 0; });
-      var positive = nums.filter(function (v) { return v > 0; });
-      var avg = nums.length ? nums.reduce(function (a, b) { return a + b; }, 0) / nums.length : 0;
-      var max = nums.length ? Math.max.apply(null, nums) : 0;
-      // 最小作业量：产量为 0 的点不参与统计；若无正值则不展示该基准线
-      var min = positive.length ? Math.min.apply(null, positive) : null;
-      var n = labelCount || 0;
-      var avgLine = [];
-      var maxLine = [];
-      var minLine = [];
-      var i;
-      for (i = 0; i < n; i++) {
-        avgLine.push(Math.round(avg));
-        maxLine.push(max);
-        if (min !== null) minLine.push(min);
-      }
-      // baseline:true → 由 fullWidthBaselineLines 插件横向铺满绘图区（避免仅连类目中心导致两端留白）
-      function mkBaseline(label, data, color) {
-        return {
-          type: 'line',
-          label: label,
-          data: data,
-          borderColor: color,
-          borderDash: [6, 4],
-          borderWidth: 2,
-          pointRadius: 0,
-          fill: false,
-          tension: 0,
-          order: 10,
-          baseline: true
-        };
-      }
-      var out = [
-        mkBaseline('平均作业量', avgLine, '#64748b'),
-        mkBaseline('最大作业量', maxLine, '#ef4444')
-      ];
-      if (min !== null) out.push(mkBaseline('最小作业量', minLine, '#f59e0b'));
-      return out;
-    }
-
-    /** 三条基准线横跨整个绘图区（日/周/月任意分段数均铺满） */
-    var fullWidthBaselineLinesPlugin = {
-      id: 'fullWidthBaselineLines',
-      beforeDatasetDraw: function (chart, args) {
-        var ds = chart.data.datasets[args.index];
-        if (ds && ds.baseline) return false;
-      },
-      afterDatasetsDraw: function (chart) {
-        var area = chart.chartArea;
-        var yScale = chart.scales && chart.scales.y;
-        if (!area || !yScale) return;
-        var ctx = chart.ctx;
-        (chart.data.datasets || []).forEach(function (ds, idx) {
-          if (!ds || !ds.baseline || ds.hidden) return;
-          var meta = chart.getDatasetMeta(idx);
-          if (meta && meta.hidden) return;
-          var val = null;
-          for (var i = 0; i < (ds.data || []).length; i++) {
-            var v = ds.data[i];
-            if (v !== null && v !== undefined && !isNaN(Number(v))) { val = Number(v); break; }
-          }
-          if (val === null) return;
-          var y = yScale.getPixelForValue(val);
-          if (y < area.top || y > area.bottom) return;
-          ctx.save();
-          ctx.beginPath();
-          ctx.setLineDash(ds.borderDash || [6, 4]);
-          ctx.strokeStyle = ds.borderColor || '#64748b';
-          ctx.lineWidth = ds.borderWidth || 2;
-          ctx.moveTo(area.left, y);
-          ctx.lineTo(area.right, y);
-          ctx.stroke();
-          ctx.restore();
-        });
-      }
-    };
-
-    function barSeriesDataset(label, data, color) {
+    function barSeriesDataset(label, data, color, yAxisID) {
       return {
         type: 'bar',
         label: label,
@@ -1659,32 +1606,15 @@
         borderColor: color,
         borderWidth: 0,
         borderRadius: 3,
-        maxBarThickness: 28,
-        order: 1
+        maxBarThickness: 36,
+        order: 1,
+        yAxisID: yAxisID || 'y'
       };
     }
 
     function chartTitleText(modeLabel) {
       var range = getFilterRange();
-      return modeLabel + ' · ' + range.from + ' ~ ' + range.to + ' · 按' + grainUnitLabel();
-    }
-
-    function syncEvidenceGrainButtons() {
-      var seg = document.getElementById('evidenceGrainSeg');
-      if (!seg) return;
-      Array.prototype.forEach.call(seg.querySelectorAll('[data-grain]'), function (btn) {
-        if (btn.getAttribute('data-grain') === evidenceGrain) btn.classList.add('active');
-        else btn.classList.remove('active');
-      });
-    }
-
-    function setEvidenceGrain(grain) {
-      if (grain !== 'day' && grain !== 'week' && grain !== 'month') return;
-      if (evidenceGrain === grain) return;
-      evidenceGrain = grain;
-      syncEvidenceGrainButtons();
-      refreshEvidenceChart(true);
-      showToast('已切换为按' + grainUnitLabel() + '展示');
+      return modeLabel + ' · ' + range.from + ' ~ ' + range.to;
     }
 
     function initRankDriverMultiSelect() {
@@ -1717,6 +1647,7 @@
       );
       syncRankDriverSummary();
       renderRankBoard();
+      refreshEvidenceChart(true);
     }
 
     function setAllRankDrivers(all) {
@@ -1757,6 +1688,138 @@
       return { key: v.l2, rows: RANK_BY_L2[v.l2] || RANK_ROWS_ALL, label: v.l1 + ' / ' + v.l2 };
     }
 
+    function calcEffRatio(daySeries, dayIdxs) {
+      var filtered = (dayIdxs || []).map(function (i) { return Number(daySeries[i]) || 0; });
+      var first = -1;
+      var last = -1;
+      var nonzero = 0;
+      filtered.forEach(function (v, i) {
+        if (v > 0) {
+          if (first < 0) first = i;
+          last = i;
+          nonzero += 1;
+        }
+      });
+      var span = (first >= 0 && last >= first) ? (last - first + 1) : 0;
+      if (!span) return 0;
+      return nonzero / span;
+    }
+
+    function scaleShiftByDate(rankQty, rankHours, daySeries, dayIdxs) {
+      var fullQty = (daySeries || []).reduce(function (s, v) { return s + (Number(v) || 0); }, 0);
+      var filteredQty = (dayIdxs || []).reduce(function (s, i) { return s + (Number(daySeries[i]) || 0); }, 0);
+      var hours = Number(rankHours) || 0;
+      var qty = Number(rankQty) || 0;
+      if (fullQty > 0) {
+        var ratio = filteredQty / fullQty;
+        return { qty: qty * ratio, hours: hours * ratio };
+      }
+      if (EVIDENCE_DAYS.length && dayIdxs && dayIdxs.length) {
+        var dr = dayIdxs.length / EVIDENCE_DAYS.length;
+        return { qty: qty * dr, hours: hours * dr };
+      }
+      return { qty: qty, hours: hours };
+    }
+
+    function buildMetricBlock(qty, hours, effRatio) {
+      if (qty == null || hours == null) return null;
+      var q = Number(qty) || 0;
+      var h = Number(hours) || 0;
+      var effH = h > 0 ? h * (Number(effRatio) || 0) : 0;
+      return {
+        qty: q,
+        hours: h,
+        effHours: effH,
+        avg: h > 0 ? q / h : null,
+        effAvg: effH > 0 ? q / effH : null
+      };
+    }
+
+    function mergeMetricBlocks(dayBlk, nightBlk) {
+      var hasDay = !!dayBlk;
+      var hasNight = !!nightBlk;
+      if (!hasDay && !hasNight) return null;
+      var qty = (hasDay ? dayBlk.qty : 0) + (hasNight ? nightBlk.qty : 0);
+      var hours = (hasDay ? dayBlk.hours : 0) + (hasNight ? nightBlk.hours : 0);
+      var effHours = (hasDay ? dayBlk.effHours : 0) + (hasNight ? nightBlk.effHours : 0);
+      return {
+        qty: qty,
+        hours: hours,
+        effHours: effHours,
+        avg: hours > 0 ? qty / hours : null,
+        effAvg: effHours > 0 ? qty / effHours : null
+      };
+    }
+
+    function fmtRankDash() {
+      return '<span class="text-slate-300">—</span>';
+    }
+
+    function fmtRankQty(v) {
+      if (v == null || isNaN(v)) return fmtRankDash();
+      return fmtNum(v);
+    }
+
+    function fmtRankHours(v) {
+      if (v == null || isNaN(v)) return fmtRankDash();
+      return (Math.round(Number(v) * 100) / 100) + ' 小时';
+    }
+
+    function fmtRankAvg(v) {
+      if (v == null || isNaN(v)) return fmtRankDash();
+      return Number(v).toFixed(2);
+    }
+
+    function renderMetricCells(blk, opts) {
+      opts = opts || {};
+      var border = opts.borderLeft ? ' border-l border-slate-100' : '';
+      var emph = opts.emphasize ? ' text-teal-800 font-medium' : '';
+      if (!blk) {
+        return '<td class="px-3 py-3 tabular-nums' + border + '">' + fmtRankDash() + '</td>' +
+          '<td class="px-3 py-3 tabular-nums">' + fmtRankDash() + '</td>' +
+          '<td class="px-3 py-3 tabular-nums">' + fmtRankDash() + '</td>' +
+          '<td class="px-3 py-3 tabular-nums">' + fmtRankDash() + '</td>' +
+          '<td class="px-3 py-3 tabular-nums">' + fmtRankDash() + '</td>';
+      }
+      return '<td class="px-3 py-3 tabular-nums' + border + '">' + fmtRankQty(blk.qty) + '</td>' +
+        '<td class="px-3 py-3 tabular-nums">' + fmtRankHours(blk.hours) + '</td>' +
+        '<td class="px-3 py-3 tabular-nums">' + fmtRankAvg(blk.avg) + '</td>' +
+        '<td class="px-3 py-3 tabular-nums">' + fmtRankHours(blk.effHours) + '</td>' +
+        '<td class="px-3 py-3 tabular-nums' + emph + '">' + fmtRankAvg(blk.effAvg) + '</td>';
+    }
+
+    function buildRankDriverBoardRows(scopeRows) {
+      var v = getTopCargoFilter();
+      var cargos = listEvidenceCargos(v);
+      var dayIdxs = getEvidenceDayIndicesInRange();
+      var byName = {};
+
+      (scopeRows || []).forEach(function (r) {
+        if (!byName[r.name]) byName[r.name] = { name: r.name, dayRaw: null, nightRaw: null };
+        var raw = { qty: Number(r.totalQty) || 0, hours: Number(r.hours) || 0 };
+        if (r.shift === '白班') byName[r.name].dayRaw = raw;
+        else if (r.shift === '夜班') byName[r.name].nightRaw = raw;
+      });
+
+      return Object.keys(byName).map(function (name) {
+        var item = byName[name];
+        var series = driverDaySeriesInScope(name, cargos);
+        var effRatio = calcEffRatio(series, dayIdxs);
+        var dayBlk = null;
+        var nightBlk = null;
+        if (item.dayRaw) {
+          var ds = scaleShiftByDate(item.dayRaw.qty, item.dayRaw.hours, series, dayIdxs);
+          dayBlk = buildMetricBlock(ds.qty, ds.hours, effRatio);
+        }
+        if (item.nightRaw) {
+          var ns = scaleShiftByDate(item.nightRaw.qty, item.nightRaw.hours, series, dayIdxs);
+          nightBlk = buildMetricBlock(ns.qty, ns.hours, effRatio);
+        }
+        var totalBlk = mergeMetricBlocks(dayBlk, nightBlk);
+        return { name: name, total: totalBlk, day: dayBlk, night: nightBlk };
+      });
+    }
+
     function renderRankBoard() {
       var scope = resolveRankScope();
       var kpi = KPI_BY_SCOPE[scope.key] || KPI_BY_SCOPE['全部'];
@@ -1771,90 +1834,92 @@
       var body = document.getElementById('rankBody');
       if (!body) return;
       var driverFilter = getSelectedRankDrivers();
-      var rows = scope.rows.slice();
+      var rows = buildRankDriverBoardRows(scope.rows);
       if (driverFilter !== null) {
         rows = rows.filter(function (r) { return driverFilter.indexOf(r.name) >= 0; });
       }
-      rows.sort(function (a, b) { return b.normalAvg - a.normalAvg; });
+      rows.sort(function (a, b) {
+        var ae = a.total && a.total.effAvg != null ? a.total.effAvg : -1;
+        var be = b.total && b.total.effAvg != null ? b.total.effAvg : -1;
+        return be - ae;
+      });
       if (!rows.length) {
-        body.innerHTML = '<tr><td colspan="9" class="px-4 py-10 text-center text-slate-400">当前未选中任何司机，或无匹配数据</td></tr>';
+        body.innerHTML = '<tr><td colspan="16" class="px-4 py-10 text-center text-slate-400">当前未选中任何司机，或无匹配数据</td></tr>';
         return;
       }
       body.innerHTML = rows.map(function (r) {
         return '<tr class="table-row border-t">' +
-          '<td class="px-4 py-3 font-medium">' + r.name + '</td>' +
-          '<td class="px-4 py-3">' + r.shift + '</td>' +
-          '<td class="px-4 py-3 tabular-nums">' + r.hours + ' 小时</td>' +
-          '<td class="px-4 py-3 tabular-nums">' + fmtNum(r.totalQty) + '</td>' +
-          '<td class="px-4 py-3 tabular-nums">' + r.totalAvg.toFixed(2) + '</td>' +
-          '<td class="px-4 py-3 tabular-nums">' + fmtNum(r.normalQty) + '</td>' +
-          '<td class="px-4 py-3 text-teal-800 font-medium tabular-nums">' + r.normalAvg.toFixed(2) + '</td>' +
-          '<td class="px-4 py-3 tabular-nums">' + fmtNum(r.abnormalQty) + '</td>' +
-          '<td class="px-4 py-3 tabular-nums">' + r.abnormalAvg.toFixed(2) + '</td>' +
+          '<td class="px-4 py-3 font-medium whitespace-nowrap sticky left-0 bg-white z-10">' + r.name + '</td>' +
+          renderMetricCells(r.total, { emphasize: true }) +
+          renderMetricCells(r.day, { borderLeft: true }) +
+          renderMetricCells(r.night, { borderLeft: true }) +
           '</tr>';
       }).join('');
     }
 
     function buildEvidenceDatasets() {
       var v = getTopCargoFilter();
-      var buckets = getEvidenceGrainBuckets();
-      var unit = grainUnitLabel();
-      var datasets = [];
-      var title = '';
-      var hint = '';
-      var foot = '';
+      var cargos = listEvidenceCargos(v);
+      var dayIdxs = getEvidenceDayIndicesInRange();
+      var scope = resolveRankScope();
+      var rankMap = aggregateRankHoursByDriver(scope.rows);
+      var driverFilter = getSelectedRankDrivers();
+      var nameSet = {};
 
-      if (v.l1 === '全部') {
-        title = '按货种一级汇总';
-        hint = '默认展示各一级货种（吨包袋、散货）作业总量；货种为柱状、基准为折线；横轴可切换日/周/月';
-        foot = '柱状：一级货种' + unit + '合计产量（按时间并排）；折线（虚线）：当前序列平均/最大/最小基准（最小排除 0）。';
-        var seriesMap = {};
-        ['吨包袋', '散货'].forEach(function (l1) {
-          seriesMap[l1] = aggregateByGrain(l1DaySeries(l1), buckets.groups);
-        });
-        var allVals = [].concat(seriesMap['吨包袋'], seriesMap['散货']);
-        datasets = baselineDatasets(allVals, buckets.labels.length);
-        ['吨包袋', '散货'].forEach(function (l1) {
-          datasets.push(barSeriesDataset(l1, seriesMap[l1], (L1_COLORS && L1_COLORS[l1]) || '#64748b'));
-        });
-      } else if (v.l2 === '全部') {
-        title = '一级「' + v.l1 + '」下各二级货种';
-        hint = '选定一级且二级=全部：展示该一级下各二级货种产量；货种为柱状、基准为折线；横轴可切换日/周/月';
-        foot = '柱状：二级货种' + unit + '产量（按时间并排）；折线（虚线）：当前序列平均/最大/最小基准（最小排除 0）。';
-        var kids = CargoCascade.childrenOf(v.l1);
-        var kidSeries = kids.map(function (name) {
-          return aggregateByGrain(l2DaySeries(name), buckets.groups);
-        });
-        datasets = baselineDatasets([].concat.apply([], kidSeries), buckets.labels.length);
-        kids.forEach(function (name, idx) {
-          datasets.push(barSeriesDataset(name, kidSeries[idx], L2_COLORS[name] || '#64748b'));
-        });
-      } else {
-        title = '货种「' + v.l1 + ' / ' + v.l2 + '」· 各司机';
-        hint = '已选定二级货种：展示该货种下各司机产量；司机为柱状、基准为折线；横轴可切换日/周/月';
-        foot = '折线（虚线）：平均/最大/最小基准（最小排除 0）；柱状：各司机' + unit + '产量（按时间并排）。';
-        var pack = EVIDENCE_DATA[v.l2] || EVIDENCE_DATA['氧化钙'] || EVIDENCE_DATA['磷矿'];
-        if (!pack || !pack.masters) {
-          datasets = baselineDatasets([0], buckets.labels.length);
-        } else {
-        var masterSeries = {};
-        var flatVals = [];
-        Object.keys(pack.masters).forEach(function (name) {
-          masterSeries[name] = aggregateByGrain(pack.masters[name], buckets.groups);
-          flatVals = flatVals.concat(masterSeries[name]);
-        });
-        datasets = baselineDatasets(flatVals, buckets.labels.length);
-        Object.keys(masterSeries).forEach(function (name) {
-          datasets.push(barSeriesDataset(name, masterSeries[name], MASTER_COLORS[name] || '#0f766e'));
-        });
-        }
-      }
+      Object.keys(rankMap).forEach(function (n) { nameSet[n] = true; });
+      cargos.forEach(function (cargo) {
+        var pack = EVIDENCE_DATA[cargo];
+        if (!pack || !pack.masters) return;
+        Object.keys(pack.masters).forEach(function (n) { nameSet[n] = true; });
+      });
+
+      var names = Object.keys(nameSet).filter(function (n) {
+        if (driverFilter !== null && driverFilter.indexOf(n) < 0) return false;
+        return true;
+      });
+
+      var metrics = names.map(function (name) {
+        var series = driverDaySeriesInScope(name, cargos);
+        var rk = rankMap[name] || { hours: 0, totalQty: 0 };
+        return calcDriverEvidenceMetrics(name, series, dayIdxs, rk.hours, rk.totalQty);
+      }).filter(function (m) {
+        return m.totalQty > 0 || m.totalHours > 0;
+      });
+
+      metrics.sort(function (a, b) { return b.totalQty - a.totalQty; });
+
+      var labels = metrics.map(function (m) { return m.name; });
+      var qtyData = metrics.map(function (m) { return Math.round(m.totalQty * 100) / 100; });
+      var totalAvgData = metrics.map(function (m) {
+        return m.totalAvg == null ? null : Math.round(m.totalAvg * 100) / 100;
+      });
+      var effAvgData = metrics.map(function (m) {
+        return m.effectiveAvg == null ? null : Math.round(m.effectiveAvg * 100) / 100;
+      });
+
+      var cargoLabel = scope.label || '当前筛选';
+      var title = '按司机 · ' + cargoLabel;
+      var hint = '横轴=司机；左轴=总作业量（吨）；右轴=总平均量/有效平均量（吨/小时）。时间取开班日起止；货种筛选后汇总到司机。';
+      var foot = '总平均量=总作业量÷总时长；有效平均量=总作业量÷有效时长（剔除产量为 0 的填报时段；演示按日近似）。';
 
       var hintEl = document.getElementById('evidenceHint');
       var footEl = document.getElementById('evidenceFoot');
       if (hintEl) hintEl.textContent = hint;
       if (footEl) footEl.textContent = foot;
-      return { labels: buckets.labels, datasets: datasets, title: title, xTitle: evidenceXAxisTitle() };
+
+      var datasets = [
+        barSeriesDataset('总作业量', qtyData, '#0f766e', 'y'),
+        barSeriesDataset('总平均量', totalAvgData, '#64748b', 'y1'),
+        barSeriesDataset('有效平均量', effAvgData, '#d97706', 'y1')
+      ];
+
+      return {
+        labels: labels,
+        datasets: datasets,
+        title: title,
+        xTitle: '司机',
+        metrics: metrics
+      };
     }
 
     function refreshEvidenceChart(silent) {
@@ -1873,7 +1938,6 @@
       syncVolumeTrendRangeDefaults();
       syncTopCargoCascade();
       initRankDriverMultiSelect();
-      syncEvidenceGrainButtons();
       if (typeof CargoCascade !== 'undefined') {
         trendCargoCtl = CargoCascade.bindPair(
           document.getElementById('volumeTrendCargoL1'),
@@ -1894,7 +1958,6 @@
       window.__evidenceChart = new Chart(canvas, {
         type: 'bar',
         data: { labels: built.labels, datasets: built.datasets },
-        plugins: [fullWidthBaselineLinesPlugin],
         options: {
           responsive: true,
           maintainAspectRatio: false,
@@ -1909,8 +1972,13 @@
             },
             tooltip: {
               callbacks: {
-                label: function(ctx) {
-                  return ctx.dataset.label + '：' + ctx.parsed.y + ' 吨';
+                label: function (ctx) {
+                  var v = ctx.parsed.y;
+                  if (v == null || isNaN(v)) return ctx.dataset.label + '：—';
+                  if (ctx.dataset.yAxisID === 'y1') {
+                    return ctx.dataset.label + '：' + v + ' 吨/小时';
+                  }
+                  return ctx.dataset.label + '：' + v + ' 吨';
                 }
               }
             }
@@ -1924,9 +1992,18 @@
             },
             y: {
               stacked: false,
-              title: { display: true, text: '作业量（吨）', color: '#64748b' },
+              position: 'left',
+              title: { display: true, text: '总作业量（吨）', color: '#64748b' },
               beginAtZero: true,
               grid: { color: '#f1f5f9' }
+            },
+            y1: {
+              stacked: false,
+              position: 'right',
+              title: { display: true, text: '平均量（吨/小时）', color: '#64748b' },
+              beginAtZero: true,
+              grid: { drawOnChartArea: false },
+              border: { display: true }
             }
           }
         }
@@ -2081,17 +2158,18 @@ function appendBot(html) {
 function resultEfficiency(cargo) {
   cargo = cargo || '氧化钙';
   var scopeRows = (RANK_BY_L2[cargo] || RANK_ROWS_ALL || []).slice();
-  scopeRows.sort(function (a, b) { return b.normalAvg - a.normalAvg; });
-  var seen = {};
-  var list = [];
-  scopeRows.forEach(function (r) {
-    if (seen[r.name]) return;
-    seen[r.name] = 1;
-    list.push([r.name, r.normalAvg.toFixed(2)]);
+  var board = typeof buildRankDriverBoardRows === 'function' ? buildRankDriverBoardRows(scopeRows) : [];
+  board.sort(function (a, b) {
+    var ae = a.total && a.total.effAvg != null ? a.total.effAvg : -1;
+    var be = b.total && b.total.effAvg != null ? b.total.effAvg : -1;
+    return be - ae;
+  });
+  var list = board.filter(function (r) { return r.total; }).map(function (r) {
+    return [r.name, r.total.effAvg != null ? r.total.effAvg.toFixed(2) : '—'];
   });
   if (!list.length) list = [['暂无数据', '0.00']];
-  var html = '<div class="font-medium mb-2">司机效率排名（货种：' + cargo + ' · 正常维 · 吨/小时）</div>' +
-    '<table class="w-full text-xs bg-white rounded-lg overflow-hidden"><thead><tr class="bg-slate-100 text-left"><th class="p-2">排名</th><th class="p-2">司机</th><th class="p-2">正常平均</th></tr></thead><tbody>';
+  var html = '<div class="font-medium mb-2">司机效率排名（货种：' + cargo + ' · 有效平均作业量 · 吨/小时）</div>' +
+    '<table class="w-full text-xs bg-white rounded-lg overflow-hidden"><thead><tr class="bg-slate-100 text-left"><th class="p-2">排名</th><th class="p-2">司机</th><th class="p-2">有效平均</th></tr></thead><tbody>';
   list.forEach(function(r, i) {
     html += '<tr class="border-t"><td class="p-2">' + (i + 1) + '</td><td class="p-2">' + r[0] + '</td><td class="p-2">' + r[1] + '</td></tr>';
   });
