@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>设备管理 · 系统配置</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../assets/device-demo.js"></script>
+  <style>
+    :root { --brand: #0f766e; --brand-hover: #0d9488; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
+    .sidebar { background: #1e293b; }
+    .card { background: #fff; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .btn { border-radius: 20px; transition: all .15s ease; }
+    .btn:active { transform: scale(0.95); }
+    .btn-brand { background: var(--brand); color: #fff; }
+    .btn-brand:hover { background: var(--brand-hover); }
+    .table-row:hover { background: #f8fafc; }
+    .badge { border-radius: 999px; font-size: 12px; padding: 2px 10px; }
+    .badge-ok { background: #d1fae5; color: #047857; }
+    .badge-off { background: #e2e8f0; color: #64748b; }
+    .toast { position: fixed; top: 24px; right: 24px; z-index: 80; min-width: 240px; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
+    .fade-in { animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .tree-item { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; padding: 8px 12px; border-radius: 12px; font-size: 14px; color: #334155; }
+    .tree-item:hover { background: #f8fafc; color: #0f766e; }
+    .tree-item.active { background: #f0fdfa; color: #0f766e; font-weight: 600; }
+    .layout-split { display: grid; grid-template-columns: 240px 1fr; gap: 16px; min-height: 520px; }
+    @media (max-width: 900px) { .layout-split { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="flex min-h-screen">
+    <aside class="sidebar w-64 shrink-0 text-slate-100 flex flex-col">
+      <div class="px-5 py-6 border-b border-slate-700">
+        <div class="text-xs text-slate-400 mb-1">TOS 子模块</div>
+        <div class="text-lg font-semibold leading-snug">单机作业量统计</div>
+        <div class="mt-2 text-xs text-slate-400">v1.0.0 · 录入 · 效率分析 · 问数</div>
+      </div>
+      <nav id="pcSidebarNav" class="p-3 flex-1 overflow-y-auto" data-active="cfg-device"></nav>
+      <div class="p-4 text-xs text-slate-500 border-t border-slate-700">
+        <a href="../index.html" class="hover:text-slate-300">返回版本入口</a>
+      </div>
+    </aside>
+
+    <div class="flex-1 min-w-0 flex flex-col">
+      <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+        <div>
+          <h1 class="text-lg font-semibold">设备管理</h1>
+          <p class="text-xs text-slate-500">系统配置 · 主数据从设备管理系统同步 · 本地不可新增/编辑</p>
+        </div>
+        <div class="flex items-center gap-3 text-sm text-slate-600">
+          <span class="inline-flex items-center gap-2"><i class="fa-solid fa-user text-slate-400"></i>基础配置员</span>
+        </div>
+      </header>
+
+      <main class="flex-1 p-6 overflow-auto">
+        <div class="max-w-7xl mx-auto space-y-4">
+          <div class="card p-5 flex flex-wrap items-center justify-between gap-3">
+            <div class="text-sm text-slate-500">
+              左侧为设备类型树（只读，随同步更新）；右侧为设备列表。启用/禁用以外系统为准；外系统删除的设备同步后直接移除。
+              <div class="mt-1 text-xs text-slate-400" id="syncMeta">最近同步：尚未同步</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="resetAndReload()">重置演示数据</button>
+              <button type="button" class="btn btn-brand px-5 py-2 text-sm" id="btnSync" onclick="doSync()">
+                <i class="fa-solid fa-arrows-rotate mr-1"></i>同步
+              </button>
+            </div>
+          </div>
+
+          <div class="layout-split">
+            <div class="card p-4">
+              <div class="text-sm font-medium text-slate-800 mb-3">设备类型</div>
+              <div id="typeTree" class="space-y-1"></div>
+            </div>
+
+            <div class="card overflow-hidden flex flex-col">
+              <div class="px-5 py-4 border-b flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <div class="text-sm font-medium">设备列表 · <span id="typeLabel" class="text-teal-700">全部设备</span></div>
+                  <p class="text-xs text-slate-400 mt-0.5">字段：设备编码、设备名称、规格型号、启用/禁用（同步只读）</p>
+                </div>
+                <div class="text-xs text-slate-400" id="listCount">共 0 条</div>
+              </div>
+              <div class="overflow-x-auto flex-1">
+                <table class="min-w-full text-sm">
+                  <thead class="bg-slate-50 text-slate-500 text-left">
+                    <tr>
+                      <th class="px-4 py-3">设备编码</th>
+                      <th class="px-4 py-3">设备名称</th>
+                      <th class="px-4 py-3">规格型号</th>
+                      <th class="px-4 py-3">设备类型</th>
+                      <th class="px-4 py-3">启用/禁用</th>
+                    </tr>
+                  </thead>
+                  <tbody id="deviceBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="../assets/pc-sidebar.js"></script>
+  <script>
+    var selectedTypeId = 'all';
+
+    function showToast(msg, type) {
+      type = type || 'ok';
+      var el = document.createElement('div');
+      el.className = 'toast fade-in px-4 py-3 text-sm text-white ' + (type === 'err' ? 'bg-red-500' : type === 'warn' ? 'bg-amber-500' : 'bg-emerald-500');
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function () { el.remove(); }, 2800);
+    }
+
+    function renderSyncMeta() {
+      var meta = DeviceDemo.getMeta();
+      var el = document.getElementById('syncMeta');
+      if (!el) return;
+      if (!meta.lastSyncAt) {
+        el.textContent = '最近同步：尚未同步（演示库为初始快照）';
+        return;
+      }
+      var r = meta.lastSyncResult || {};
+      el.textContent = '最近同步：' + meta.lastSyncAt +
+        ' · 新增 ' + (r.added || 0) +
+        ' · 更新 ' + (r.updated || 0) +
+        ' · 删除 ' + (r.removed || 0);
+    }
+
+    function renderTree() {
+      var box = document.getElementById('typeTree');
+      if (!box) return;
+      box.innerHTML = DeviceDemo.TYPE_TREE.map(function (t) {
+        var active = t.id === selectedTypeId ? ' active' : '';
+        var icon = t.id === 'all' ? 'fa-layer-group' : 'fa-folder';
+        return '<button type="button" class="tree-item' + active + '" data-id="' + t.id + '" onclick="selectType(\'' + t.id + '\')">' +
+          '<i class="fa-solid ' + icon + ' text-slate-400 text-xs w-4 text-center"></i>' +
+          '<span>' + t.name + '</span></button>';
+      }).join('');
+    }
+
+    function selectType(id) {
+      selectedTypeId = id;
+      renderTree();
+      renderList();
+    }
+
+    function renderList() {
+      var rows = DeviceDemo.listDevices(selectedTypeId);
+      var typeNode = DeviceDemo.TYPE_TREE.filter(function (t) { return t.id === selectedTypeId; })[0];
+      document.getElementById('typeLabel').textContent = typeNode ? typeNode.name : '全部设备';
+      document.getElementById('listCount').textContent = '共 ' + rows.length + ' 条';
+      var body = document.getElementById('deviceBody');
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="5" class="px-4 py-12 text-center text-slate-400">当前类型下暂无设备，可点击「同步」从设备管理系统拉取</td></tr>';
+        return;
+      }
+      body.innerHTML = rows.map(function (d) {
+        var badge = d.enabled
+          ? '<span class="badge badge-ok">启用</span>'
+          : '<span class="badge badge-off">禁用</span>';
+        return '<tr class="table-row border-t">' +
+          '<td class="px-4 py-3 font-medium tabular-nums">' + d.code + '</td>' +
+          '<td class="px-4 py-3">' + d.name + '</td>' +
+          '<td class="px-4 py-3 text-slate-600">' + d.model + '</td>' +
+          '<td class="px-4 py-3 text-slate-500">' + DeviceDemo.getTypeName(d.typeId) + '</td>' +
+          '<td class="px-4 py-3">' + badge + '</td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    function doSync() {
+      var btn = document.getElementById('btnSync');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>同步中…';
+      }
+      setTimeout(function () {
+        var res = DeviceDemo.syncFromRemote();
+        renderSyncMeta();
+        renderList();
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fa-solid fa-arrows-rotate mr-1"></i>同步';
+        }
+        var r = res.result || {};
+        showToast('同步完成：新增 ' + r.added + '，更新 ' + r.updated + '，删除 ' + r.removed);
+      }, 600);
+    }
+
+    function resetAndReload() {
+      DeviceDemo.resetDemo();
+      selectedTypeId = 'all';
+      renderSyncMeta();
+      renderTree();
+      renderList();
+      showToast('已重置为演示初始数据', 'warn');
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      renderSyncMeta();
+      renderTree();
+      renderList();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>泊位管理 · 系统配置</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../assets/device-demo.js"></script>
+  <script src="../assets/berth-demo.js"></script>
+  <style>
+    :root { --brand: #0f766e; --brand-hover: #0d9488; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
+    .sidebar { background: #1e293b; }
+    .card { background: #fff; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .btn { border-radius: 20px; transition: all .15s ease; }
+    .btn:active { transform: scale(0.95); }
+    .btn-brand { background: var(--brand); color: #fff; }
+    .btn-brand:hover { background: var(--brand-hover); }
+    .table-row:hover { background: #f8fafc; }
+    .badge { border-radius: 999px; font-size: 12px; padding: 2px 10px; }
+    .badge-ok { background: #d1fae5; color: #047857; }
+    .badge-off { background: #e2e8f0; color: #64748b; }
+    .chip { display: inline-flex; align-items: center; border-radius: 999px; background: #f1f5f9; color: #475569; font-size: 12px; padding: 2px 10px; margin: 2px 4px 2px 0; }
+    .toast { position: fixed; top: 24px; right: 24px; z-index: 80; min-width: 240px; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
+    .fade-in { animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .modal-mask { position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 70; display: none; align-items: center; justify-content: center; padding: 24px; }
+    .modal-mask.open { display: flex; }
+    .check-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; }
+    .check-item { display: flex; align-items: center; gap: 8px; border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px 10px; font-size: 13px; background: #fff; }
+    .check-item:hover { border-color: #99f6e4; }
+    input, select, textarea { font-size: 14px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="flex min-h-screen">
+    <aside class="sidebar w-64 shrink-0 text-slate-100 flex flex-col">
+      <div class="px-5 py-6 border-b border-slate-700">
+        <div class="text-xs text-slate-400 mb-1">TOS 子模块</div>
+        <div class="text-lg font-semibold leading-snug">单机作业量统计</div>
+        <div class="mt-2 text-xs text-slate-400">v1.0.0 · 录入 · 效率分析 · 问数</div>
+      </div>
+      <nav id="pcSidebarNav" class="p-3 flex-1 overflow-y-auto" data-active="cfg-berth"></nav>
+      <div class="p-4 text-xs text-slate-500 border-t border-slate-700">
+        <a href="../index.html" class="hover:text-slate-300">返回版本入口</a>
+      </div>
+    </aside>
+
+    <div class="flex-1 min-w-0 flex flex-col">
+      <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+        <div>
+          <h1 class="text-lg font-semibold">泊位管理</h1>
+          <p class="text-xs text-slate-500">系统配置 · 已替代原「泊位机械配置」· 设备取自设备管理（已启用）</p>
+        </div>
+        <div class="flex items-center gap-3 text-sm text-slate-600">
+          <span class="inline-flex items-center gap-2"><i class="fa-solid fa-user text-slate-400"></i>基础配置员</span>
+        </div>
+      </header>
+
+      <main class="flex-1 p-6 overflow-auto">
+        <div class="max-w-7xl mx-auto space-y-4">
+          <div class="card p-5 flex flex-wrap items-center justify-between gap-3">
+            <div class="text-sm text-slate-500">
+              维护泊位编码、名称、作业设备（可多选）、作业货种（集装箱 / 散货 / 件杂货）及启用状态。
+            </div>
+            <div class="flex items-center gap-2">
+              <a href="device-mgmt-pc.html" class="btn border border-slate-200 bg-white px-4 py-2 text-sm">去设备管理</a>
+              <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="openForm()"><i class="fa-solid fa-plus mr-1"></i>新增泊位</button>
+            </div>
+          </div>
+
+          <div class="card overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-slate-500 text-left">
+                  <tr>
+                    <th class="px-4 py-3">泊位编码</th>
+                    <th class="px-4 py-3">泊位名称</th>
+                    <th class="px-4 py-3">作业设备</th>
+                    <th class="px-4 py-3">作业货种</th>
+                    <th class="px-4 py-3">状态</th>
+                    <th class="px-4 py-3">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="berthBody"></tbody>
+              </table>
+            </div>
+            <div class="px-5 py-4 border-t text-sm text-slate-500 flex justify-between">
+              <span id="berthCount">共 0 条</span>
+              <span>1 / 1</span>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 新增/编辑 -->
+  <div id="formMask" class="modal-mask" onclick="closeForm(event)">
+    <div class="card fade-in w-full max-w-2xl p-6" style="box-shadow:0 12px 40px rgba(0,0,0,0.12)" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <h2 id="formTitle" class="text-lg font-semibold">新增泊位</h2>
+        <button type="button" class="text-slate-400 hover:text-slate-600" onclick="closeForm()"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <form class="space-y-4" onsubmit="return saveForm(event)">
+        <input type="hidden" id="formMode" value="create" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm mb-1">泊位编码 <span class="text-rose-500">*</span></label>
+            <input id="fCode" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="如 BW-07" required />
+          </div>
+          <div>
+            <label class="block text-sm mb-1">泊位名称 <span class="text-rose-500">*</span></label>
+            <input id="fName" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="如 7#泊位" required />
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm mb-2">作业设备 <span class="text-rose-500">*</span><span class="text-xs text-slate-400 ml-2">多选 · 来自设备管理已启用 · 不设上限</span></label>
+          <div id="deviceChecks" class="check-grid"></div>
+          <p id="deviceEmptyHint" class="hidden text-xs text-amber-600 mt-2">暂无已启用设备，请先在设备管理同步并确认启用状态。</p>
+        </div>
+        <div>
+          <label class="block text-sm mb-2">作业货种 <span class="text-rose-500">*</span><span class="text-xs text-slate-400 ml-2">集装箱 / 散货 / 件杂货</span></label>
+          <div id="cargoChecks" class="check-grid"></div>
+        </div>
+        <div>
+          <label class="block text-sm mb-1">状态</label>
+          <select id="fEnabled" class="w-full border border-slate-200 rounded-xl px-3 py-2">
+            <option value="1">启用</option>
+            <option value="0">禁用</option>
+          </select>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="closeForm()">取消</button>
+          <button type="submit" class="btn btn-brand px-5 py-2 text-sm">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../assets/pc-sidebar.js"></script>
+  <script>
+    function showToast(msg, type) {
+      type = type || 'ok';
+      var el = document.createElement('div');
+      el.className = 'toast fade-in px-4 py-3 text-sm text-white ' + (type === 'err' ? 'bg-red-500' : type === 'warn' ? 'bg-amber-500' : 'bg-emerald-500');
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function () { el.remove(); }, 2600);
+    }
+
+    function enabledDevices() {
+      return (window.DeviceDemo && DeviceDemo.listEnabledDevices) ? DeviceDemo.listEnabledDevices() : [];
+    }
+
+    function renderList() {
+      var list = BerthDemo.listBerths();
+      document.getElementById('berthCount').textContent = '共 ' + list.length + ' 条';
+      var body = document.getElementById('berthBody');
+      if (!list.length) {
+        body.innerHTML = '<tr><td colspan="6" class="px-4 py-12 text-center text-slate-400">暂无泊位，请点击「新增泊位」</td></tr>';
+        return;
+      }
+      body.innerHTML = list.map(function (b) {
+        var devices = BerthDemo.resolveDeviceNames(b.deviceCodes).map(function (n) {
+          return '<span class="chip">' + n + '</span>';
+        }).join('') || '<span class="text-slate-300">—</span>';
+        var cargos = (b.cargos || []).map(function (c) {
+          return '<span class="chip">' + c + '</span>';
+        }).join('') || '<span class="text-slate-300">—</span>';
+        var badge = b.enabled
+          ? '<span class="badge badge-ok">启用</span>'
+          : '<span class="badge badge-off">禁用</span>';
+        var toggleLabel = b.enabled ? '禁用' : '启用';
+        return '<tr class="table-row border-t">' +
+          '<td class="px-4 py-3 font-medium tabular-nums">' + b.code + '</td>' +
+          '<td class="px-4 py-3">' + b.name + '</td>' +
+          '<td class="px-4 py-3 max-w-xs">' + devices + '</td>' +
+          '<td class="px-4 py-3">' + cargos + '</td>' +
+          '<td class="px-4 py-3">' + badge + '</td>' +
+          '<td class="px-4 py-3 whitespace-nowrap space-x-3">' +
+            '<button type="button" class="text-teal-700 hover:underline" onclick="openForm(\'' + b.code + '\')">编辑</button>' +
+            '<button type="button" class="text-slate-600 hover:underline" onclick="toggleEnabled(\'' + b.code + '\',' + (!b.enabled) + ')">' + toggleLabel + '</button>' +
+            '<button type="button" class="text-rose-600 hover:underline" onclick="deleteBerth(\'' + b.code + '\')">删除</button>' +
+          '</td></tr>';
+      }).join('');
+    }
+
+    function fillDeviceChecks(selected) {
+      selected = selected || [];
+      var box = document.getElementById('deviceChecks');
+      var hint = document.getElementById('deviceEmptyHint');
+      var list = enabledDevices();
+      var selectedSet = {};
+      selected.forEach(function (c) { selectedSet[c] = true; });
+
+      /* 编辑时：已选但当前已禁用的设备仍展示，便于调整 */
+      var allMap = {};
+      if (window.DeviceDemo && DeviceDemo.listDevices) {
+        DeviceDemo.listDevices('all').forEach(function (d) { allMap[d.code] = d; });
+      }
+      var extra = selected.filter(function (c) {
+        return !list.some(function (d) { return d.code === c; });
+      }).map(function (c) {
+        var d = allMap[c];
+        return d || { code: c, name: c, enabled: false };
+      });
+
+      var show = list.concat(extra);
+      if (!show.length) {
+        box.innerHTML = '';
+        hint.classList.remove('hidden');
+        return;
+      }
+      hint.classList.add('hidden');
+      box.innerHTML = show.map(function (d) {
+        var checked = selectedSet[d.code] ? ' checked' : '';
+        var disabledMark = d.enabled ? '' : ' <span class="text-amber-600 text-xs">已禁用</span>';
+        return '<label class="check-item"><input type="checkbox" name="device" value="' + d.code + '"' + checked + ' />' +
+          '<span>' + d.name + '<span class="text-slate-400 text-xs ml-1">' + d.code + '</span>' + disabledMark + '</span></label>';
+      }).join('');
+    }
+
+    function fillCargoChecks(selected) {
+      selected = selected || [];
+      var set = {};
+      selected.forEach(function (c) { set[c] = true; });
+      document.getElementById('cargoChecks').innerHTML = BerthDemo.CARGO_OPTIONS.map(function (c) {
+        var checked = set[c] ? ' checked' : '';
+        return '<label class="check-item"><input type="checkbox" name="cargo" value="' + c + '"' + checked + ' /><span>' + c + '</span></label>';
+      }).join('');
+    }
+
+    function openForm(code) {
+      var isEdit = !!code;
+      document.getElementById('formMode').value = isEdit ? 'edit' : 'create';
+      document.getElementById('formTitle').textContent = isEdit ? '编辑泊位' : '新增泊位';
+      var codeEl = document.getElementById('fCode');
+      codeEl.readOnly = isEdit;
+      codeEl.classList.toggle('bg-slate-50', isEdit);
+      if (isEdit) {
+        var row = BerthDemo.getByCode(code);
+        if (!row) { showToast('泊位不存在', 'err'); return; }
+        codeEl.value = row.code;
+        document.getElementById('fName').value = row.name;
+        document.getElementById('fEnabled').value = row.enabled ? '1' : '0';
+        fillDeviceChecks(row.deviceCodes);
+        fillCargoChecks(row.cargos);
+      } else {
+        codeEl.value = '';
+        document.getElementById('fName').value = '';
+        document.getElementById('fEnabled').value = '1';
+        fillDeviceChecks([]);
+        fillCargoChecks([]);
+      }
+      document.getElementById('formMask').classList.add('open');
+    }
+
+    function closeForm(e) {
+      if (e && e.target && e.target !== document.getElementById('formMask')) return;
+      document.getElementById('formMask').classList.remove('open');
+    }
+
+    function saveForm(e) {
+      e.preventDefault();
+      var isEdit = document.getElementById('formMode').value === 'edit';
+      var deviceCodes = Array.prototype.map.call(
+        document.querySelectorAll('#deviceChecks input[name="device"]:checked'),
+        function (el) { return el.value; }
+      );
+      var cargos = Array.prototype.map.call(
+        document.querySelectorAll('#cargoChecks input[name="cargo"]:checked'),
+        function (el) { return el.value; }
+      );
+      /* 保存时过滤已禁用设备（除非用户仍勾选失效项——按规则要求有效设备） */
+      var enabledSet = {};
+      enabledDevices().forEach(function (d) { enabledSet[d.code] = true; });
+      var validDevices = deviceCodes.filter(function (c) { return enabledSet[c]; });
+      if (deviceCodes.length && !validDevices.length) {
+        showToast('所选设备均已禁用，请重新选择已启用设备', 'err');
+        return false;
+      }
+      var res = BerthDemo.upsert({
+        code: document.getElementById('fCode').value,
+        name: document.getElementById('fName').value,
+        deviceCodes: validDevices.length ? validDevices : deviceCodes,
+        cargos: cargos,
+        enabled: document.getElementById('fEnabled').value === '1'
+      }, isEdit);
+      if (!res.ok) {
+        showToast(res.msg, 'err');
+        return false;
+      }
+      document.getElementById('formMask').classList.remove('open');
+      renderList();
+      showToast(isEdit ? '泊位已更新' : '泊位已新增');
+      return false;
+    }
+
+    function toggleEnabled(code, enabled) {
+      BerthDemo.setEnabled(code, enabled);
+      renderList();
+      showToast(enabled ? '已启用' : '已禁用');
+    }
+
+    function deleteBerth(code) {
+      if (!confirm('确认删除泊位「' + code + '」？删除后不可恢复。')) return;
+      BerthDemo.remove(code);
+      renderList();
+      showToast('已删除', 'warn');
+    }
+
+    document.addEventListener('DOMContentLoaded', renderList);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeForm();
+    });
+  </script>
+</body>
+</html>

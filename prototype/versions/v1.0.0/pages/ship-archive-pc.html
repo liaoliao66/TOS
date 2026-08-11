@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>船舶档案 · 作业管理</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../assets/ship-archive-demo.js"></script>
+  <style>
+    :root { --brand: #0f766e; --brand-hover: #0d9488; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
+    .sidebar { background: #1e293b; }
+    .card { background: #fff; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .btn { border-radius: 20px; transition: all .15s ease; }
+    .btn:active { transform: scale(0.95); }
+    .btn-brand { background: var(--brand); color: #fff; }
+    .btn-brand:hover { background: var(--brand-hover); }
+    .table-row:hover { background: #f8fafc; }
+    .badge { border-radius: 999px; font-size: 12px; padding: 2px 10px; }
+    .badge-ok { background: #d1fae5; color: #047857; }
+    .badge-off { background: #e2e8f0; color: #64748b; }
+    .badge-warn { background: #fef3c7; color: #b45309; }
+    .toast { position: fixed; top: 24px; right: 24px; z-index: 90; min-width: 240px; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
+    .fade-in { animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .modal-mask { position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 80; display: none; align-items: flex-start; justify-content: center; padding: 32px 16px; overflow: auto; }
+    .modal-mask.open { display: flex; }
+    .sec-title { font-size: 14px; font-weight: 600; color: #0f172a; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; }
+    .req { color: #f43f5e; }
+    .upload-box { border: 1px dashed #cbd5e1; border-radius: 16px; background: #f8fafc; min-height: 96px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: #64748b; font-size: 13px; cursor: pointer; position: relative; }
+    .upload-box input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    input, select, textarea { font-size: 14px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="flex min-h-screen">
+    <aside class="sidebar w-64 shrink-0 text-slate-100 flex flex-col">
+      <div class="px-5 py-6 border-b border-slate-700">
+        <div class="text-xs text-slate-400 mb-1">TOS 子模块</div>
+        <div class="text-lg font-semibold leading-snug">单机作业量统计</div>
+        <div class="mt-2 text-xs text-slate-400">v1.0.0 · 录入 · 效率分析 · 问数</div>
+      </div>
+      <nav id="pcSidebarNav" class="p-3 flex-1 overflow-y-auto" data-active="ship-archive"></nav>
+      <div class="p-4 text-xs text-slate-500 border-t border-slate-700">
+        <a href="../index.html" class="hover:text-slate-300">返回版本入口</a>
+      </div>
+    </aside>
+
+    <div class="flex-1 min-w-0 flex flex-col">
+      <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+        <div>
+          <h1 class="text-lg font-semibold">船舶档案</h1>
+          <p class="text-xs text-slate-500">作业管理 · 主数据台账 · 与工班/调度船名选择打通</p>
+        </div>
+        <div class="flex items-center gap-3 text-sm text-slate-600">
+          <span class="inline-flex items-center gap-2"><i class="fa-solid fa-user text-slate-400"></i>基础配置员</span>
+        </div>
+      </header>
+
+      <main class="flex-1 p-6 overflow-auto">
+        <div class="max-w-7xl mx-auto space-y-4">
+          <div class="card p-5 flex flex-wrap items-center justify-between gap-3">
+            <div class="text-sm text-slate-500">维护船名、船型、MMSI、尺寸（船长/船口长/船宽/船口宽为非必填）及船公司等信息。</div>
+            <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="openForm()"><i class="fa-solid fa-plus mr-1"></i>新增船舶档案</button>
+          </div>
+
+          <div class="card overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-slate-500 text-left">
+                  <tr>
+                    <th class="px-4 py-3">船舶编码</th>
+                    <th class="px-4 py-3">船名中文</th>
+                    <th class="px-4 py-3">船舶类型</th>
+                    <th class="px-4 py-3">MMSI</th>
+                    <th class="px-4 py-3">船长/船宽</th>
+                    <th class="px-4 py-3">船口长/宽</th>
+                    <th class="px-4 py-3">船公司</th>
+                    <th class="px-4 py-3">状态</th>
+                    <th class="px-4 py-3">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="shipBody"></tbody>
+              </table>
+            </div>
+            <div class="px-5 py-4 border-t text-sm text-slate-500" id="shipCount">共 0 条</div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div id="formMask" class="modal-mask" onclick="closeForm(event)">
+    <div class="card fade-in w-full max-w-5xl p-6 my-auto" style="box-shadow:0 12px 40px rgba(0,0,0,0.12)" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <h2 id="formTitle" class="text-lg font-semibold">新增船舶档案</h2>
+        <button type="button" class="text-slate-400 hover:text-slate-600" onclick="closeForm()"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+
+      <form class="space-y-6" onsubmit="return saveForm(event)">
+        <input type="hidden" id="shipId" value="" />
+
+        <section>
+          <div class="sec-title">基础信息</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm mb-1">船舶编码</label>
+              <input id="fCode" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="请输入" />
+            </div>
+            <div>
+              <label class="block text-sm mb-1">船名中文 <span class="req">*</span></label>
+              <input id="fNameCn" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="请输入" required />
+            </div>
+            <div>
+              <label class="block text-sm mb-1">船舶英文</label>
+              <input id="fNameEn" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="请输入" />
+            </div>
+            <div>
+              <label class="block text-sm mb-1">国籍</label>
+              <select id="fNation" class="w-full border border-slate-200 rounded-xl px-3 py-2"></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1">船舶类型 <span class="req">*</span></label>
+              <select id="fType" class="w-full border border-slate-200 rounded-xl px-3 py-2" required></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1">IMO</label>
+              <input id="fImo" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="请输入" />
+            </div>
+            <div>
+              <label class="block text-sm mb-1">MMSI <span class="req">*</span></label>
+              <input id="fMmsi" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="请输入" required />
+            </div>
+            <div>
+              <label class="block text-sm mb-1">船舶呼号</label>
+              <input id="fCall" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="请输入" />
+            </div>
+            <div>
+              <label class="block text-sm mb-1">船长（米）</label>
+              <input id="fLen" type="number" step="0.01" min="0" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="非必填" />
+            </div>
+            <div>
+              <label class="block text-sm mb-1">船口长（米）</label>
+              <input id="fHatchLen" type="number" step="0.01" min="0" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="非必填" />
+            </div>
+            <div>
+              <label class="block text-sm mb-1">船宽（米）</label>
+              <input id="fWidth" type="number" step="0.01" min="0" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="非必填" />
+            </div>
+            <div>
+              <label class="block text-sm mb-1">船口宽（米）</label>
+              <input id="fHatchWidth" type="number" step="0.01" min="0" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="非必填" />
+            </div>
+            <div>
+              <label class="block text-sm mb-1">净重（吨）</label>
+              <input id="fNet" type="number" step="0.01" min="0" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="请输入" />
+            </div>
+            <div>
+              <label class="block text-sm mb-1">载重（吨）</label>
+              <input id="fDwt" type="number" step="0.01" min="0" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="请输入" />
+            </div>
+            <div>
+              <label class="block text-sm mb-1">总重（吨）</label>
+              <input id="fGross" type="number" step="0.01" min="0" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="请输入" />
+            </div>
+            <div class="sm:col-span-2 lg:col-span-2">
+              <label class="block text-sm mb-1">营业运输证编号</label>
+              <input id="fLicense" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="请输入" />
+            </div>
+            <div>
+              <label class="block text-sm mb-1">有效期起</label>
+              <input id="fValidFrom" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+            <div>
+              <label class="block text-sm mb-1">有效期止</label>
+              <input id="fValidTo" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2" />
+            </div>
+            <div>
+              <label class="block text-sm mb-1">船舶状态 <span class="req">*</span></label>
+              <select id="fStatus" class="w-full border border-slate-200 rounded-xl px-3 py-2" required></select>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="sec-title">所属信息</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div>
+              <label class="block text-sm mb-1">船公司 <span class="req">*</span></label>
+              <select id="fCompany" class="w-full border border-slate-200 rounded-xl px-3 py-2" required></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1">船长（人员）</label>
+              <select id="fCaptain" class="w-full border border-slate-200 rounded-xl px-3 py-2"></select>
+            </div>
+            <div class="sm:col-span-2 lg:col-span-3">
+              <label class="block text-sm mb-1">联系方式</label>
+              <div id="contactBox" class="space-y-2"></div>
+              <button type="button" class="mt-2 text-sm text-teal-700 hover:underline" onclick="addContact()"><i class="fa-solid fa-plus mr-1"></i>新增</button>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="sec-title">其他信息</div>
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm mb-1">备注</label>
+              <textarea id="fRemark" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="请输入"></textarea>
+            </div>
+            <div>
+              <label class="block text-sm mb-2">相关资质</label>
+              <div class="upload-box">
+                <i class="fa-solid fa-cloud-arrow-up text-xl"></i>
+                <span>点击上传（原型示意）</span>
+                <input type="file" multiple accept=".pdf,.png,.jpg,.jpeg" onchange="onQualChange(this)" />
+              </div>
+              <div id="qualList" class="mt-2 flex flex-wrap gap-2 text-xs text-slate-500"></div>
+            </div>
+          </div>
+        </section>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="closeForm()">取消</button>
+          <button type="submit" class="btn btn-brand px-5 py-2 text-sm"><i class="fa-solid fa-check mr-1"></i>确定</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../assets/pc-sidebar.js"></script>
+  <script>
+    var qualNames = [];
+
+    function showToast(msg, type) {
+      type = type || 'ok';
+      var el = document.createElement('div');
+      el.className = 'toast fade-in px-4 py-3 text-sm text-white ' + (type === 'err' ? 'bg-red-500' : type === 'warn' ? 'bg-amber-500' : 'bg-emerald-500');
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function () { el.remove(); }, 2600);
+    }
+
+    function fmtNum(v) {
+      return v == null || v === '' ? '—' : v;
+    }
+
+    function statusBadge(s) {
+      if (s === '正常') return '<span class="badge badge-ok">正常</span>';
+      if (s === '维修' || s === '停航') return '<span class="badge badge-warn">' + s + '</span>';
+      return '<span class="badge badge-off">' + s + '</span>';
+    }
+
+    function fillSelect(id, options, selected, placeholder) {
+      var el = document.getElementById(id);
+      var html = placeholder ? '<option value="">' + placeholder + '</option>' : '';
+      html += options.map(function (o) {
+        return '<option value="' + o + '"' + (o === selected ? ' selected' : '') + '>' + o + '</option>';
+      }).join('');
+      el.innerHTML = html;
+    }
+
+    function renderList() {
+      var list = ShipArchiveDemo.listShips();
+      document.getElementById('shipCount').textContent = '共 ' + list.length + ' 条';
+      var body = document.getElementById('shipBody');
+      if (!list.length) {
+        body.innerHTML = '<tr><td colspan="9" class="px-4 py-12 text-center text-slate-400">暂无船舶档案</td></tr>';
+        return;
+      }
+      body.innerHTML = list.map(function (s) {
+        return '<tr class="table-row border-t">' +
+          '<td class="px-4 py-3 tabular-nums">' + (s.code || '—') + '</td>' +
+          '<td class="px-4 py-3 font-medium">' + s.nameCn + '</td>' +
+          '<td class="px-4 py-3">' + s.shipType + '</td>' +
+          '<td class="px-4 py-3 tabular-nums">' + s.mmsi + '</td>' +
+          '<td class="px-4 py-3 tabular-nums">' + fmtNum(s.length) + ' / ' + fmtNum(s.width) + '</td>' +
+          '<td class="px-4 py-3 tabular-nums">' + fmtNum(s.hatchLength) + ' / ' + fmtNum(s.hatchWidth) + '</td>' +
+          '<td class="px-4 py-3">' + s.company + '</td>' +
+          '<td class="px-4 py-3">' + statusBadge(s.status) + '</td>' +
+          '<td class="px-4 py-3 whitespace-nowrap space-x-3">' +
+            '<button type="button" class="text-teal-700 hover:underline" onclick="openForm(\'' + s.id + '\')">编辑</button>' +
+            '<button type="button" class="text-rose-600 hover:underline" onclick="deleteShip(\'' + s.id + '\')">删除</button>' +
+          '</td></tr>';
+      }).join('');
+    }
+
+    function renderContacts(contacts) {
+      contacts = contacts && contacts.length ? contacts : [{ phone: '' }];
+      document.getElementById('contactBox').innerHTML = contacts.map(function (c, i) {
+        return '<div class="flex gap-2 items-center">' +
+          '<input class="contact-phone flex-1 border border-slate-200 rounded-xl px-3 py-2" placeholder="请输入联系方式" value="' + (c.phone || '') + '" />' +
+          (i > 0 ? '<button type="button" class="text-slate-400 hover:text-rose-600" onclick="this.parentNode.remove()"><i class="fa-solid fa-xmark"></i></button>' : '') +
+          '</div>';
+      }).join('');
+    }
+
+    function addContact() {
+      var box = document.getElementById('contactBox');
+      var div = document.createElement('div');
+      div.className = 'flex gap-2 items-center';
+      div.innerHTML = '<input class="contact-phone flex-1 border border-slate-200 rounded-xl px-3 py-2" placeholder="请输入联系方式" />' +
+        '<button type="button" class="text-slate-400 hover:text-rose-600" onclick="this.parentNode.remove()"><i class="fa-solid fa-xmark"></i></button>';
+      box.appendChild(div);
+    }
+
+    function onQualChange(input) {
+      qualNames = Array.prototype.map.call(input.files || [], function (f) { return f.name; });
+      document.getElementById('qualList').innerHTML = qualNames.map(function (n) {
+        return '<span class="px-2 py-1 rounded-lg bg-slate-100">' + n + '</span>';
+      }).join('');
+    }
+
+    function openForm(id) {
+      var isEdit = !!id;
+      document.getElementById('formTitle').textContent = isEdit ? '编辑船舶档案' : '新增船舶档案';
+      document.getElementById('shipId').value = id || '';
+      qualNames = [];
+      document.getElementById('qualList').innerHTML = '';
+
+      fillSelect('fNation', ShipArchiveDemo.NATIONALITIES, '中国', '请选择');
+      fillSelect('fType', ShipArchiveDemo.SHIP_TYPES, '', '请选择');
+      fillSelect('fStatus', ShipArchiveDemo.STATUSES, '正常');
+      fillSelect('fCompany', ShipArchiveDemo.COMPANIES, '', '请选择');
+      fillSelect('fCaptain', ShipArchiveDemo.CAPTAINS, '', '请选择');
+
+      if (isEdit) {
+        var s = ShipArchiveDemo.getById(id);
+        if (!s) { showToast('船舶不存在', 'err'); return; }
+        document.getElementById('fCode').value = s.code || '';
+        document.getElementById('fNameCn').value = s.nameCn || '';
+        document.getElementById('fNameEn').value = s.nameEn || '';
+        fillSelect('fNation', ShipArchiveDemo.NATIONALITIES, s.nationality || '', '请选择');
+        fillSelect('fType', ShipArchiveDemo.SHIP_TYPES, s.shipType || '', '请选择');
+        document.getElementById('fImo').value = s.imo || '';
+        document.getElementById('fMmsi').value = s.mmsi || '';
+        document.getElementById('fCall').value = s.callSign || '';
+        document.getElementById('fLen').value = s.length != null ? s.length : '';
+        document.getElementById('fHatchLen').value = s.hatchLength != null ? s.hatchLength : '';
+        document.getElementById('fWidth').value = s.width != null ? s.width : '';
+        document.getElementById('fHatchWidth').value = s.hatchWidth != null ? s.hatchWidth : '';
+        document.getElementById('fNet').value = s.netWeight != null ? s.netWeight : '';
+        document.getElementById('fDwt').value = s.dwt != null ? s.dwt : '';
+        document.getElementById('fGross').value = s.grossWeight != null ? s.grossWeight : '';
+        document.getElementById('fLicense').value = s.licenseNo || '';
+        document.getElementById('fValidFrom').value = s.validFrom || '';
+        document.getElementById('fValidTo').value = s.validTo || '';
+        fillSelect('fStatus', ShipArchiveDemo.STATUSES, s.status || '正常');
+        fillSelect('fCompany', ShipArchiveDemo.COMPANIES, s.company || '', '请选择');
+        fillSelect('fCaptain', ShipArchiveDemo.CAPTAINS, s.captain || '', '请选择');
+        document.getElementById('fRemark').value = s.remark || '';
+        renderContacts(s.contacts);
+        qualNames = s.quals || [];
+        document.getElementById('qualList').innerHTML = qualNames.map(function (n) {
+          return '<span class="px-2 py-1 rounded-lg bg-slate-100">' + n + '</span>';
+        }).join('');
+      } else {
+        document.getElementById('fCode').value = '';
+        document.getElementById('fNameCn').value = '';
+        document.getElementById('fNameEn').value = '';
+        document.getElementById('fImo').value = '';
+        document.getElementById('fMmsi').value = '';
+        document.getElementById('fCall').value = '';
+        document.getElementById('fLen').value = '';
+        document.getElementById('fHatchLen').value = '';
+        document.getElementById('fWidth').value = '';
+        document.getElementById('fHatchWidth').value = '';
+        document.getElementById('fNet').value = '';
+        document.getElementById('fDwt').value = '';
+        document.getElementById('fGross').value = '';
+        document.getElementById('fLicense').value = '';
+        document.getElementById('fValidFrom').value = '';
+        document.getElementById('fValidTo').value = '';
+        document.getElementById('fRemark').value = '';
+        renderContacts([{ phone: '' }]);
+      }
+      document.getElementById('formMask').classList.add('open');
+    }
+
+    function closeForm(e) {
+      if (e && e.target && e.target !== document.getElementById('formMask') && e.type === 'click') return;
+      document.getElementById('formMask').classList.remove('open');
+    }
+
+    function saveForm(e) {
+      e.preventDefault();
+      var id = document.getElementById('shipId').value;
+      var isEdit = !!id;
+      var contacts = Array.prototype.map.call(document.querySelectorAll('.contact-phone'), function (el) {
+        return { phone: el.value.trim() };
+      }).filter(function (c) { return c.phone; });
+      if (!contacts.length) contacts = [{ phone: '' }];
+
+      var res = ShipArchiveDemo.upsert({
+        id: id,
+        code: document.getElementById('fCode').value,
+        nameCn: document.getElementById('fNameCn').value,
+        nameEn: document.getElementById('fNameEn').value,
+        nationality: document.getElementById('fNation').value,
+        shipType: document.getElementById('fType').value,
+        imo: document.getElementById('fImo').value,
+        mmsi: document.getElementById('fMmsi').value,
+        callSign: document.getElementById('fCall').value,
+        length: document.getElementById('fLen').value,
+        hatchLength: document.getElementById('fHatchLen').value,
+        width: document.getElementById('fWidth').value,
+        hatchWidth: document.getElementById('fHatchWidth').value,
+        netWeight: document.getElementById('fNet').value,
+        dwt: document.getElementById('fDwt').value,
+        grossWeight: document.getElementById('fGross').value,
+        licenseNo: document.getElementById('fLicense').value,
+        validFrom: document.getElementById('fValidFrom').value,
+        validTo: document.getElementById('fValidTo').value,
+        status: document.getElementById('fStatus').value,
+        company: document.getElementById('fCompany').value,
+        captain: document.getElementById('fCaptain').value,
+        contacts: contacts,
+        remark: document.getElementById('fRemark').value,
+        quals: qualNames
+      }, isEdit);
+
+      if (!res.ok) { showToast(res.msg, 'err'); return false; }
+      document.getElementById('formMask').classList.remove('open');
+      renderList();
+      showToast(isEdit ? '船舶档案已更新' : '船舶档案已新增');
+      return false;
+    }
+
+    function deleteShip(id) {
+      if (!confirm('确认删除该船舶档案？')) return;
+      ShipArchiveDemo.remove(id);
+      renderList();
+      showToast('已删除', 'warn');
+    }
+
+    document.addEventListener('DOMContentLoaded', renderList);
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closeForm();
+    });
+  </script>
+</body>
+</html>

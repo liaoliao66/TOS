@@ -3,8 +3,10 @@
  */
 (function (global) {
   var TREE = [
-    { name: '吨包袋', children: ['工铵吨包'] },
-    { name: '散货', children: ['氧化钙', '氮磷肥', '硫矿', '磷矿', '二氢钾'] }
+    { name: '集装箱', children: ['20尺标箱', '40尺高箱'] },
+    { name: '散货', children: ['氧化钙', '氮磷肥', '硫矿', '磷矿', '二氢钾'] },
+    { name: '件杂货', children: ['钢材', '设备件'] },
+    { name: '吨包袋', children: ['工铵吨包', '磷肥'] }
   ];
 
   function parentOf(l2) {
@@ -21,6 +23,12 @@
     return [];
   }
 
+  function filterTree(l1Filter) {
+    if (l1Filter == null) return TREE.slice();
+    if (!l1Filter.length) return [];
+    return TREE.filter(function (g) { return l1Filter.indexOf(g.name) >= 0; });
+  }
+
   /**
    * @param {HTMLSelectElement} l1Sel
    * @param {HTMLSelectElement} l2Sel
@@ -28,12 +36,14 @@
    *   allowAll: 筛选场景，一级/二级可「全部」；一级=全部时二级仅「全部」
    *   entryMode: 录入场景，无「全部」，空值为请选择
    *   defaultL1 / defaultL2
+   *   l1Filter: 仅展示这些一级大类（如泊位规定的货种大类）
    *   onChange({l1,l2})
    */
   function bindPair(l1Sel, l2Sel, opts) {
     opts = opts || {};
     var allowAll = !!opts.allowAll;
     var entryMode = !!opts.entryMode;
+    var l1Filter = opts.l1Filter || null;
     var onChange = typeof opts.onChange === 'function' ? opts.onChange : function () {};
 
     function emit() {
@@ -44,9 +54,14 @@
       var html = '';
       if (allowAll) html += '<option value="全部">全部</option>';
       if (entryMode) html += '<option value="">请选择一级</option>';
-      TREE.forEach(function (g) {
-        html += '<option value="' + g.name + '">' + g.name + '</option>';
-      });
+      var groups = filterTree(l1Filter);
+      if (!groups.length && entryMode) {
+        html = '<option value="">当前泊位无可选货种大类</option>';
+      } else {
+        groups.forEach(function (g) {
+          html += '<option value="' + g.name + '">' + g.name + '</option>';
+        });
+      }
       l1Sel.innerHTML = html;
     }
 
@@ -119,6 +134,21 @@
       setValue: function (l1, l2) {
         if (l1 != null) l1Sel.value = l1;
         buildL2(l2);
+        emit();
+      },
+      setL1Filter: function (names) {
+        if (names == null) l1Filter = null;
+        else l1Filter = names.slice();
+        var keep = l1Sel.value;
+        buildL1();
+        if (keep && Array.prototype.some.call(l1Sel.options, function (o) { return o.value === keep; })) {
+          l1Sel.value = keep;
+        } else if (allowAll) {
+          l1Sel.value = '全部';
+        } else {
+          l1Sel.value = '';
+        }
+        buildL2('');
         emit();
       }
     };

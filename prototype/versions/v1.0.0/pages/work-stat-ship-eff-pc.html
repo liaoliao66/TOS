@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>船舶效率 · 作业效率分析</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../assets/stop-reason-demo.js"></script>
+  <script src="../assets/ship-eff-demo.js"></script>
+  <style>
+    :root { --brand: #0f766e; --brand-hover: #0d9488; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
+    .sidebar { background: #1e293b; }
+    .card { background: #fff; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .btn { border-radius: 20px; transition: all .15s ease; }
+    .btn:active { transform: scale(0.95); }
+    .btn-brand { background: var(--brand); color: #fff; }
+    .btn-brand:hover { background: var(--brand-hover); }
+    .table-row:hover { background: #f8fafc; }
+    .badge { border-radius: 999px; font-size: 12px; padding: 2px 10px; }
+    .kpi { background: linear-gradient(135deg, #f8fafc 0%, #f0fdfa 100%); border: 1px solid #e2e8f0; border-radius: 18px; padding: 14px 16px; }
+    .kpi .lab { font-size: 12px; color: #64748b; }
+    .kpi .val { font-size: 22px; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; margin-top: 4px; }
+    .kpi .unit { font-size: 12px; font-weight: 500; color: #94a3b8; margin-left: 4px; }
+    input, select { font-size: 14px; }
+    .bar-track { height: 8px; background: #f1f5f9; border-radius: 999px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 999px; background: #0f766e; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="flex min-h-screen">
+    <aside class="sidebar w-64 shrink-0 text-slate-100 flex flex-col">
+      <div class="px-5 py-6 border-b border-slate-700">
+        <div class="text-xs text-slate-400 mb-1">TOS 子模块</div>
+        <div class="text-lg font-semibold leading-snug">单机作业量统计</div>
+      </div>
+      <nav id="pcSidebarNav" class="p-3 flex-1 overflow-y-auto" data-active="efficiency-ship"></nav>
+      <div class="p-4 text-xs text-slate-500 border-t border-slate-700">
+        <a href="../index.html" class="hover:text-slate-300">返回版本入口</a>
+      </div>
+    </aside>
+    <div class="flex-1 min-w-0 flex flex-col">
+      <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+        <div>
+          <h1 class="text-lg font-semibold">船舶效率</h1>
+          <p class="text-xs text-slate-500">作业效率分析 · 对齐船舶作业统计表 · 产量取调度完工填写</p>
+        </div>
+        <div class="text-sm text-slate-500">
+          停工归类见 <a class="text-teal-700 hover:underline" href="work-stat-dict-pc.html">字典 · 停工原因</a>
+        </div>
+      </header>
+      <main class="flex-1 p-6 overflow-auto">
+        <div class="max-w-[1400px] mx-auto space-y-5">
+          <div class="card p-5">
+            <div class="flex flex-wrap gap-3 items-end">
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">开始日期</label>
+                <input id="fFrom" type="date" value="2026-08-01" class="border border-slate-200 rounded-xl px-3 py-2" />
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">结束日期</label>
+                <input id="fTo" type="date" value="2026-08-31" class="border border-slate-200 rounded-xl px-3 py-2" />
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">船名</label>
+                <select id="fShip" class="border border-slate-200 rounded-xl px-3 py-2 min-w-[9rem]"></select>
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">装/卸</label>
+                <select id="fLoad" class="border border-slate-200 rounded-xl px-3 py-2">
+                  <option value="">全部</option>
+                  <option value="装">装</option>
+                  <option value="卸">卸</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">接岸电</label>
+                <select id="fShore" class="border border-slate-200 rounded-xl px-3 py-2">
+                  <option value="">全部</option>
+                  <option value="是">是</option>
+                  <option value="否">否</option>
+                </select>
+              </div>
+              <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="renderAll()">查询</button>
+              <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="resetFilter()">重置</button>
+            </div>
+            <p class="text-xs text-slate-400 mt-3">口径：在港=(离泊−靠泊)；生产用时=(完工−开工)−停工；单船效率=调度产量÷生产用时。停工按字典归入天气/故障/其他。</p>
+          </div>
+
+          <div class="grid grid-cols-2 lg:grid-cols-5 gap-3" id="kpiRow"></div>
+
+          <div class="grid lg:grid-cols-5 gap-5">
+            <div class="card p-5 lg:col-span-2">
+              <div class="flex items-center justify-between mb-3">
+                <div class="text-sm font-semibold">船舶效率榜</div>
+                <div class="text-xs text-slate-400">按单船效率降序</div>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="min-w-full text-sm">
+                  <thead class="bg-slate-50 text-slate-500 text-left">
+                    <tr>
+                      <th class="px-3 py-2">排名</th>
+                      <th class="px-3 py-2">船名</th>
+                      <th class="px-3 py-2">艘次</th>
+                      <th class="px-3 py-2">产量(吨)</th>
+                      <th class="px-3 py-2">生产用时</th>
+                      <th class="px-3 py-2">效率</th>
+                    </tr>
+                  </thead>
+                  <tbody id="rankBody"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card p-5 lg:col-span-3">
+              <div class="text-sm font-semibold mb-3">效率对比</div>
+              <div id="rankBars" class="space-y-3"></div>
+            </div>
+          </div>
+
+          <div class="card overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div class="text-sm font-semibold">作业明细</div>
+              <div class="text-xs text-slate-400" id="detailCount">共 0 条</div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-xs">
+                <thead class="bg-slate-50 text-slate-500 text-left whitespace-nowrap">
+                  <tr>
+                    <th class="px-3 py-2">日期</th>
+                    <th class="px-3 py-2">船名</th>
+                    <th class="px-3 py-2">人数</th>
+                    <th class="px-3 py-2">货种</th>
+                    <th class="px-3 py-2">装/卸</th>
+                    <th class="px-3 py-2">过程</th>
+                    <th class="px-3 py-2">起驳</th>
+                    <th class="px-3 py-2">落驳</th>
+                    <th class="px-3 py-2">产量(吨)</th>
+                    <th class="px-3 py-2">靠泊</th>
+                    <th class="px-3 py-2">开工</th>
+                    <th class="px-3 py-2">完工</th>
+                    <th class="px-3 py-2">离泊</th>
+                    <th class="px-3 py-2">天气停工</th>
+                    <th class="px-3 py-2">故障停工</th>
+                    <th class="px-3 py-2">其他停工</th>
+                    <th class="px-3 py-2">在港(h)</th>
+                    <th class="px-3 py-2">生产用时(h)</th>
+                    <th class="px-3 py-2">单船效率</th>
+                    <th class="px-3 py-2">岸电</th>
+                  </tr>
+                </thead>
+                <tbody id="detailBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script src="../assets/pc-sidebar.js"></script>
+  <script>
+    function v(x, suffix) {
+      if (x === 0) return '0' + (suffix || '');
+      if (x == null || x === '' || (typeof x === 'number' && isNaN(x))) return '—';
+      return String(x) + (suffix || '');
+    }
+
+    function getFilter() {
+      return {
+        from: document.getElementById('fFrom').value,
+        to: document.getElementById('fTo').value,
+        ship: document.getElementById('fShip').value,
+        loadUnload: document.getElementById('fLoad').value,
+        shorePower: document.getElementById('fShore').value
+      };
+    }
+
+    function resetFilter() {
+      document.getElementById('fFrom').value = '2026-08-01';
+      document.getElementById('fTo').value = '2026-08-31';
+      document.getElementById('fShip').value = '';
+      document.getElementById('fLoad').value = '';
+      document.getElementById('fShore').value = '';
+      renderAll();
+    }
+
+    function renderKpi(sum) {
+      var cells = [
+        { lab: '作业艘次', val: sum.trips, unit: '次' },
+        { lab: '调度产量合计', val: sum.qtySum, unit: '吨' },
+        { lab: '平均在港时间', val: sum.avgPort, unit: 'h' },
+        { lab: '平均生产用时', val: sum.avgProd, unit: 'h' },
+        { lab: '平均单船效率', val: sum.avgEff, unit: '吨/h' }
+      ];
+      document.getElementById('kpiRow').innerHTML = cells.map(function (c) {
+        return '<div class="kpi"><div class="lab">' + c.lab + '</div><div class="val">' +
+          (c.val == null ? '—' : c.val) + '<span class="unit">' + c.unit + '</span></div></div>';
+      }).join('');
+    }
+
+    function renderRank(rank) {
+      var body = document.getElementById('rankBody');
+      var bars = document.getElementById('rankBars');
+      if (!rank.length) {
+        body.innerHTML = '<tr><td colspan="6" class="px-3 py-8 text-center text-slate-400">暂无数据</td></tr>';
+        bars.innerHTML = '<div class="text-sm text-slate-400 py-6 text-center">暂无对比</div>';
+        return;
+      }
+      var maxEff = Math.max.apply(null, rank.map(function (r) { return r.efficiency || 0; })) || 1;
+      body.innerHTML = rank.map(function (r, i) {
+        return '<tr class="table-row border-t">' +
+          '<td class="px-3 py-2 tabular-nums">' + (i + 1) + '</td>' +
+          '<td class="px-3 py-2 font-medium">' + r.shipName + '</td>' +
+          '<td class="px-3 py-2">' + r.trips + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.qty) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.prodHours) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums font-semibold text-teal-800">' + v(r.efficiency) + '</td></tr>';
+      }).join('');
+      bars.innerHTML = rank.map(function (r, i) {
+        var pct = Math.round(((r.efficiency || 0) / maxEff) * 100);
+        return '<div>' +
+          '<div class="flex justify-between text-xs mb-1"><span class="font-medium">' + (i + 1) + '. ' + r.shipName +
+          '</span><span class="tabular-nums text-teal-800">' + v(r.efficiency, ' 吨/h') + '</span></div>' +
+          '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%"></div></div></div>';
+      }).join('');
+    }
+
+    function renderDetail(rows) {
+      document.getElementById('detailCount').textContent = '共 ' + rows.length + ' 条';
+      var body = document.getElementById('detailBody');
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="20" class="px-3 py-10 text-center text-slate-400">暂无数据</td></tr>';
+        return;
+      }
+      body.innerHTML = rows.map(function (r) {
+        if (r.noWork) {
+          return '<tr class="border-t bg-slate-50/80"><td class="px-3 py-2">' + v(r.date) + '</td>' +
+            '<td class="px-3 py-2 font-medium text-slate-500" colspan="19">无生产作业</td></tr>';
+        }
+        return '<tr class="table-row border-t whitespace-nowrap">' +
+          '<td class="px-3 py-2">' + v(r.date) + '</td>' +
+          '<td class="px-3 py-2 font-medium">' + v(r.shipName) + '</td>' +
+          '<td class="px-3 py-2">' + v(r.workers) + '</td>' +
+          '<td class="px-3 py-2">' + v(r.cargo) + '</td>' +
+          '<td class="px-3 py-2">' + v(r.loadUnload) + '</td>' +
+          '<td class="px-3 py-2">' + v(r.process) + '</td>' +
+          '<td class="px-3 py-2">' + v(r.craneUp) + '</td>' +
+          '<td class="px-3 py-2">' + v(r.craneDown) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums font-medium">' + v(r.qty) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.berthAt) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.startAt) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.finishAt) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.unberthAt) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.stopWeather) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.stopFault) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.stopOther) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.portHours) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.prodHours) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums font-semibold text-teal-800">' + v(r.efficiency) + '</td>' +
+          '<td class="px-3 py-2">' + v(r.shorePower) + '</td></tr>';
+      }).join('');
+    }
+
+    function renderAll() {
+      var f = getFilter();
+      var rows = ShipEffDemo.listRows(f);
+      var workRows = rows.filter(function (r) { return !r.noWork; });
+      renderKpi(ShipEffDemo.summarize(rows));
+      renderRank(ShipEffDemo.rankByShip(workRows));
+      renderDetail(rows);
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      var sel = document.getElementById('fShip');
+      sel.innerHTML = '<option value="">全部</option>' +
+        ShipEffDemo.shipOptions().map(function (s) {
+          return '<option value="' + s + '">' + s + '</option>';
+        }).join('');
+      renderAll();
+    });
+  </script>
+</body>
+</html>

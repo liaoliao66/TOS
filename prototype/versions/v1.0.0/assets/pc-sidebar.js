@@ -4,9 +4,10 @@
  *      <script src="../assets/pc-sidebar.js"></script>
  *
  * data-active:
- *   efficiency-master | efficiency-volume | efficiency-daily
- *   fill-shift | fill-vessel
- *   cfg-berth | cfg-dict | cfg-wecom
+ *   efficiency-master | efficiency-volume | efficiency-daily | efficiency-ship
+ *   fill-shift
+ *   ship-archive | ship-schedule | ship-dispatch
+ *   cfg-device | cfg-berth | cfg-job | cfg-dict | cfg-wecom
  */
 (function () {
   function link(href, icon, label, active, indent) {
@@ -30,13 +31,18 @@
     html += link('work-stat-efficiency-pc.html?tab=master', 'fa-solid fa-user-gear', '司机效率', active === 'efficiency-master', true);
     html += link('work-stat-efficiency-pc.html?tab=volume', 'fa-solid fa-chart-column', '作业统计', active === 'efficiency-volume', true);
     html += link('work-stat-efficiency-pc.html?tab=daily', 'fa-solid fa-calendar-day', '日报明细', active === 'efficiency-daily', true);
+    html += link('work-stat-ship-eff-pc.html', 'fa-solid fa-ship', '船舶效率', active === 'efficiency-ship', true);
 
-    html += group('作业填报');
+    html += group('作业管理');
     html += link('work-stat-list-pc.html', 'fa-solid fa-clipboard-list', '工班作业', active === 'fill-shift', true);
-    html += link('vessel-list-pc.html', 'fa-solid fa-ship', '船舶作业', active === 'fill-vessel', true);
+    html += link('ship-archive-pc.html', 'fa-solid fa-book-open', '船舶档案', active === 'ship-archive', true);
+    html += link('ship-schedule-pc.html', 'fa-solid fa-calendar-days', '船期管理', active === 'ship-schedule', true);
+    html += link('ship-dispatch-pc.html', 'fa-solid fa-ship', '船舶调度', active === 'ship-dispatch', true);
 
     html += group('系统配置');
-    html += link('work-stat-berth-machine-pc.html', 'fa-solid fa-anchor', '泊位机械配置', active === 'cfg-berth', true);
+    html += link('device-mgmt-pc.html', 'fa-solid fa-gears', '设备管理', active === 'cfg-device', true);
+    html += link('berth-mgmt-pc.html', 'fa-solid fa-anchor', '泊位管理', active === 'cfg-berth', true);
+    html += link('job-type-mgmt-pc.html', 'fa-solid fa-id-badge', '工种管理', active === 'cfg-job', true);
     html += link('work-stat-dict-pc.html', 'fa-solid fa-book', '字典管理', active === 'cfg-dict', true);
     html += link('work-stat-wecom-push-pc.html', 'fa-brands fa-weixin', '企业微信推送配置', active === 'cfg-wecom', true);
 

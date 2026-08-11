@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>工种管理 · 系统配置</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../assets/job-type-demo.js"></script>
+  <style>
+    :root { --brand: #0f766e; --brand-hover: #0d9488; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
+    .sidebar { background: #1e293b; }
+    .card { background: #fff; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .btn { border-radius: 20px; transition: all .15s ease; }
+    .btn:active { transform: scale(0.95); }
+    .btn-brand { background: var(--brand); color: #fff; }
+    .btn-brand:hover { background: var(--brand-hover); }
+    .table-row:hover { background: #f8fafc; }
+    .badge { border-radius: 999px; font-size: 12px; padding: 2px 10px; }
+    .badge-ok { background: #d1fae5; color: #047857; }
+    .badge-off { background: #e2e8f0; color: #64748b; }
+    .toast { position: fixed; top: 24px; right: 24px; z-index: 90; min-width: 240px; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
+    .fade-in { animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .layout-split { display: grid; grid-template-columns: 280px 1fr; gap: 16px; min-height: 560px; }
+    @media (max-width: 960px) { .layout-split { grid-template-columns: 1fr; } }
+    .type-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; padding: 8px 10px; border-radius: 12px; font-size: 14px; color: #334155; }
+    .type-item:hover { background: #f8fafc; }
+    .type-item.active { background: #f0fdfa; color: #0f766e; font-weight: 600; }
+    .type-item .acts { opacity: 0; display: flex; gap: 6px; }
+    .type-item:hover .acts, .type-item.active .acts { opacity: 1; }
+    .modal-mask { position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 80; display: none; align-items: flex-start; justify-content: center; padding: 40px 16px; overflow: auto; }
+    .modal-mask.open { display: flex; }
+    .upload-box { border: 1px dashed #cbd5e1; border-radius: 16px; background: #f8fafc; min-height: 140px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; color: #64748b; font-size: 13px; cursor: pointer; position: relative; overflow: hidden; }
+    .upload-box:hover { border-color: #0f766e; color: #0f766e; }
+    .upload-box img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .upload-box input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    input, select, textarea { font-size: 14px; }
+    .req { color: #f43f5e; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="flex min-h-screen">
+    <aside class="sidebar w-64 shrink-0 text-slate-100 flex flex-col">
+      <div class="px-5 py-6 border-b border-slate-700">
+        <div class="text-xs text-slate-400 mb-1">TOS 子模块</div>
+        <div class="text-lg font-semibold leading-snug">单机作业量统计</div>
+        <div class="mt-2 text-xs text-slate-400">v1.0.0 · 录入 · 效率分析 · 问数</div>
+      </div>
+      <nav id="pcSidebarNav" class="p-3 flex-1 overflow-y-auto" data-active="cfg-job"></nav>
+      <div class="p-4 text-xs text-slate-500 border-t border-slate-700">
+        <a href="../index.html" class="hover:text-slate-300">返回版本入口</a>
+      </div>
+    </aside>
+
+    <div class="flex-1 min-w-0 flex flex-col">
+      <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+        <div>
+          <h1 class="text-lg font-semibold">工种管理</h1>
+          <p class="text-xs text-slate-500">系统配置 · 「司机」工种人员替代原司机字典，供填报选用</p>
+        </div>
+        <div class="flex items-center gap-3 text-sm text-slate-600">
+          <span class="inline-flex items-center gap-2"><i class="fa-solid fa-user text-slate-400"></i>基础配置员</span>
+        </div>
+      </header>
+
+      <main class="flex-1 p-6 overflow-auto">
+        <div class="max-w-7xl mx-auto">
+          <div class="layout-split">
+            <!-- 左：工种类型 -->
+            <div class="card p-4 flex flex-col">
+              <div class="flex items-center justify-between mb-3">
+                <div class="text-sm font-medium text-slate-800">工种类型</div>
+                <button type="button" class="w-8 h-8 rounded-full border border-slate-200 text-slate-500 hover:text-teal-700 hover:border-teal-600" title="新增工种类型" onclick="addType()"><i class="fa-solid fa-plus text-xs"></i></button>
+              </div>
+              <div class="mb-3">
+                <input id="typeSearch" type="text" placeholder="请输入关键字搜索" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" oninput="renderTypes()" />
+              </div>
+              <div id="typeList" class="space-y-1 flex-1 overflow-auto"></div>
+            </div>
+
+            <!-- 右：人员列表 -->
+            <div class="card overflow-hidden flex flex-col">
+              <div class="px-5 py-4 border-b flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <div class="text-sm font-medium">人员列表 · <span id="typeLabel" class="text-teal-700">全部</span></div>
+                  <p class="text-xs text-slate-400 mt-0.5">不支持批量操作；归属单位为演示枚举（单位配置另期）</p>
+                </div>
+                <button type="button" class="btn btn-brand px-4 py-2 text-sm" onclick="openPersonForm()"><i class="fa-solid fa-plus mr-1"></i>新增</button>
+              </div>
+              <div class="overflow-x-auto flex-1">
+                <table class="min-w-full text-sm">
+                  <thead class="bg-slate-50 text-slate-500 text-left">
+                    <tr>
+                      <th class="px-3 py-3 w-10"><input type="checkbox" disabled title="本期不支持批量" /></th>
+                      <th class="px-3 py-3">序号</th>
+                      <th class="px-3 py-3">人员工号</th>
+                      <th class="px-3 py-3">名称</th>
+                      <th class="px-3 py-3">身份证号码</th>
+                      <th class="px-3 py-3">性别</th>
+                      <th class="px-3 py-3">手机号</th>
+                      <th class="px-3 py-3">归属单位</th>
+                      <th class="px-3 py-3">状态</th>
+                      <th class="px-3 py-3">说明</th>
+                      <th class="px-3 py-3">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody id="peopleBody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- 新增/编辑人员 -->
+  <div id="personMask" class="modal-mask" onclick="closePersonForm(event)">
+    <div class="card fade-in w-full max-w-3xl p-6 my-auto" style="box-shadow:0 12px 40px rgba(0,0,0,0.12)" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <h2 id="personTitle" class="text-lg font-semibold">新增人员</h2>
+        <button type="button" class="text-slate-400 hover:text-slate-600" onclick="closePersonForm()"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <form class="space-y-5" onsubmit="return savePerson(event)">
+        <input type="hidden" id="personId" value="" />
+        <div>
+          <div class="text-sm font-medium text-slate-700 mb-3">基础数据</div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm mb-1">所属工种 <span class="req">*</span></label>
+              <select id="fType" class="w-full border border-slate-200 rounded-xl px-3 py-2" required></select>
+            </div>
+            <div>
+              <label class="block text-sm mb-1">人员工号 <span class="req">*</span></label>
+              <input id="fEmpNo" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="请输入" required />
+            </div>
+            <div>
+              <label class="block text-sm mb-1">人员姓名 <span class="req">*</span></label>
+              <input id="fName" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="请输入" required />
+            </div>
+            <div>
+              <label class="block text-sm mb-1">身份证号码 <span class="req">*</span></label>
+              <input id="fIdNo" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="请输入" required />
+            </div>
+            <div>
+              <label class="block text-sm mb-1">性别</label>
+              <div class="flex items-center gap-6 h-[42px]">
+                <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="gender" value="男" checked />男</label>
+                <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="gender" value="女" />女</label>
+              </div>
+            </div>
+            <div>
+              <label class="block text-sm mb-1">手机号码 <span class="req">*</span></label>
+              <input id="fMobile" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="请输入" required />
+            </div>
+            <div class="sm:col-span-2">
+              <label class="block text-sm mb-1">归属单位 <span class="req">*</span></label>
+              <select id="fUnit" class="w-full border border-slate-200 rounded-xl px-3 py-2" required></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm mb-2">身份证正面</label>
+            <div class="upload-box" id="boxFront">
+              <i class="fa-regular fa-id-card text-2xl"></i>
+              <span>点击上传</span>
+              <input type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" onchange="onUpload(this,'front')" />
+            </div>
+            <p class="text-[11px] text-slate-400 mt-2">注：支持 .png / .jpg / .jpeg，单文件 ≤20MB，数量限制 1 个</p>
+          </div>
+          <div>
+            <label class="block text-sm mb-2">身份证反面</label>
+            <div class="upload-box" id="boxBack">
+              <i class="fa-regular fa-id-card text-2xl"></i>
+              <span>点击上传</span>
+              <input type="file" accept=".png,.jpg,.jpeg,image/png,image/jpeg" onchange="onUpload(this,'back')" />
+            </div>
+            <p class="text-[11px] text-slate-400 mt-2">注：支持 .png / .jpg / .jpeg，单文件 ≤20MB，数量限制 1 个</p>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm mb-1">备注</label>
+          <textarea id="fRemark" rows="3" maxlength="500" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="请输入" oninput="syncRemarkCount()"></textarea>
+          <div class="text-right text-xs text-slate-400 mt-1"><span id="remarkCount">0</span>/500</div>
+        </div>
+
+        <div>
+          <label class="block text-sm mb-1">状态</label>
+          <div class="flex items-center gap-6">
+            <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="status" value="在职" checked />在职</label>
+            <label class="inline-flex items-center gap-2 text-sm"><input type="radio" name="status" value="离职" />离职</label>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="closePersonForm()">取消</button>
+          <button type="submit" class="btn btn-brand px-5 py-2 text-sm">确定</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../assets/pc-sidebar.js"></script>
+  <script>
+    var selectedTypeId = JobTypeDemo.DRIVER_TYPE_ID;
+    var uploadFront = '';
+    var uploadBack = '';
+
+    function showToast(msg, type) {
+      type = type || 'ok';
+      var el = document.createElement('div');
+      el.className = 'toast fade-in px-4 py-3 text-sm text-white ' + (type === 'err' ? 'bg-red-500' : type === 'warn' ? 'bg-amber-500' : 'bg-emerald-500');
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function () { el.remove(); }, 2600);
+    }
+
+    function renderTypes() {
+      var kw = document.getElementById('typeSearch').value;
+      var list = JobTypeDemo.listTypes(kw);
+      var box = document.getElementById('typeList');
+      if (!list.length) {
+        box.innerHTML = '<div class="text-sm text-slate-400 px-2 py-6 text-center">暂无工种类型</div>';
+        return;
+      }
+      box.innerHTML = list.map(function (t) {
+        var active = t.id === selectedTypeId ? ' active' : '';
+        var locked = t.id === JobTypeDemo.DRIVER_TYPE_ID;
+        return '<div class="type-item' + active + '">' +
+          '<button type="button" class="flex-1 text-left truncate" onclick="selectType(\'' + t.id + '\')">' + t.name + (locked ? ' <span class="text-[10px] text-slate-400">内置</span>' : '') + '</button>' +
+          '<span class="acts shrink-0">' +
+            '<button type="button" class="text-slate-400 hover:text-teal-700" title="重命名" onclick="renameType(\'' + t.id + '\')"><i class="fa-solid fa-pen text-xs"></i></button>' +
+            (locked ? '' : '<button type="button" class="text-slate-400 hover:text-rose-600" title="删除" onclick="deleteType(\'' + t.id + '\')"><i class="fa-solid fa-trash text-xs"></i></button>') +
+          '</span></div>';
+      }).join('');
+    }
+
+    function selectType(id) {
+      selectedTypeId = id;
+      renderTypes();
+      renderPeople();
+    }
+
+    function addType() {
+      var name = prompt('请输入工种类型名称');
+      if (name == null) return;
+      var res = JobTypeDemo.addType(name);
+      if (!res.ok) { showToast(res.msg, 'err'); return; }
+      selectedTypeId = res.type.id;
+      renderTypes();
+      renderPeople();
+      showToast('工种类型已新增');
+    }
+
+    function renameType(id) {
+      var t = JobTypeDemo.getType(id);
+      if (!t) return;
+      var name = prompt('重命名工种类型', t.name);
+      if (name == null) return;
+      var res = JobTypeDemo.renameType(id, name);
+      if (!res.ok) { showToast(res.msg, 'err'); return; }
+      renderTypes();
+      renderPeople();
+      showToast('已重命名');
+    }
+
+    function deleteType(id) {
+      if (!confirm('确认删除该工种类型？')) return;
+      var res = JobTypeDemo.removeType(id);
+      if (!res.ok) { showToast(res.msg, 'err'); return; }
+      if (selectedTypeId === id) selectedTypeId = JobTypeDemo.DRIVER_TYPE_ID;
+      renderTypes();
+      renderPeople();
+      showToast('已删除', 'warn');
+    }
+
+    function renderPeople() {
+      var t = JobTypeDemo.getType(selectedTypeId);
+      document.getElementById('typeLabel').textContent = t ? t.name : '未选择';
+      var list = selectedTypeId ? JobTypeDemo.listPeople(selectedTypeId) : [];
+      var body = document.getElementById('peopleBody');
+      if (!list.length) {
+        body.innerHTML = '<tr><td colspan="11" class="px-4 py-16 text-center text-slate-400">暂无数据</td></tr>';
+        return;
+      }
+      body.innerHTML = list.map(function (p, i) {
+        var badge = p.status === '在职'
+          ? '<span class="badge badge-ok">在职</span>'
+          : '<span class="badge badge-off">离职</span>';
+        var remark = p.remark ? (p.remark.length > 12 ? p.remark.slice(0, 12) + '…' : p.remark) : '—';
+        return '<tr class="table-row border-t">' +
+          '<td class="px-3 py-3"><input type="checkbox" disabled title="本期不支持批量" /></td>' +
+          '<td class="px-3 py-3 tabular-nums">' + (i + 1) + '</td>' +
+          '<td class="px-3 py-3 tabular-nums">' + p.empNo + '</td>' +
+          '<td class="px-3 py-3 font-medium">' + p.name + '</td>' +
+          '<td class="px-3 py-3 tabular-nums text-slate-600">' + p.idNo + '</td>' +
+          '<td class="px-3 py-3">' + p.gender + '</td>' +
+          '<td class="px-3 py-3 tabular-nums">' + p.mobile + '</td>' +
+          '<td class="px-3 py-3">' + p.unit + '</td>' +
+          '<td class="px-3 py-3">' + badge + '</td>' +
+          '<td class="px-3 py-3 text-slate-500">' + remark + '</td>' +
+          '<td class="px-3 py-3 whitespace-nowrap space-x-3">' +
+            '<button type="button" class="text-teal-700 hover:underline" onclick="openPersonForm(\'' + p.id + '\')">编辑</button>' +
+            '<button type="button" class="text-rose-600 hover:underline" onclick="deletePerson(\'' + p.id + '\')">删除</button>' +
+          '</td></tr>';
+      }).join('');
+    }
+
+    function fillTypeSelect(selected) {
+      var sel = document.getElementById('fType');
+      sel.innerHTML = JobTypeDemo.listTypes().map(function (t) {
+        return '<option value="' + t.id + '"' + (t.id === selected ? ' selected' : '') + '>' + t.name + '</option>';
+      }).join('');
+    }
+
+    function fillUnitSelect(selected) {
+      var sel = document.getElementById('fUnit');
+      sel.innerHTML = '<option value="">请选择</option>' + JobTypeDemo.UNIT_OPTIONS.map(function (u) {
+        return '<option value="' + u + '"' + (u === selected ? ' selected' : '') + '>' + u + '</option>';
+      }).join('');
+    }
+
+    function setUploadPreview(side, dataUrl) {
+      var box = document.getElementById(side === 'front' ? 'boxFront' : 'boxBack');
+      var old = box.querySelector('img');
+      if (old) old.remove();
+      if (!dataUrl) return;
+      var img = document.createElement('img');
+      img.src = dataUrl;
+      img.alt = side;
+      box.appendChild(img);
+    }
+
+    function onUpload(input, side) {
+      var file = input.files && input.files[0];
+      if (!file) return;
+      if (!/\.(png|jpe?g)$/i.test(file.name) && !/^image\/(png|jpeg)$/.test(file.type)) {
+        showToast('仅支持 png / jpg / jpeg', 'err');
+        input.value = '';
+        return;
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        showToast('单个文件不能超过 20MB', 'err');
+        input.value = '';
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function () {
+        if (side === 'front') uploadFront = reader.result;
+        else uploadBack = reader.result;
+        setUploadPreview(side, reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function syncRemarkCount() {
+      document.getElementById('remarkCount').textContent = String(document.getElementById('fRemark').value || '').length;
+    }
+
+    function openPersonForm(id) {
+      var isEdit = !!id;
+      document.getElementById('personTitle').textContent = isEdit ? '编辑人员' : '新增人员';
+      document.getElementById('personId').value = id || '';
+      uploadFront = '';
+      uploadBack = '';
+      setUploadPreview('front', '');
+      setUploadPreview('back', '');
+      fillUnitSelect('');
+      if (isEdit) {
+        var p = JobTypeDemo.getPerson(id);
+        if (!p) { showToast('人员不存在', 'err'); return; }
+        fillTypeSelect(p.typeId);
+        document.getElementById('fEmpNo').value = p.empNo;
+        document.getElementById('fName').value = p.name;
+        document.getElementById('fIdNo').value = p.idNo;
+        document.getElementById('fMobile').value = p.mobile;
+        fillUnitSelect(p.unit);
+        document.querySelector('input[name="gender"][value="' + p.gender + '"]').checked = true;
+        document.querySelector('input[name="status"][value="' + p.status + '"]').checked = true;
+        document.getElementById('fRemark').value = p.remark || '';
+        uploadFront = p.idFront || '';
+        uploadBack = p.idBack || '';
+        setUploadPreview('front', uploadFront);
+        setUploadPreview('back', uploadBack);
+      } else {
+        fillTypeSelect(selectedTypeId || JobTypeDemo.DRIVER_TYPE_ID);
+        document.getElementById('fEmpNo').value = '';
+        document.getElementById('fName').value = '';
+        document.getElementById('fIdNo').value = '';
+        document.getElementById('fMobile').value = '';
+        document.querySelector('input[name="gender"][value="男"]').checked = true;
+        document.querySelector('input[name="status"][value="在职"]').checked = true;
+        document.getElementById('fRemark').value = '';
+      }
+      syncRemarkCount();
+      document.getElementById('personMask').classList.add('open');
+    }
+
+    function closePersonForm(e) {
+      if (e && e.target && e.target !== document.getElementById('personMask') && e.type === 'click') return;
+      document.getElementById('personMask').classList.remove('open');
+    }
+
+    function savePerson(e) {
+      e.preventDefault();
+      var id = document.getElementById('personId').value;
+      var isEdit = !!id;
+      var res = JobTypeDemo.upsertPerson({
+        id: id,
+        typeId: document.getElementById('fType').value,
+        empNo: document.getElementById('fEmpNo').value,
+        name: document.getElementById('fName').value,
+        idNo: document.getElementById('fIdNo').value,
+        mobile: document.getElementById('fMobile').value,
+        unit: document.getElementById('fUnit').value,
+        gender: document.querySelector('input[name="gender"]:checked').value,
+        status: document.querySelector('input[name="status"]:checked').value,
+        remark: document.getElementById('fRemark').value,
+        idFront: uploadFront,
+        idBack: uploadBack
+      }, isEdit);
+      if (!res.ok) { showToast(res.msg, 'err'); return false; }
+      selectedTypeId = res.person.typeId;
+      document.getElementById('personMask').classList.remove('open');
+      renderTypes();
+      renderPeople();
+      showToast(isEdit ? '人员已更新' : '人员已新增');
+      return false;
+    }
+
+    function deletePerson(id) {
+      if (!confirm('确认删除该人员？')) return;
+      JobTypeDemo.removePerson(id);
+      renderPeople();
+      showToast('已删除', 'warn');
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      renderTypes();
+      renderPeople();
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') closePersonForm();
+    });
+  </script>
+</body>
+</html>

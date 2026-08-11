@@ -7,6 +7,8 @@
   
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../assets/job-type-demo.js"></script>
+  <script src="../assets/stop-reason-demo.js"></script>
 
   
   <style>
@@ -96,6 +98,7 @@
       <button type="button" class="btn btn-brand px-4 py-2 tab-btn" data-tab="driver" onclick="switchDictTab('driver')">司机</button>
       <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 tab-btn" data-tab="cargo" onclick="switchDictTab('cargo')">货种</button>
       <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 tab-btn" data-tab="abnormal" onclick="switchDictTab('abnormal')">异常原因</button>
+      <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 tab-btn" data-tab="stop" onclick="switchDictTab('stop')">停工原因</button>
     </div>
     <div class="flex-1"></div>
     <a id="btnAddDict" href="work-stat-dict-edit-modal-pc.html?type=driver" class="btn btn-brand px-5 py-2 text-sm"><i class="fa-solid fa-plus mr-1"></i><span id="btnAddLabel">新增司机</span></a>
@@ -136,6 +139,13 @@ var DICT = {
   /* 货种：先一级大类，再二级货种 */
   cargo: [
     {
+      id: 'c0', name: '集装箱', status: '启用', open: true,
+      children: [
+        { id: 'c0-1', name: '20尺标箱', status: '启用' },
+        { id: 'c0-2', name: '40尺高箱', status: '启用' }
+      ]
+    },
+    {
       id: 'c1', name: '吨包袋', status: '启用', open: true,
       children: [
         { id: 'c1-1', name: '磷肥', status: '启用' },
@@ -148,6 +158,13 @@ var DICT = {
         { id: 'c2-1', name: '氧化钙', status: '启用' },
         { id: 'c2-2', name: '氮磷肥', status: '启用' },
         { id: 'c2-3', name: '硫矿', status: '停用' }
+      ]
+    },
+    {
+      id: 'c3', name: '件杂货', status: '启用', open: true,
+      children: [
+        { id: 'c3-1', name: '钢材', status: '启用' },
+        { id: 'c3-2', name: '设备件', status: '启用' }
       ]
     }
   ]
@@ -171,16 +188,23 @@ function switchDictTab(tab) {
   var add = document.getElementById('btnAddDict');
   var label = document.getElementById('btnAddLabel');
   if (tab === 'driver') {
-    hint.textContent = '司机为扁平字典，可启停与编辑。';
-    add.href = 'work-stat-dict-edit-modal-pc.html?type=driver';
-    label.textContent = '新增司机';
+    hint.innerHTML = '司机主数据已迁移至「工种管理」·司机工种；本页只读同步展示在职/离职人员。<a class="text-teal-700 hover:underline ml-1" href="job-type-mgmt-pc.html">前往维护</a>';
+    add.href = 'job-type-mgmt-pc.html';
+    label.textContent = '去工种管理';
   } else if (tab === 'abnormal') {
     hint.textContent = '异常原因为扁平字典（原「备注原因」已更名）。';
     add.href = 'work-stat-dict-edit-modal-pc.html?type=abnormal';
+    add.onclick = null;
     label.textContent = '新增异常原因';
+  } else if (tab === 'stop') {
+    hint.textContent = '船舶调度停工原因：须指定归类（天气/故障/其他），供船舶效率三类停工汇总。';
+    add.href = 'javascript:void(0)';
+    add.onclick = function (e) { e.preventDefault(); openStopEdit(); };
+    label.textContent = '新增停工原因';
   } else {
     hint.textContent = '货种为二级树：先维护一级大类（如吨包袋），再在大类下新增二级货种（如磷肥）。';
     add.href = 'work-stat-dict-edit-modal-pc.html?type=cargo_l1';
+    add.onclick = null;
     label.textContent = '新增一级货种';
   }
   renderDict();
@@ -200,9 +224,25 @@ function renderDict() {
   var html = '';
   var count = 0;
 
-  if (currentTab === 'driver' || currentTab === 'abnormal') {
-    var typeName = currentTab === 'driver' ? '司机' : '异常原因';
-    var list = DICT[currentTab];
+  if (currentTab === 'driver') {
+    var drivers = (window.JobTypeDemo && JobTypeDemo.listPeople)
+      ? JobTypeDemo.listPeople(JobTypeDemo.DRIVER_TYPE_ID)
+      : [];
+    head.innerHTML = '<tr><th class="px-4 py-3">工号</th><th class="px-4 py-3">名称</th><th class="px-4 py-3">类型</th><th class="px-4 py-3">状态</th><th class="px-4 py-3">操作</th></tr>';
+    drivers.forEach(function(item) {
+      count++;
+      var st = item.status === '在职' ? '启用' : '停用';
+      html += '<tr class="table-row border-t">' +
+        '<td class="px-4 py-3 tabular-nums">' + item.empNo + '</td>' +
+        '<td class="px-4 py-3 font-medium">' + item.name + '</td>' +
+        '<td class="px-4 py-3">司机</td>' +
+        '<td class="px-4 py-3">' + statusBadge(st) + '</td>' +
+        '<td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="job-type-mgmt-pc.html">在工种管理编辑</a></td>' +
+      '</tr>';
+    });
+  } else if (currentTab === 'abnormal') {
+    var typeName = '异常原因';
+    var list = DICT.abnormal;
     head.innerHTML = '<tr><th class="px-4 py-3">名称</th><th class="px-4 py-3">类型</th><th class="px-4 py-3">状态</th><th class="px-4 py-3">操作</th></tr>';
     list.forEach(function(item) {
       count++;
@@ -210,8 +250,25 @@ function renderDict() {
         '<td class="px-4 py-3 font-medium">' + item.name + '</td>' +
         '<td class="px-4 py-3">' + typeName + '</td>' +
         '<td class="px-4 py-3">' + statusBadge(item.status) + '</td>' +
-        '<td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="work-stat-dict-edit-modal-pc.html?type=' + currentTab + '&id=' + item.id + '&name=' + encodeURIComponent(item.name) + '&status=' + encodeURIComponent(item.status) + '">编辑</a></td>' +
+        '<td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="work-stat-dict-edit-modal-pc.html?type=abnormal&id=' + item.id + '&name=' + encodeURIComponent(item.name) + '&status=' + encodeURIComponent(item.status) + '">编辑</a></td>' +
       '</tr>';
+    });
+  } else if (currentTab === 'stop') {
+    var stops = (window.StopReasonDemo && StopReasonDemo.listAll) ? StopReasonDemo.listAll() : [];
+    head.innerHTML = '<tr><th class="px-4 py-3">停工原因</th><th class="px-4 py-3">归类</th><th class="px-4 py-3">状态</th><th class="px-4 py-3">操作</th></tr>';
+    stops.forEach(function (item) {
+      count++;
+      var catCls = item.category === '天气' ? 'bg-sky-50 text-sky-700'
+        : item.category === '故障' ? 'bg-amber-50 text-amber-700'
+        : 'bg-slate-100 text-slate-600';
+      html += '<tr class="table-row border-t">' +
+        '<td class="px-4 py-3 font-medium">' + item.name + '</td>' +
+        '<td class="px-4 py-3"><span class="badge ' + catCls + '">' + item.category + '</span></td>' +
+        '<td class="px-4 py-3">' + statusBadge(item.status) + '</td>' +
+        '<td class="px-4 py-3">' +
+          '<button type="button" class="text-teal-700 hover:underline mr-3" onclick="openStopEditById(\'' + item.id + '\')">编辑</button>' +
+          '<button type="button" class="text-rose-600 hover:underline" onclick="removeStop(\'' + item.id + '\')">删除</button>' +
+        '</td></tr>';
     });
   } else {
     head.innerHTML = '<tr><th class="px-4 py-3">名称</th><th class="px-4 py-3">层级</th><th class="px-4 py-3">状态</th><th class="px-4 py-3">操作</th></tr>';
@@ -251,8 +308,82 @@ function renderDict() {
   pager.textContent = '共 ' + count + ' 条 · 1 / 1';
 }
 
+var __stopEditId = '';
+function openStopEditById(id) {
+  var list = StopReasonDemo.listAll();
+  var hit = null;
+  for (var i = 0; i < list.length; i++) if (list[i].id === id) { hit = list[i]; break; }
+  openStopEdit(hit);
+}
+function openStopEdit(item) {
+  item = item || null;
+  __stopEditId = item ? item.id : '';
+  document.getElementById('stopName').value = item ? item.name : '';
+  document.getElementById('stopCat').value = item ? item.category : '其他';
+  document.getElementById('stopStatus').value = item ? item.status : '启用';
+  document.getElementById('stopTitle').textContent = item ? '编辑停工原因' : '新增停工原因';
+  document.getElementById('stopMask').classList.remove('hidden');
+  document.getElementById('stopMask').classList.add('flex');
+}
+function closeStopEdit() {
+  document.getElementById('stopMask').classList.add('hidden');
+  document.getElementById('stopMask').classList.remove('flex');
+}
+function saveStopEdit() {
+  var res = StopReasonDemo.upsert({
+    id: __stopEditId,
+    name: document.getElementById('stopName').value,
+    category: document.getElementById('stopCat').value,
+    status: document.getElementById('stopStatus').value
+  }, !!__stopEditId);
+  if (!res.ok) { showToast(res.msg, 'err'); return; }
+  closeStopEdit();
+  renderDict();
+  showToast('已保存');
+}
+function removeStop(id) {
+  if (!confirm('确认删除该停工原因？')) return;
+  StopReasonDemo.remove(id);
+  renderDict();
+  showToast('已删除', 'warn');
+}
+
 switchDictTab('driver');
 </script>
+
+<div id="stopMask" class="fixed inset-0 modal-mask hidden items-center justify-content-center justify-center z-50 p-4" onclick="if(event.target===this)closeStopEdit()">
+  <div class="card w-full max-w-md p-6 fade-in" onclick="event.stopPropagation()">
+    <div class="flex items-center justify-between mb-4">
+      <h3 id="stopTitle" class="text-lg font-semibold">新增停工原因</h3>
+      <button type="button" class="text-slate-400" onclick="closeStopEdit()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="block text-sm mb-1">原因名称 <span class="text-rose-500">*</span></label>
+        <input id="stopName" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="如：天气原因" />
+      </div>
+      <div>
+        <label class="block text-sm mb-1">归类 <span class="text-rose-500">*</span></label>
+        <select id="stopCat" class="w-full border border-slate-200 rounded-xl px-3 py-2">
+          <option value="天气">天气</option>
+          <option value="故障">故障</option>
+          <option value="其他">其他</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm mb-1">状态</label>
+        <select id="stopStatus" class="w-full border border-slate-200 rounded-xl px-3 py-2">
+          <option value="启用">启用</option>
+          <option value="停用">停用</option>
+        </select>
+      </div>
+    </div>
+    <div class="flex justify-end gap-2 mt-5">
+      <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="closeStopEdit()">取消</button>
+      <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="saveStopEdit()">确定</button>
+    </div>
+  </div>
+</div>
 
         </div>
       </main>

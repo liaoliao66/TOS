@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>船期管理 · 作业管理</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../assets/ship-archive-demo.js"></script>
+  <script src="../assets/ship-ops-demo.js"></script>
+  <style>
+    :root { --brand: #0f766e; --brand-hover: #0d9488; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
+    .sidebar { background: #1e293b; }
+    .card { background: #fff; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .btn { border-radius: 20px; transition: all .15s ease; }
+    .btn:active { transform: scale(0.95); }
+    .btn-brand { background: var(--brand); color: #fff; }
+    .btn-brand:hover { background: var(--brand-hover); }
+    .table-row:hover { background: #f8fafc; }
+    .badge { border-radius: 999px; font-size: 12px; padding: 2px 10px; }
+    .badge-ok { background: #d1fae5; color: #047857; }
+    .badge-info { background: #e0f2fe; color: #0369a1; }
+    .badge-off { background: #e2e8f0; color: #64748b; }
+    .tab-btn { border-radius: 999px; padding: 6px 14px; font-size: 13px; border: 1px solid #e2e8f0; background: #fff; color: #64748b; }
+    .tab-btn.active { background: #0f766e; border-color: #0f766e; color: #fff; }
+    .toast { position: fixed; top: 24px; right: 24px; z-index: 90; min-width: 240px; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
+    .fade-in { animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .modal-mask { position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 80; display: none; align-items: flex-start; justify-content: center; padding: 32px 16px; overflow: auto; }
+    .modal-mask.open { display: flex; }
+    .req { color: #f43f5e; }
+    input, select, textarea { font-size: 14px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="flex min-h-screen">
+    <aside class="sidebar w-64 shrink-0 text-slate-100 flex flex-col">
+      <div class="px-5 py-6 border-b border-slate-700">
+        <div class="text-xs text-slate-400 mb-1">TOS 子模块</div>
+        <div class="text-lg font-semibold leading-snug">单机作业量统计</div>
+      </div>
+      <nav id="pcSidebarNav" class="p-3 flex-1 overflow-y-auto" data-active="ship-schedule"></nav>
+      <div class="p-4 text-xs text-slate-500 border-t border-slate-700"><a href="../index.html" class="hover:text-slate-300">返回版本入口</a></div>
+    </aside>
+    <div class="flex-1 min-w-0 flex flex-col">
+      <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8">
+        <div>
+          <h1 class="text-lg font-semibold">船期管理</h1>
+          <p class="text-xs text-slate-500">预报 → 确报（进入调度未入港）· 船次/船名确报后及编辑时锁定</p>
+        </div>
+      </header>
+      <main class="flex-1 p-6 overflow-auto">
+        <div class="max-w-7xl mx-auto space-y-4">
+          <div class="card p-5 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap gap-2" id="tabs">
+              <button type="button" class="tab-btn active" data-tab="all" onclick="switchTab('all')">全部</button>
+              <button type="button" class="tab-btn" data-tab="forecast" onclick="switchTab('forecast')">预报</button>
+              <button type="button" class="tab-btn" data-tab="confirmed" onclick="switchTab('confirmed')">确报</button>
+              <button type="button" class="tab-btn" data-tab="void" onclick="switchTab('void')">已作废</button>
+            </div>
+            <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="openCreate()"><i class="fa-solid fa-plus mr-1"></i>新增预报</button>
+          </div>
+          <div class="card overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-slate-500 text-left">
+                  <tr>
+                    <th class="px-4 py-3">船名</th>
+                    <th class="px-4 py-3">船次</th>
+                    <th class="px-4 py-3">预计到港</th>
+                    <th class="px-4 py-3">货物流向</th>
+                    <th class="px-4 py-3">装卸</th>
+                    <th class="px-4 py-3">状态</th>
+                    <th class="px-4 py-3">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="body"></tbody>
+              </table>
+            </div>
+            <div class="px-5 py-4 border-t text-sm text-slate-500" id="count">共 0 条</div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div id="mask" class="modal-mask" onclick="closeModal(event)">
+    <div class="card fade-in w-full max-w-2xl p-6 my-auto" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <h2 id="modalTitle" class="text-lg font-semibold">新增预报</h2>
+        <button type="button" class="text-slate-400" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form class="space-y-4" onsubmit="return saveModal(event)">
+        <input type="hidden" id="editId" value="" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm mb-1">船舶 <span class="req" id="shipReq">*</span></label>
+            <select id="fShip" class="w-full border border-slate-200 rounded-xl px-3 py-2"></select>
+            <p class="text-[11px] text-slate-400 mt-1">新增仅船舶必填；编辑时船名不可改</p>
+          </div>
+          <div>
+            <label class="block text-sm mb-1">船次</label>
+            <input id="fVoyage" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="可空，空则自动生成" />
+            <p class="text-[11px] text-slate-400 mt-1">生成后不可修改</p>
+          </div>
+          <div>
+            <label class="block text-sm mb-1">预计到港</label>
+            <input id="fEta" type="datetime-local" class="w-full border border-slate-200 rounded-xl px-3 py-2" />
+          </div>
+          <div>
+            <label class="block text-sm mb-1">预计离港</label>
+            <input id="fEtd" type="datetime-local" class="w-full border border-slate-200 rounded-xl px-3 py-2" />
+          </div>
+          <div>
+            <label class="block text-sm mb-1">货物进出场</label>
+            <select id="fInOut" class="w-full border border-slate-200 rounded-xl px-3 py-2">
+              <option value="">请选择</option>
+              <option>进场</option>
+              <option>出场</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm mb-1">船舶装卸</label>
+            <select id="fLoad" class="w-full border border-slate-200 rounded-xl px-3 py-2">
+              <option value="">请选择</option>
+              <option>装船</option>
+              <option>卸船</option>
+              <option>装卸</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm mb-1">装卸指令号</label>
+            <input id="fInst" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="非必填" />
+          </div>
+          <div>
+            <label class="block text-sm mb-1">作业方式</label>
+            <select id="fMode" class="w-full border border-slate-200 rounded-xl px-3 py-2">
+              <option value="">请选择</option>
+              <option>船-船</option>
+              <option>船-场</option>
+              <option>船-船, 船-场</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm mb-1">船长（人员）</label>
+            <input id="fCaptain" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="非必填" />
+          </div>
+          <div>
+            <label class="block text-sm mb-1">船长联系方式</label>
+            <input id="fPhone" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="非必填" />
+          </div>
+          <div class="sm:col-span-2">
+            <label class="block text-sm mb-1">备注</label>
+            <textarea id="fRemark" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="非必填"></textarea>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="closeModal()">取消</button>
+          <button type="submit" class="btn btn-brand px-5 py-2 text-sm">确定</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="../assets/pc-sidebar.js"></script>
+  <script>
+    var tab = 'all';
+
+    function showToast(msg, type) {
+      type = type || 'ok';
+      var el = document.createElement('div');
+      el.className = 'toast fade-in px-4 py-3 text-sm text-white ' + (type === 'err' ? 'bg-red-500' : type === 'warn' ? 'bg-amber-500' : 'bg-emerald-500');
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function () { el.remove(); }, 2600);
+    }
+
+    function statusBadge(s) {
+      if (s === 'forecast') return '<span class="badge badge-info">预报</span>';
+      if (s === 'confirmed') return '<span class="badge badge-ok">确报</span>';
+      return '<span class="badge badge-off">已作废</span>';
+    }
+
+    function switchTab(t) {
+      tab = t;
+      document.querySelectorAll('#tabs .tab-btn').forEach(function (b) {
+        b.classList.toggle('active', b.getAttribute('data-tab') === t);
+      });
+      render();
+    }
+
+    function render() {
+      var list = ShipOpsDemo.listSchedules(tab === 'all' ? '' : tab);
+      document.getElementById('count').textContent = '共 ' + list.length + ' 条';
+      var body = document.getElementById('body');
+      if (!list.length) {
+        body.innerHTML = '<tr><td colspan="7" class="px-4 py-12 text-center text-slate-400">暂无数据</td></tr>';
+        return;
+      }
+      body.innerHTML = list.map(function (r) {
+        var acts = '';
+        if (r.status === 'forecast') {
+          acts =
+            '<button class="text-teal-700 hover:underline mr-3" onclick="openEdit(\'' + r.id + '\')">编辑</button>' +
+            '<button class="text-teal-700 hover:underline mr-3" onclick="doConfirm(\'' + r.id + '\')">确报</button>' +
+            '<button class="text-rose-600 hover:underline" onclick="doVoid(\'' + r.id + '\')">作废</button>';
+        } else if (r.status === 'confirmed') {
+          acts =
+            '<button class="text-teal-700 hover:underline mr-3" onclick="openEdit(\'' + r.id + '\')">编辑</button>' +
+            '<a class="text-teal-700 hover:underline mr-3" href="ship-dispatch-pc.html?tab=pending">去调度</a>' +
+            '<button class="text-rose-600 hover:underline" onclick="doVoid(\'' + r.id + '\')">作废</button>';
+        } else {
+          acts = '<span class="text-slate-300">—</span>';
+        }
+        return '<tr class="table-row border-t">' +
+          '<td class="px-4 py-3 font-medium">' + r.shipName + '</td>' +
+          '<td class="px-4 py-3">' + r.voyage + '</td>' +
+          '<td class="px-4 py-3 tabular-nums">' + (r.eta || '—') + '</td>' +
+          '<td class="px-4 py-3">' + (r.cargoInOut || '—') + '</td>' +
+          '<td class="px-4 py-3">' + (r.loadType || '—') + '</td>' +
+          '<td class="px-4 py-3">' + statusBadge(r.status) + '</td>' +
+          '<td class="px-4 py-3 whitespace-nowrap">' + acts + '</td></tr>';
+      }).join('');
+    }
+
+    function fillShips(selected, locked) {
+      var ships = ShipOpsDemo.ships();
+      var sel = document.getElementById('fShip');
+      if (locked) {
+        sel.innerHTML = '<option value="' + selected + '">' + selected + '</option>';
+        sel.disabled = true;
+        return;
+      }
+      sel.disabled = false;
+      sel.innerHTML = '<option value="">请选择船舶</option>' + ships.map(function (s) {
+        return '<option value="' + s.nameCn + '" data-id="' + s.id + '"' + (s.nameCn === selected ? ' selected' : '') + '>' + s.nameCn + '</option>';
+      }).join('');
+    }
+
+    function openCreate() {
+      document.getElementById('modalTitle').textContent = '新增预报';
+      document.getElementById('editId').value = '';
+      document.getElementById('shipReq').classList.remove('hidden');
+      fillShips('', false);
+      document.getElementById('fVoyage').value = '';
+      document.getElementById('fVoyage').readOnly = false;
+      document.getElementById('fVoyage').classList.remove('bg-slate-50');
+      ['fEta','fEtd','fInst','fCaptain','fPhone','fRemark'].forEach(function (id) { document.getElementById(id).value = ''; });
+      document.getElementById('fInOut').value = '';
+      document.getElementById('fLoad').value = '';
+      document.getElementById('fMode').value = '';
+      document.getElementById('mask').classList.add('open');
+    }
+
+    function openEdit(id) {
+      var r = ShipOpsDemo.getSchedule(id);
+      if (!r || r.status === 'void') return;
+      document.getElementById('modalTitle').textContent = '编辑船期（船名/船次不可改）';
+      document.getElementById('editId').value = id;
+      fillShips(r.shipName, true);
+      document.getElementById('fVoyage').value = r.voyage;
+      document.getElementById('fVoyage').readOnly = true;
+      document.getElementById('fVoyage').classList.add('bg-slate-50');
+      document.getElementById('fEta').value = r.eta || '';
+      document.getElementById('fEtd').value = r.etd || '';
+      document.getElementById('fInOut').value = r.cargoInOut || '';
+      document.getElementById('fLoad').value = r.loadType || '';
+      document.getElementById('fInst').value = r.instructionNo || '';
+      document.getElementById('fMode').value = r.workMode || '';
+      document.getElementById('fCaptain').value = r.captain || '';
+      document.getElementById('fPhone').value = r.captainPhone || '';
+      document.getElementById('fRemark').value = r.remark || '';
+      document.getElementById('mask').classList.add('open');
+    }
+
+    function closeModal(e) {
+      if (e && e.target && e.target !== document.getElementById('mask') && e.type === 'click') return;
+      document.getElementById('mask').classList.remove('open');
+    }
+
+    function saveModal(e) {
+      e.preventDefault();
+      var id = document.getElementById('editId').value;
+      var payload = {
+        shipName: document.getElementById('fShip').value,
+        voyage: document.getElementById('fVoyage').value,
+        eta: document.getElementById('fEta').value,
+        etd: document.getElementById('fEtd').value,
+        cargoInOut: document.getElementById('fInOut').value,
+        loadType: document.getElementById('fLoad').value,
+        instructionNo: document.getElementById('fInst').value,
+        workMode: document.getElementById('fMode').value,
+        captain: document.getElementById('fCaptain').value,
+        captainPhone: document.getElementById('fPhone').value,
+        remark: document.getElementById('fRemark').value
+      };
+      var res = id ? ShipOpsDemo.updateForecast(id, payload) : ShipOpsDemo.createForecast(payload);
+      if (!res.ok) { showToast(res.msg, 'err'); return false; }
+      closeModal();
+      render();
+      showToast(id ? '已保存' : '预报已新增');
+      return false;
+    }
+
+    function doConfirm(id) {
+      if (!confirm('确报后将进入船舶调度「未入港」，是否继续？')) return;
+      var res = ShipOpsDemo.confirmSchedule(id);
+      if (!res.ok) { showToast(res.msg, 'err'); return; }
+      render();
+      showToast('已确报，可前往调度');
+    }
+
+    function doVoid(id) {
+      if (!confirm('确认作废该船期？')) return;
+      ShipOpsDemo.voidSchedule(id);
+      render();
+      showToast('已作废', 'warn');
+    }
+
+    document.addEventListener('DOMContentLoaded', render);
+  </script>
+</body>
+</html>

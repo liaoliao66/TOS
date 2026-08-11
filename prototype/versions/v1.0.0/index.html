@@ -18,25 +18,30 @@
   <main class="max-w-5xl mx-auto px-6 py-10">
     <div class="mb-2 text-xs text-slate-500">版本 v1.0.0 · 2026-08-06</div>
     <h1 class="text-2xl font-semibold">每日每班单机作业量统计 · PC 端原型</h1>
-    <p class="mt-2 text-sm text-slate-600">菜单已整理为三组：作业效率分析 / 作业填报 / 系统配置。另含企微 H5 填报入口。</p>
+    <p class="mt-2 text-sm text-slate-600">菜单已整理为三组：作业效率分析 / 作业管理 / 系统配置。另含企微 H5 填报入口。</p>
 
     <div class="sec">一、作业效率分析</div>
-    <div class="grid md:grid-cols-3 gap-4">
+    <div class="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
       <a class="card card-hover p-5 block" href="pages/work-stat-efficiency-pc.html?tab=master"><div class="text-teal-800 font-medium"><i class="fa-solid fa-user-gear mr-2"></i>司机效率</div><p class="text-sm text-slate-500 mt-2">吨/小时榜 · 每日作业量趋势</p></a>
       <a class="card card-hover p-5 block" href="pages/work-stat-efficiency-pc.html?tab=volume"><div class="text-teal-800 font-medium"><i class="fa-solid fa-chart-column mr-2"></i>作业统计</div><p class="text-sm text-slate-500 mt-2">周期 KPI · 趋势 · 结构分析</p></a>
       <a class="card card-hover p-5 block" href="pages/work-stat-efficiency-pc.html?tab=daily"><div class="text-teal-800 font-medium"><i class="fa-solid fa-calendar-day mr-2"></i>日报明细</div><p class="text-sm text-slate-500 mt-2">已通过日班单据浏览</p></a>
+      <a class="card card-hover p-5 block" href="pages/work-stat-ship-eff-pc.html"><div class="text-teal-800 font-medium"><i class="fa-solid fa-ship mr-2"></i>船舶效率</div><p class="text-sm text-slate-500 mt-2">单船效率 · 在港/生产用时 · 调度产量</p></a>
     </div>
 
-    <div class="sec">二、作业填报</div>
+    <div class="sec">二、作业管理</div>
     <div class="grid md:grid-cols-2 gap-4">
       <a class="card card-hover p-5 block" href="pages/work-stat-list-pc.html"><div class="text-teal-800 font-medium"><i class="fa-solid fa-clipboard-list mr-2"></i>工班作业</div><p class="text-sm text-slate-500 mt-2">列表 · 按时段逐条录入 · 企微推送</p></a>
-      <a class="card card-hover p-5 block" href="pages/vessel-list-pc.html"><div class="text-teal-800 font-medium"><i class="fa-solid fa-ship mr-2"></i>船舶作业</div><p class="text-sm text-slate-500 mt-2">一船一次靠泊 · 提交审核 · 独立台账</p></a>
+      <a class="card card-hover p-5 block" href="pages/ship-archive-pc.html"><div class="text-teal-800 font-medium"><i class="fa-solid fa-book-open mr-2"></i>船舶档案</div><p class="text-sm text-slate-500 mt-2">船名/尺寸/船公司主数据</p></a>
+      <a class="card card-hover p-5 block" href="pages/ship-schedule-pc.html"><div class="text-teal-800 font-medium"><i class="fa-solid fa-calendar-days mr-2"></i>船期管理</div><p class="text-sm text-slate-500 mt-2">预报 / 确报 / 作废</p></a>
+      <a class="card card-hover p-5 block" href="pages/ship-dispatch-pc.html"><div class="text-teal-800 font-medium"><i class="fa-solid fa-ship mr-2"></i>船舶调度</div><p class="text-sm text-slate-500 mt-2">靠泊→开工→完工→离泊</p></a>
     </div>
 
     <div class="sec">三、系统配置</div>
     <div class="grid md:grid-cols-3 gap-4">
-      <a class="card card-hover p-5 block" href="pages/work-stat-berth-machine-pc.html"><div class="text-teal-800 font-medium"><i class="fa-solid fa-anchor mr-2"></i>泊位机械配置</div><p class="text-sm text-slate-500 mt-2">1～2 台/泊位</p></a>
-      <a class="card card-hover p-5 block" href="pages/work-stat-dict-pc.html"><div class="text-teal-800 font-medium"><i class="fa-solid fa-book mr-2"></i>字典管理</div><p class="text-sm text-slate-500 mt-2">司机 / 货种二级树 / 异常原因</p></a>
+      <a class="card card-hover p-5 block" href="pages/device-mgmt-pc.html"><div class="text-teal-800 font-medium"><i class="fa-solid fa-gears mr-2"></i>设备管理</div><p class="text-sm text-slate-500 mt-2">类型树 + 设备列表 · 外系统同步</p></a>
+      <a class="card card-hover p-5 block" href="pages/berth-mgmt-pc.html"><div class="text-teal-800 font-medium"><i class="fa-solid fa-anchor mr-2"></i>泊位管理</div><p class="text-sm text-slate-500 mt-2">编码/名称 · 设备多选 · 货种 · 启停</p></a>
+      <a class="card card-hover p-5 block" href="pages/job-type-mgmt-pc.html"><div class="text-teal-800 font-medium"><i class="fa-solid fa-id-badge mr-2"></i>工种管理</div><p class="text-sm text-slate-500 mt-2">工种类型 + 人员 · 替代司机字典</p></a>
+      <a class="card card-hover p-5 block" href="pages/work-stat-dict-pc.html"><div class="text-teal-800 font-medium"><i class="fa-solid fa-book mr-2"></i>字典管理</div><p class="text-sm text-slate-500 mt-2">货种二级树 / 异常原因 / 停工原因归类</p></a>
       <a class="card card-hover p-5 block" href="pages/work-stat-wecom-push-pc.html"><div class="text-teal-800 font-medium"><i class="fa-brands fa-weixin mr-2"></i>企业微信推送配置</div><p class="text-sm text-slate-500 mt-2">组织选人/群 · 时段保存推送</p></a>
     </div>
 
