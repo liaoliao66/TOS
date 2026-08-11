@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>武穴码头船舶调度中心</title>
+  <style>
+    :root {
+      --bg: #000b29;
+      --cyan: #00e8ff;
+      --line: rgba(0, 200, 255, 0.32);
+      --text: #ffffff;
+      --muted: #7f9bb8;
+      --page-x: 16px;
+      --panel-gap: 8px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    body {
+      font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    .screen {
+      width: 100vw;
+      height: 100vh;
+      display: grid;
+      /* 底部加高：计划/装卸信息区 */
+      grid-template-rows: 68px minmax(0, 1fr) minmax(300px, 36vh);
+      position: relative;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% 30%, rgba(10, 70, 140, 0.35), transparent 65%),
+        linear-gradient(180deg, #041532 0%, #000b29 50%, #00081c 100%);
+    }
+    .map-bg {
+      position: absolute;
+      inset: 12% 5% 28% 5%;
+      opacity: 0.13;
+      pointer-events: none;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='900' height='420' viewBox='0 0 900 420'%3E%3Cg fill='none' stroke='%235a9fd4' stroke-width='0.6'%3E%3Cpath d='M60 230c70-45 130-60 200-45s130 35 200 15 150-65 230-50 140 50 200 35'/%3E%3Cpath d='M40 290c100-8 150 25 240 12s170 35 260 20 180 25 280 8'/%3E%3Cpath d='M100 130c60-25 110 5 170-15s120 0 190-20'/%3E%3C/g%3E%3Cg stroke='%234a8ec4' stroke-width='0.35' opacity='.4'%3E%3Cpath d='M0 70h900M0 140h900M0 210h900M0 280h900M0 350h900M100 0v420M200 0v420M300 0v420M400 0v420M500 0v420M600 0v420M700 0v420M800 0v420'/%3E%3C/g%3E%3C/svg%3E") center/cover no-repeat;
+      z-index: 0;
+    }
+
+    /* Header */
+    .header {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: 260px 1fr 260px;
+      align-items: center;
+      padding: 0 20px;
+    }
+    .header::before {
+      content: "";
+      position: absolute;
+      left: 0; right: 0; top: 0;
+      height: 56px;
+      background: linear-gradient(180deg, rgba(8, 75, 150, 0.55), rgba(4, 35, 80, 0.12) 80%, transparent);
+      clip-path: polygon(0 0, 100% 0, 97.5% 100%, 2.5% 100%);
+      pointer-events: none;
+    }
+    .clock {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .clock-time {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      font-variant-numeric: tabular-nums;
+    }
+    .clock-meta {
+      display: flex;
+      flex-direction: column;
+      font-size: 12px;
+      line-height: 1.35;
+      color: #d4e6f8;
+    }
+    .brand {
+      position: relative;
+      z-index: 1;
+      justify-self: center;
+      width: min(660px, 52vw);
+      height: 60px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, rgba(18, 105, 185, 0.58), rgba(6, 50, 110, 0.7) 55%, rgba(4, 30, 70, 0.35));
+      clip-path: polygon(3.5% 0, 96.5% 0, 100% 50%, 93% 100%, 7% 100%, 0 50%);
+      box-shadow: 0 0 24px rgba(0, 170, 255, 0.22), inset 0 1px 0 rgba(150, 230, 255, 0.45);
+    }
+    .brand::after {
+      content: "";
+      position: absolute;
+      left: 12%; right: 12%; top: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #8ef0ff, transparent);
+    }
+    .brand-cn {
+      font-size: 28px;
+      font-weight: 700;
+      letter-spacing: 0.18em;
+      padding-left: 0.18em;
+      text-shadow: 0 0 14px rgba(120, 210, 255, 0.5);
+      line-height: 1.1;
+    }
+    .brand-en {
+      margin-top: 2px;
+      font-size: 10px;
+      letter-spacing: 0.26em;
+      color: #6eecff;
+    }
+    .actions {
+      position: relative;
+      z-index: 1;
+      display: flex;
+      justify-content: flex-end;
+      gap: 14px;
+    }
+    .actions a, .actions button {
+      background: none;
+      border: none;
+      color: #cfe6ff;
+      cursor: pointer;
+      font-size: 14px;
+      text-decoration: none;
+      opacity: 0.88;
+    }
+    .actions a:hover, .actions button:hover { color: var(--cyan); }
+
+    /* Main: 顶标签 + 6 泊位满宽；左右与底部同边对齐 */
+    .main {
+      position: relative;
+      z-index: 1;
+      min-height: 0;
+      padding: 4px var(--page-x) var(--panel-gap);
+      display: flex;
+      flex-direction: column;
+    }
+    .stage {
+      flex: 1;
+      min-width: 0;
+      min-height: 0;
+      border: 1px solid var(--line);
+      background: rgba(4, 28, 60, 0.28);
+      padding: 10px 12px 6px;
+      display: flex;
+      flex-direction: column;
+    }
+    .stage-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #eaf5ff;
+      margin-bottom: 6px;
+      flex-shrink: 0;
+    }
+    .stage-title::before {
+      content: "";
+      width: 3px;
+      height: 14px;
+      background: #3eb6ff;
+      box-shadow: 0 0 8px #3eb6ff;
+    }
+    .berth-row {
+      flex: 1;
+      min-height: 0;
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 6px;
+    }
+    .berth-col {
+      min-width: 0;
+      height: 100%;
+      display: grid;
+      /* 量卡 / 船 / 泊位名 / 机械（机械区放大占满） */
+      grid-template-rows: 68px 58px 32px minmax(0, 1fr);
+      justify-items: center;
+      align-content: stretch;
+      padding: 0 2px;
+    }
+
+    .qty { width: 100%; max-width: 190px; }
+    .qty-plan {
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 600;
+      border: 1px solid rgba(0, 232, 255, 0.75);
+      background: linear-gradient(180deg, rgba(0, 230, 255, 0.45), rgba(0, 110, 150, 0.28));
+      box-shadow: 0 0 12px rgba(0, 220, 255, 0.3), inset 0 1px 0 rgba(200, 255, 255, 0.4);
+      clip-path: polygon(5% 0, 95% 0, 100% 100%, 0 100%);
+    }
+    .qty-sub {
+      margin-top: 4px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+    }
+    .qty-sub span {
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      border: 1px solid rgba(0, 200, 255, 0.42);
+      background: linear-gradient(180deg, rgba(0, 170, 210, 0.32), rgba(0, 55, 95, 0.3));
+    }
+
+    .ship-zone {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .ship-zone::before {
+      content: "";
+      position: absolute;
+      left: 8%; right: 8%; bottom: 4px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(90,140,190,.5), transparent);
+    }
+    .ship {
+      width: min(92%, 150px);
+      height: 34px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #eef2f7 0%, #b8c2d0 40%, rgba(100,120,150,0.12) 100%);
+      box-shadow: 0 0 10px rgba(200,220,255,.2);
+      position: relative;
+    }
+    .ship::before {
+      content: "";
+      position: absolute;
+      left: 14%;
+      top: 5px;
+      width: 42%;
+      height: 7px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.5);
+    }
+
+    .berth-name {
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 32px;
+      white-space: nowrap;
+      text-align: center;
+      letter-spacing: 0.02em;
+    }
+
+    .machines {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 0;
+    }
+    .machine {
+      width: 100%;
+      max-width: 148px;
+      height: 100%;
+      max-height: 210px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .is-dual .machine { max-width: 118px; }
+    .machine-body {
+      position: relative;
+      width: 100%;
+      flex: 1;
+      min-height: 0;
+      max-height: 170px;
+      aspect-ratio: auto;
+    }
+    .machine-body svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+      filter: drop-shadow(0 3px 6px rgba(0,0,0,.35));
+    }
+    .machine-st {
+      position: absolute;
+      left: 40%;
+      top: 48%;
+      transform: translate(-50%, -50%);
+      font-size: 14px;
+      font-weight: 700;
+      color: #fff;
+      text-shadow: -1px 0 #1a2433, 1px 0 #1a2433, 0 -1px #1a2433, 0 1px #1a2433;
+      white-space: nowrap;
+      pointer-events: none;
+    }
+    .is-dual .machine-st { font-size: 12px; }
+    .machine-name {
+      margin-top: 4px;
+      font-size: 13px;
+      white-space: nowrap;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    /* Bottom: 加高；计划船舶加宽左移；左右与上方同宽对齐 */
+    .bottom {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(300px, 30%);
+      gap: var(--panel-gap);
+      min-height: 0;
+      padding: 0 var(--page-x) 10px;
+    }
+    .bottom-main {
+      min-width: 0;
+      border: 1px solid var(--line);
+      background: rgba(4, 28, 58, 0.55);
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .legend-row { display: flex; flex-wrap: wrap; gap: 10px; }
+    .legend {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 4px 10px;
+      border: 1px solid rgba(0, 180, 255, 0.35);
+      background: rgba(0, 40, 80, 0.35);
+      font-size: 12px;
+      color: #c8dcf2;
+    }
+    .legend .k { color: #8ec8ff; }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      display: inline-block; margin-right: 4px; vertical-align: middle;
+    }
+    .sec-title {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .sec-title::before {
+      content: "";
+      width: 11px; height: 13px;
+      background: linear-gradient(135deg, #00e0ff, #00e0ff 55%, transparent 56%);
+      clip-path: polygon(0 0, 100% 0, 45% 100%, 0 100%);
+    }
+    .table-wrap {
+      flex: 1;
+      min-height: 0;
+      overflow: auto;
+      border-top: 1px solid rgba(0, 190, 255, 0.35);
+      border-bottom: 1px solid rgba(0, 190, 255, 0.2);
+    }
+    table.info { width: 100%; border-collapse: collapse; font-size: 12px; }
+    table.info th {
+      position: sticky; top: 0;
+      background: rgba(4, 42, 88, 0.96);
+      color: #5eefff;
+      font-weight: 500;
+      text-align: left;
+      padding: 8px;
+      white-space: nowrap;
+      border-bottom: 1px solid rgba(0, 200, 255, 0.3);
+    }
+    table.info td {
+      padding: 7px 8px;
+      color: #c5d8ef;
+      border-bottom: 1px solid rgba(45, 75, 115, 0.28);
+      white-space: nowrap;
+    }
+    .no-data { text-align: center; color: #5d7694; padding: 36px 0 !important; }
+
+    .plan-panel {
+      min-height: 0;
+      border: 1px solid var(--line);
+      background: rgba(0, 48, 72, 0.42);
+      padding: 8px 10px;
+      display: flex;
+      flex-direction: column;
+    }
+    .plan-body {
+      flex: 1;
+      margin-top: 8px;
+      min-height: 0;
+      overflow: auto;
+      border: 1px solid rgba(0, 140, 160, 0.2);
+      background: rgba(0, 55, 75, 0.25);
+      padding: 4px 8px;
+    }
+    .plan-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 7px 0;
+      border-bottom: 1px solid rgba(70, 110, 150, 0.22);
+      font-size: 12px;
+      color: #d7e8ff;
+    }
+    .empty { color: #5d7694; text-align: center; padding: 28px 8px; font-size: 12px; }
+
+    @media (max-width: 1400px) {
+      .brand-cn { font-size: 22px; letter-spacing: 0.1em; }
+      .berth-name { font-size: 13px; }
+      .machine-name { font-size: 12px; }
+      .machine { max-width: 120px; }
+      .is-dual .machine { max-width: 96px; }
+      .bottom { grid-template-columns: minmax(0,1fr) minmax(260px, 32%); }
+    }
+  </style>
+</head>
+<body>
+  <div class="screen">
+    <div class="map-bg" aria-hidden="true"></div>
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+      <defs>
+        <linearGradient id="mg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#d2d8e0"/>
+          <stop offset="100%" stop-color="#9aa5b4"/>
+        </linearGradient>
+      </defs>
+    </svg>
+
+    <header class="header">
+      <div class="clock">
+        <div class="clock-time" id="clockTime">00:00:00</div>
+        <div class="clock-meta">
+          <span id="clockWeek">星期一</span>
+          <span id="clockDate">2026/1/1</span>
+        </div>
+      </div>
+      <div class="brand">
+        <div class="brand-cn">武穴码头船舶调度中心</div>
+        <div class="brand-en">WUXUE WHARF VESSEL DISPATCHING CENTER</div>
+      </div>
+      <div class="actions">
+        <a href="ship-dispatch-pc.html">返回</a>
+        <button type="button" onclick="toggleFs()" title="全屏" aria-label="全屏">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <div class="main">
+      <section class="stage">
+        <div class="stage-title">作业船舶</div>
+        <div class="berth-row" id="berthRow"></div>
+      </section>
+    </div>
+
+    <div class="bottom">
+      <section class="bottom-main">
+        <div class="legend-row">
+          <div class="legend">
+            <span class="k">配舱状态</span>
+            <span><i class="dot" style="background:#00e8ff"></i>正常</span>
+            <span><i class="dot" style="background:#f59e0b"></i>即将完成</span>
+            <span><i class="dot" style="background:#ef4444"></i>超时</span>
+          </div>
+          <div class="legend">
+            <span class="k">机械状态</span>
+            <span><i class="dot" style="background:#38bdf8"></i>启动</span>
+            <span><i class="dot" style="background:#f59e0b"></i>待机</span>
+            <span><i class="dot" style="background:#ef4444"></i>告警</span>
+            <span><i class="dot" style="background:#94a3b8"></i>停机</span>
+          </div>
+        </div>
+        <div class="sec-title">装卸船信息</div>
+        <div class="table-wrap">
+          <table class="info">
+            <thead>
+              <tr>
+                <th>船次</th><th>船名</th><th>货主</th><th>船长</th><th>联系方式</th><th>货种</th>
+                <th>泊位</th><th>装船机</th><th>皮带机</th><th>开工时间</th><th>计划完成时间</th>
+                <th>完成量(吨)</th><th>剩余量</th><th>计划量(吨)</th>
+              </tr>
+            </thead>
+            <tbody id="infoBody">
+              <tr><td colspan="14" class="no-data">暂无数据</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <aside class="plan-panel">
+        <div class="sec-title">计划船舶</div>
+        <div class="plan-body" id="planList"><div class="empty">暂无计划</div></div>
+      </aside>
+    </div>
+  </div>
+
+  <script src="../assets/device-demo.js"></script>
+  <script src="../assets/berth-demo.js"></script>
+  <script src="../assets/ship-ops-demo.js"></script>
+  <script>
+    var WEEKS = ['星期日','星期一','星期二','星期三','星期四','星期五','星期六'];
+    var ST_TEXT = { run: '启动', standby: '待机', alarm: '告警', stop: '停机' };
+    var MACHINE_STATUS = {
+      'ZCJ-01': 'stop', 'XSJ-01': 'stop', 'XSJ-02': 'stop', 'XSJ-03': 'stop',
+      'XSJ-04': 'stop', 'XSJ-05': 'stop', 'MJ-01': 'stop', 'MJ-02': 'stop'
+    };
+
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+    function tickClock() {
+      var d = new Date();
+      document.getElementById('clockTime').textContent =
+        pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+      document.getElementById('clockWeek').textContent = WEEKS[d.getDay()];
+      document.getElementById('clockDate').textContent =
+        d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
+    }
+    function toggleFs() {
+      if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(function () {});
+      else document.exitFullscreen();
+    }
+    function deviceName(code) {
+      if (!window.DeviceDemo) return code || '';
+      var list = DeviceDemo.listDevices('all');
+      for (var i = 0; i < list.length; i++) if (list[i].code === code) return list[i].name;
+      return code;
+    }
+
+    function loaderSvg() {
+      return (
+        '<svg viewBox="0 0 160 130" xmlns="http://www.w3.org/2000/svg">' +
+          '<g fill="url(#mg)">' +
+            '<rect x="12" y="116" width="90" height="6" rx="1"/>' +
+            '<rect x="22" y="104" width="14" height="14" rx="1"/>' +
+            '<rect x="72" y="104" width="14" height="14" rx="1"/>' +
+            '<rect x="40" y="46" width="26" height="60" rx="1"/>' +
+            '<rect x="32" y="38" width="42" height="12" rx="1"/>' +
+            '<rect x="30" y="56" width="46" height="30" rx="2"/>' +
+            '<rect x="64" y="48" width="82" height="10" rx="1"/>' +
+            '<polygon points="146,48 158,53 146,58"/>' +
+            '<rect x="136" y="58" width="7" height="38"/>' +
+            '<rect x="126" y="92" width="26" height="7" rx="1"/>' +
+            '<rect x="48" y="24" width="12" height="16"/>' +
+          '</g>' +
+          '<path d="M54 24 L142 48" stroke="#8e9aab" stroke-width="2.2" fill="none"/>' +
+          '<path d="M54 30 L128 48" stroke="#7f8b9c" stroke-width="1.3" fill="none"/>' +
+        '</svg>'
+      );
+    }
+
+    function machineHtml(code) {
+      var st = code ? (MACHINE_STATUS[code] || 'stop') : 'stop';
+      var label = code ? (ST_TEXT[st] || '停机') : '可双机';
+      var name = code ? deviceName(code) : '待接入';
+      return (
+        '<div class="machine">' +
+          '<div class="machine-body">' + loaderSvg() +
+            '<div class="machine-st">' + label + '</div>' +
+          '</div>' +
+          '<div class="machine-name">' + name + '</div>' +
+        '</div>'
+      );
+    }
+
+    function workingByBerth() {
+      var map = {};
+      if (!window.ShipOpsDemo || !ShipOpsDemo.listDispatch) return map;
+      ShipOpsDemo.listDispatch('').forEach(function (d) {
+        if (['working', 'berthed', 'finished'].indexOf(d.status) < 0) return;
+        var berthNo = (d.start && d.start.berthNo) || (d.berth && d.berth.berthNo) || '';
+        if (!berthNo) return;
+        if (!map[berthNo]) map[berthNo] = [];
+        map[berthNo].push(d);
+      });
+      return map;
+    }
+
+    function qtyOf(ships) {
+      if (!ships || !ships.length) return { plan: '--', done: '--', left: '--' };
+      var d = ships[0];
+      var plan = d.finish && d.finish.qty != null ? d.finish.qty : null;
+      var done = (d.status === 'finished' || d.status === 'departed') ? plan : null;
+      return {
+        plan: plan != null ? plan : '--',
+        done: done != null ? done : '--',
+        left: plan != null && done != null ? Math.max(0, Number(plan) - Number(done)) : '--'
+      };
+    }
+
+    function renderBerths() {
+      var berths = BerthDemo.listEnabledBerths().slice().sort(function (a, b) {
+        return String(a.name).localeCompare(String(b.name), 'zh');
+      });
+      var workMap = workingByBerth();
+      var html = '';
+
+      berths.forEach(function (b) {
+        var q = qtyOf(workMap[b.name]);
+        var codes = (b.deviceCodes || []).slice();
+        if (b.dualCapable) {
+          while (codes.length < 2) codes.push(null);
+          codes = codes.slice(0, 2);
+        } else {
+          codes = codes.slice(0, 1);
+        }
+
+        html +=
+          '<div class="berth-col' + (b.dualCapable ? ' is-dual' : '') + '">' +
+            '<div class="qty">' +
+              '<div class="qty-plan">计划量 ' + q.plan + '</div>' +
+              '<div class="qty-sub">' +
+                '<span>剩余量 ' + q.left + '</span>' +
+                '<span>完成量 ' + q.done + '</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="ship-zone"><div class="ship"></div></div>' +
+            '<div class="berth-name">' + (b.displayName || b.name) + '</div>' +
+            '<div class="machines">' +
+              codes.map(function (c) { return machineHtml(c); }).join('') +
+            '</div>' +
+          '</div>';
+      });
+
+      document.getElementById('berthRow').innerHTML = html;
+    }
+
+    function renderPlan() {
+      var el = document.getElementById('planList');
+      if (!window.ShipOpsDemo || !ShipOpsDemo.listDispatch) {
+        el.innerHTML = '<div class="empty">暂无计划</div>';
+        return;
+      }
+      var list = (ShipOpsDemo.listDispatch('pending') || []).slice(0, 10);
+      if (!list.length) {
+        el.innerHTML = '<div class="empty">暂无计划</div>';
+        return;
+      }
+      el.innerHTML = list.map(function (d) {
+        return '<div class="plan-item"><span>' + (d.shipName || '—') + '</span><span>' + (d.voyage || '') + '</span></div>';
+      }).join('');
+    }
+
+    function renderTable() {
+      var body = document.getElementById('infoBody');
+      if (!window.ShipOpsDemo || !ShipOpsDemo.listDispatch) {
+        body.innerHTML = '<tr><td colspan="14" class="no-data">暂无数据</td></tr>';
+        return;
+      }
+      var rows = (ShipOpsDemo.listDispatch('') || []).filter(function (d) {
+        return d.status === 'working' || d.status === 'berthed' || d.status === 'finished';
+      });
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="14" class="no-data">暂无数据</td></tr>';
+        return;
+      }
+      body.innerHTML = rows.map(function (d) {
+        var berthNo = (d.start && d.start.berthNo) || (d.berth && d.berth.berthNo) || '—';
+        var cargo = (d.start && d.start.cargo) || '—';
+        var crane = (d.start && (d.start.craneUp || d.start.craneDown)) || '—';
+        var qty = d.finish && d.finish.qty != null ? d.finish.qty : '—';
+        var done = (d.status === 'finished' || d.status === 'departed') ? qty : '—';
+        return '<tr>' +
+          '<td>' + (d.voyage || '—') + '</td>' +
+          '<td>' + (d.shipName || '—') + '</td>' +
+          '<td>—</td><td>' + (d.captain || '—') + '</td><td>' + (d.captainPhone || '—') + '</td>' +
+          '<td>' + cargo + '</td><td>' + berthNo + '</td><td>' + crane + '</td><td>—</td>' +
+          '<td>' + ((d.start && d.start.actual) || '—') + '</td>' +
+          '<td>' + ((d.finish && d.finish.plan) || '—') + '</td>' +
+          '<td>' + done + '</td><td>—</td><td>' + qty + '</td></tr>';
+      }).join('');
+    }
+
+    tickClock();
+    setInterval(tickClock, 1000);
+    renderBerths();
+    renderPlan();
+    renderTable();
+  </script>
+</body>
+</html>

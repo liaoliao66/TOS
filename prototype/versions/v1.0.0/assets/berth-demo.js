@@ -6,51 +6,64 @@
  * - 支持新增 / 编辑 / 删除 / 启用禁用
  */
 (function (global) {
-  var STORAGE_KEY = 'tos_berth_mgmt_v2';
+  /** v3：6 泊位 · 8 设备；2/3/4 号可双机同时作业 */
+  var STORAGE_KEY = 'tos_berth_mgmt_v3';
   var CARGO_OPTIONS = ['集装箱', '散货', '件杂货'];
 
   var SEED = [
     {
       code: 'BW-01',
       name: '1#泊位',
-      deviceCodes: ['ZCJ-01', 'MJ-01'],
-      cargos: ['散货'],
+      displayName: '集装箱1号泊位',
+      deviceCodes: ['ZCJ-01'],
+      cargos: ['集装箱'],
+      dualCapable: false,
       enabled: true
     },
     {
       code: 'BW-02',
       name: '2#泊位',
-      deviceCodes: ['XSJ-02', 'MJ-01'],
-      cargos: ['散货', '件杂货'],
+      displayName: '散货1号泊位',
+      deviceCodes: ['XSJ-02', 'XSJ-05'],
+      cargos: ['散货'],
+      dualCapable: true,
       enabled: true
     },
     {
       code: 'BW-03',
       name: '3#泊位',
-      deviceCodes: ['XSJ-03', 'XSJ-01'],
+      displayName: '散货2号泊位',
+      deviceCodes: ['XSJ-03', 'XSJ-04'],
       cargos: ['散货'],
+      dualCapable: true,
       enabled: true
     },
     {
       code: 'BW-04',
       name: '4#泊位',
+      displayName: '散货3号泊位',
       deviceCodes: ['XSJ-01', 'XSJ-02'],
-      cargos: ['集装箱', '散货'],
+      cargos: ['散货', '件杂货'],
+      dualCapable: true,
       enabled: true
     },
     {
       code: 'BW-05',
       name: '5#泊位',
-      deviceCodes: ['MJ-01', 'MJ-02'],
+      displayName: '杂货1号泊位',
+      deviceCodes: ['MJ-01'],
       cargos: ['件杂货'],
+      dualCapable: false,
       enabled: true
     },
     {
       code: 'BW-06',
       name: '6#泊位',
-      deviceCodes: ['MJ-01'],
-      cargos: ['散货'],
-      enabled: false
+      displayName: '杂货2号泊位',
+      deviceCodes: ['MJ-02'],
+      cargos: ['件杂货', '散货'],
+      dualCapable: false,
+      enabled: true
     }
   ];
 
@@ -112,12 +125,17 @@
     var row = {
       code: code,
       name: name,
+      displayName: berth.displayName || name,
       deviceCodes: deviceCodes.slice(),
       cargos: cargos.slice(),
+      dualCapable: !!berth.dualCapable,
       enabled: enabled
     };
-    if (isEdit) list[idx] = row;
-    else list.push(row);
+    if (isEdit) {
+      if (list[idx].displayName && !berth.displayName) row.displayName = list[idx].displayName;
+      if (list[idx].dualCapable && berth.dualCapable === undefined) row.dualCapable = list[idx].dualCapable;
+      list[idx] = row;
+    } else list.push(row);
     saveList(list);
     return { ok: true, list: clone(list) };
   }

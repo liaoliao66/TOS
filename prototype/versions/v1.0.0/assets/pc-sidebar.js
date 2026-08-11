@@ -6,18 +6,19 @@
  * data-active:
  *   efficiency-master | efficiency-volume | efficiency-daily | efficiency-ship
  *   fill-shift
- *   ship-archive | ship-schedule | ship-dispatch
+ *   ship-archive | ship-schedule | ship-dispatch | ship-screen | ship-command
  *   cfg-device | cfg-berth | cfg-cargo | cfg-job | cfg-dict | cfg-wecom
  */
 (function () {
-  function link(href, icon, label, active, indent) {
+  function link(href, icon, label, active, indent, external) {
     var base = indent
       ? 'flex items-center gap-2 pl-10 pr-3 py-2 rounded-xl text-sm '
       : 'flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm ';
     var state = active
       ? 'bg-slate-700 text-white'
       : 'text-slate-300 hover:bg-slate-700 hover:text-white';
-    return '<a href="' + href + '" class="' + base + state + '">' +
+    var ext = external ? ' target="_blank" rel="noopener noreferrer"' : '';
+    return '<a href="' + href + '"' + ext + ' class="' + base + state + '">' +
       '<i class="' + icon + ' w-5 text-center text-xs"></i><span>' + label + '</span></a>';
   }
 
@@ -38,6 +39,8 @@
     html += link('ship-archive-pc.html', 'fa-solid fa-book-open', '船舶档案', active === 'ship-archive', true);
     html += link('ship-schedule-pc.html', 'fa-solid fa-calendar-days', '船期管理', active === 'ship-schedule', true);
     html += link('ship-dispatch-pc.html', 'fa-solid fa-ship', '船舶调度', active === 'ship-dispatch', true);
+    html += link('ship-dispatch-screen.html', 'fa-solid fa-tv', '调度大屏', active === 'ship-screen', true);
+    html += link('https://jgyw.crfsdi.com.cn:51111/dp-port/#/home', 'fa-solid fa-desktop', '指挥大屏', active === 'ship-command', true, true);
 
     html += group('系统配置');
     html += link('device-mgmt-pc.html', 'fa-solid fa-gears', '设备管理', active === 'cfg-device', true);

@@ -4,9 +4,10 @@
  * - 启用/禁用以外系统为准（同步覆盖）
  * - 外系统删除 → 本地直接删除
  * - 泊位管理作业设备选项：仅已启用设备
+ * - 现场口径：共 8 台作业设备
  */
 (function (global) {
-  var STORAGE_KEY = 'tos_device_mgmt_v1';
+  var STORAGE_KEY = 'tos_device_mgmt_v2';
 
   var TYPE_TREE = [
     { id: 'all', name: '全部设备', parentId: null },
@@ -15,32 +16,28 @@
     { id: 'load', name: '装船机', parentId: null }
   ];
 
-  /** 本地当前库（可被同步覆盖） */
+  /** 本地当前库：8 台启用 */
   var LOCAL_SEED = [
+    { code: 'ZCJ-01', name: '1#装船机', model: 'ZC2000', typeId: 'load', enabled: true },
     { code: 'XSJ-01', name: '1#卸船机', model: 'XQ3500', typeId: 'unload', enabled: true },
     { code: 'XSJ-02', name: '2#卸船机', model: 'XQ3500', typeId: 'unload', enabled: true },
     { code: 'XSJ-03', name: '3#卸船机', model: 'XQ4200', typeId: 'unload', enabled: true },
-    { code: 'XSJ-04', name: '4#卸船机', model: 'XQ4200', typeId: 'unload', enabled: false },
+    { code: 'XSJ-04', name: '4#卸船机', model: 'XQ4200', typeId: 'unload', enabled: true },
+    { code: 'XSJ-05', name: '5#卸船机', model: 'XQ4800', typeId: 'unload', enabled: true },
     { code: 'MJ-01', name: '1#门机', model: 'MQ4035', typeId: 'gantry', enabled: true },
-    { code: 'MJ-02', name: '2#门机', model: 'MQ4035', typeId: 'gantry', enabled: true },
-    { code: 'ZCJ-01', name: '1#装船机', model: 'ZC2000', typeId: 'load', enabled: true }
+    { code: 'MJ-02', name: '2#门机', model: 'MQ4035', typeId: 'gantry', enabled: true }
   ];
 
-  /**
-   * 模拟外系统快照：相对 LOCAL_SEED
-   * - 更新 XSJ-01 型号与启用状态
-   * - 新增 XSJ-05
-   * - 删除 XSJ-04（外系统已无）
-   * - MJ-02 改为禁用
-   */
+  /** 模拟外系统快照（与本地 8 台对齐，示意同步） */
   var REMOTE_SNAPSHOT = [
+    { code: 'ZCJ-01', name: '1#装船机', model: 'ZC2000', typeId: 'load', enabled: true },
     { code: 'XSJ-01', name: '1#卸船机', model: 'XQ3500-A', typeId: 'unload', enabled: true },
     { code: 'XSJ-02', name: '2#卸船机', model: 'XQ3500', typeId: 'unload', enabled: true },
     { code: 'XSJ-03', name: '3#卸船机', model: 'XQ4200', typeId: 'unload', enabled: true },
+    { code: 'XSJ-04', name: '4#卸船机', model: 'XQ4200', typeId: 'unload', enabled: true },
     { code: 'XSJ-05', name: '5#卸船机', model: 'XQ4800', typeId: 'unload', enabled: true },
     { code: 'MJ-01', name: '1#门机', model: 'MQ4035', typeId: 'gantry', enabled: true },
-    { code: 'MJ-02', name: '2#门机', model: 'MQ4035', typeId: 'gantry', enabled: false },
-    { code: 'ZCJ-01', name: '1#装船机', model: 'ZC2000', typeId: 'load', enabled: true }
+    { code: 'MJ-02', name: '2#门机', model: 'MQ4035', typeId: 'gantry', enabled: true }
   ];
 
   function clone(list) {
