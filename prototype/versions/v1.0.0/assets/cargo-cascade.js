@@ -1,15 +1,27 @@
 /**
- * 货种二级级联（对齐字典：一级大类 → 二级货种）
+ * 货种二级级联（一级大类 → 二级货种）
+ * - 数据源优先：系统配置 · 货种配置（CargoMgmtDemo）
+ * - 无配置时回退内置演示树
  */
 (function (global) {
-  var TREE = [
+  var FALLBACK = [
     { name: '集装箱', children: ['20尺标箱', '40尺高箱'] },
     { name: '散货', children: ['氧化钙', '氮磷肥', '硫矿', '磷矿', '二氢钾'] },
-    { name: '件杂货', children: ['钢材', '设备件'] },
-    { name: '吨包袋', children: ['工铵吨包', '磷肥'] }
+    { name: '件杂货', children: ['钢材', '设备件'] }
   ];
 
+  function getTree() {
+    if (global.CargoMgmtDemo && CargoMgmtDemo.cascadeTree) {
+      try {
+        var t = CargoMgmtDemo.cascadeTree();
+        if (t && t.length) return t;
+      } catch (e) {}
+    }
+    return FALLBACK;
+  }
+
   function parentOf(l2) {
+    var TREE = getTree();
     for (var i = 0; i < TREE.length; i++) {
       if (TREE[i].children.indexOf(l2) >= 0) return TREE[i].name;
     }
@@ -17,6 +29,7 @@
   }
 
   function childrenOf(l1) {
+    var TREE = getTree();
     for (var i = 0; i < TREE.length; i++) {
       if (TREE[i].name === l1) return TREE[i].children.slice();
     }
@@ -24,6 +37,7 @@
   }
 
   function filterTree(l1Filter) {
+    var TREE = getTree();
     if (l1Filter == null) return TREE.slice();
     if (!l1Filter.length) return [];
     return TREE.filter(function (g) { return l1Filter.indexOf(g.name) >= 0; });
@@ -33,11 +47,7 @@
    * @param {HTMLSelectElement} l1Sel
    * @param {HTMLSelectElement} l2Sel
    * @param {object} opts
-   *   allowAll: 筛选场景，一级/二级可「全部」；一级=全部时二级仅「全部」
-   *   entryMode: 录入场景，无「全部」，空值为请选择
-   *   defaultL1 / defaultL2
-   *   l1Filter: 仅展示这些一级大类（如泊位规定的货种大类）
-   *   onChange({l1,l2})
+   *   allowAll / entryMode / defaultL1 / defaultL2 / l1Filter / onChange
    */
   function bindPair(l1Sel, l2Sel, opts) {
     opts = opts || {};
@@ -96,7 +106,6 @@
         if (prefer && childrenOf(l1).indexOf(prefer) >= 0) l2Sel.value = prefer;
         return;
       }
-      /* 必选单货种（效率对比） */
       childrenOf(l1).forEach(function (c) {
         html += '<option value="' + c + '">' + c + '</option>';
       });
@@ -121,7 +130,7 @@
     } else {
       l1Sel.value = '散货';
     }
-    buildL2(d2 || (allowAll ? '全部' : '氧化钙'));
+    buildL2(d2 || (allowAll ? '全部' : ''));
 
     l1Sel.onchange = function () {
       buildL2(allowAll ? '全部' : '');
@@ -190,7 +199,6 @@
         defaultL1: selected ? parentOf(selected) : '',
         defaultL2: selected || '',
         onChange: function (v) {
-          /* 回写隐藏旧 select，兼容可能读取逻辑 */
           if (v.l2) {
             var found = false;
             Array.prototype.forEach.call(sel.options, function (o) {
@@ -211,9 +219,8 @@
     });
   }
 
-  global.CARGO_TREE = TREE;
   global.CargoCascade = {
-    TREE: TREE,
+    get TREE() { return getTree(); },
     parentOf: parentOf,
     childrenOf: childrenOf,
     bindPair: bindPair,

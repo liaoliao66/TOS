@@ -10,7 +10,7 @@
   /** 演示单据：模拟调度已完工/离泊录入 */
   var SEED = [
     {
-      id: 'se-0', date: '2026-08-01', shipName: '无生产作业', noWork: true,
+      id: 'se-0', date: '2026-08-01', shipName: '无生产作业', voyage: '', noWork: true,
       workers: null, cargo: '', loadUnload: '', process: '', craneUp: '', craneDown: '',
       length: null, hatchLen: null, width: null, hatchWidth: null,
       dwt: null, draftLight: null, qty: null, draftLoaded: null,
@@ -18,7 +18,7 @@
       stoppages: [], shorePower: ''
     },
     {
-      id: 'se-1', date: '2026-08-02', shipName: '航龙809', noWork: false,
+      id: 'se-1', date: '2026-08-02', shipName: '航龙809', voyage: 'V260802A', noWork: false,
       workers: 9, cargo: '集装箱 / 20尺标箱', cargoL1: '集装箱', cargoL2: '20尺标箱',
       loadUnload: '卸', process: '船-场', craneUp: 'QC102', craneDown: '',
       length: 110, hatchLen: null, width: 16.2, hatchWidth: null,
@@ -27,7 +27,7 @@
       stoppages: [], shorePower: '是'
     },
     {
-      id: 'se-2', date: '2026-08-02', shipName: '航龙809', noWork: false,
+      id: 'se-2', date: '2026-08-02', shipName: '航龙809', voyage: 'V260802B', noWork: false,
       workers: 9, cargo: '集装箱 / 40尺高箱', cargoL1: '集装箱', cargoL2: '40尺高箱',
       loadUnload: '装', process: '场-船', craneUp: '', craneDown: 'QC102',
       length: 110, hatchLen: null, width: 16.2, hatchWidth: null,
@@ -36,7 +36,7 @@
       stoppages: [], shorePower: '是'
     },
     {
-      id: 'se-3', date: '2026-08-03', shipName: '航龙803', noWork: false,
+      id: 'se-3', date: '2026-08-03', shipName: '航龙803', voyage: 'V260803', noWork: false,
       workers: 9, cargo: '集装箱 / 20尺标箱', cargoL1: '集装箱', cargoL2: '20尺标箱',
       loadUnload: '装', process: '场-船', craneUp: '', craneDown: 'QC102',
       length: 105, hatchLen: null, width: 16.2, hatchWidth: null,
@@ -45,7 +45,7 @@
       stoppages: [], shorePower: '是'
     },
     {
-      id: 'se-4', date: '2026-08-03', shipName: '邦朋6', noWork: false,
+      id: 'se-4', date: '2026-08-03', shipName: '邦朋6', voyage: 'V260803B', noWork: false,
       workers: 7, cargo: '散货 / 氧化钙', cargoL1: '散货', cargoL2: '氧化钙',
       loadUnload: '卸', process: '船-库', craneUp: 'QC102', craneDown: '',
       length: 108, hatchLen: null, width: 17.2, hatchWidth: null,
@@ -59,7 +59,7 @@
       shorePower: '是'
     },
     {
-      id: 'se-5', date: '2026-08-04', shipName: '红光999', noWork: false,
+      id: 'se-5', date: '2026-08-04', shipName: '红光999', voyage: 'V260804A', noWork: false,
       workers: 7, cargo: '散货 / 磷矿', cargoL1: '散货', cargoL2: '磷矿',
       loadUnload: '装', process: '场-船', craneUp: '', craneDown: 'DLPT',
       length: 110, hatchLen: null, width: 16.2, hatchWidth: null,
@@ -69,7 +69,7 @@
       shorePower: '否'
     },
     {
-      id: 'se-6', date: '2026-08-04', shipName: '富硕吉祥', noWork: false,
+      id: 'se-6', date: '2026-08-04', shipName: '富硕吉祥', voyage: 'V260804B', noWork: false,
       workers: 7, cargo: '散货 / 磷矿', cargoL1: '散货', cargoL2: '磷矿',
       loadUnload: '装', process: '场-船', craneUp: '', craneDown: 'DLPT',
       length: 106, hatchLen: null, width: 17.2, hatchWidth: null,
@@ -79,7 +79,7 @@
       shorePower: '否'
     },
     {
-      id: 'se-7', date: '2026-08-06', shipName: '远航 168', noWork: false,
+      id: 'se-7', date: '2026-08-06', shipName: '远航 168', voyage: 'V260806', noWork: false,
       workers: 12, cargo: '散货 / 氮磷肥', cargoL1: '散货', cargoL2: '氮磷肥',
       loadUnload: '卸', process: '船-场', craneUp: '1#卸船机', craneDown: '1#门机',
       length: 158.5, hatchLen: 42, width: 24, hatchWidth: 18.5,
@@ -89,7 +89,7 @@
       shorePower: '是'
     },
     {
-      id: 'se-8', date: '2026-08-07', shipName: '海丰致远', noWork: false,
+      id: 'se-8', date: '2026-08-07', shipName: '海丰致远', voyage: 'V260807', noWork: false,
       workers: 8, cargo: '件杂货 / 钢材', cargoL1: '件杂货', cargoL2: '钢材',
       loadUnload: '装', process: '船-船', craneUp: '1#门机', craneDown: '2#门机',
       length: 132, hatchLen: null, width: 21, hatchWidth: null,
@@ -173,6 +173,14 @@
       if (filter.ship && r.shipName !== filter.ship) return false;
       if (filter.loadUnload && r.loadUnload !== filter.loadUnload) return false;
       if (filter.shorePower && r.shorePower !== filter.shorePower) return false;
+      if (filter.cargoL1 && filter.cargoL1 !== '全部') {
+        if (r.noWork) return false;
+        if (r.cargoL1 !== filter.cargoL1) return false;
+      }
+      if (filter.cargoL2 && filter.cargoL2 !== '全部') {
+        if (r.noWork) return false;
+        if (r.cargoL2 !== filter.cargoL2) return false;
+      }
       if (filter.excludeNoWork && r.noWork) return false;
       return true;
     });
@@ -202,27 +210,15 @@
     };
   }
 
-  function rankByShip(rows) {
-    var map = {};
-    rows.filter(function (r) { return !r.noWork; }).forEach(function (r) {
-      if (!map[r.shipName]) {
-        map[r.shipName] = { shipName: r.shipName, trips: 0, qty: 0, prodHours: 0, portHours: 0 };
-      }
-      var g = map[r.shipName];
-      g.trips += 1;
-      g.qty += Number(r.qty) || 0;
-      if (r.prodHours != null && r.prodHours > 0) g.prodHours += r.prodHours;
-      if (r.portHours != null) g.portHours += r.portHours;
-    });
-    return Object.keys(map).map(function (k) {
-      var g = map[k];
+  function rankByVoyage(rows) {
+    return rows.filter(function (r) { return !r.noWork; }).map(function (r) {
       return {
-        shipName: g.shipName,
-        trips: g.trips,
-        qty: round2(g.qty),
-        prodHours: round2(g.prodHours),
-        portHours: round2(g.portHours),
-        efficiency: g.prodHours > 0 ? round2(g.qty / g.prodHours) : null
+        shipName: r.shipName,
+        voyage: r.voyage || '—',
+        qty: r.qty,
+        prodHours: r.prodHours,
+        portHours: r.portHours,
+        efficiency: r.efficiency
       };
     }).sort(function (a, b) {
       return (b.efficiency || 0) - (a.efficiency || 0);
@@ -240,7 +236,8 @@
   global.ShipEffDemo = {
     listRows: listRows,
     summarize: summarize,
-    rankByShip: rankByShip,
+    rankByShip: rankByVoyage,
+    rankByVoyage: rankByVoyage,
     shipOptions: shipOptions,
     enrich: enrich
   };

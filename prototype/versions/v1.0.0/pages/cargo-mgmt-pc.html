@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>货种配置 · 系统配置</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../assets/cargo-mgmt-demo.js"></script>
+  <style>
+    :root { --brand: #0f766e; --brand-hover: #0d9488; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
+    .sidebar { background: #1e293b; }
+    .card { background: #fff; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .btn { border-radius: 20px; transition: all .15s ease; }
+    .btn:active { transform: scale(0.95); }
+    .btn-brand { background: var(--brand); color: #fff; }
+    .btn-brand:hover { background: var(--brand-hover); }
+    .table-row:hover { background: #f8fafc; }
+    .tab-btn { border-radius: 999px; padding: 6px 14px; font-size: 13px; border: 1px solid #e2e8f0; background: #fff; color: #64748b; }
+    .tab-btn.active { background: #0f766e; border-color: #0f766e; color: #fff; }
+    .toast { position: fixed; top: 24px; right: 24px; z-index: 90; min-width: 240px; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
+    .fade-in { animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .modal-mask { position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 80; display: none; align-items: center; justify-content: center; padding: 24px; }
+    .modal-mask.open { display: flex; }
+    .req { color: #f43f5e; }
+    input, select, textarea { font-size: 14px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="flex min-h-screen">
+    <aside class="sidebar w-64 shrink-0 text-slate-100 flex flex-col">
+      <div class="px-5 py-6 border-b border-slate-700">
+        <div class="text-xs text-slate-400 mb-1">TOS 子模块</div>
+        <div class="text-lg font-semibold leading-snug">单机作业量统计</div>
+      </div>
+      <nav id="pcSidebarNav" class="p-3 flex-1 overflow-y-auto" data-active="cfg-cargo"></nav>
+      <div class="p-4 text-xs text-slate-500 border-t border-slate-700">
+        <a href="../index.html" class="hover:text-slate-300">返回版本入口</a>
+      </div>
+    </aside>
+    <div class="flex-1 min-w-0 flex flex-col">
+      <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+        <div>
+          <h1 class="text-lg font-semibold">货种配置</h1>
+          <p class="text-xs text-slate-500">系统配置 · 已替代字典管理·货种 · 调度/效率级联读取本配置</p>
+        </div>
+      </header>
+      <main class="flex-1 p-6 overflow-auto">
+        <div class="max-w-7xl mx-auto space-y-4">
+          <div class="card p-5 space-y-4">
+            <div class="flex flex-wrap gap-3 items-center">
+              <input id="fKw" class="border border-slate-200 rounded-xl px-3 py-2 text-sm w-56" placeholder="请输入名称" oninput="render()" />
+              <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="openForm()"><i class="fa-solid fa-plus mr-1"></i>新增</button>
+            </div>
+            <div class="flex flex-wrap gap-2" id="majorTabs"></div>
+          </div>
+
+          <div class="card overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-slate-500 text-left">
+                  <tr>
+                    <th class="px-4 py-3 w-16">序号</th>
+                    <th class="px-4 py-3">名称</th>
+                    <th class="px-4 py-3">交通部代码</th>
+                    <th class="px-4 py-3">计量单位</th>
+                    <th class="px-4 py-3">散位类型</th>
+                    <th class="px-4 py-3">说明</th>
+                    <th class="px-4 py-3 whitespace-nowrap">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="tbody"></tbody>
+              </table>
+            </div>
+            <div class="px-5 py-3 border-t text-sm text-slate-500" id="pager">共 0 条</div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div id="formMask" class="modal-mask" onclick="closeForm(event)">
+    <div class="card fade-in w-full max-w-lg p-6" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <h2 id="formTitle" class="text-lg font-semibold">新增货种</h2>
+        <button type="button" class="text-slate-400" onclick="closeForm()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <form class="space-y-3" onsubmit="return saveForm(event)">
+        <input type="hidden" id="fId" />
+        <input type="hidden" id="fParentId" />
+        <div>
+          <label class="block text-sm mb-1">名称 <span class="req">*</span></label>
+          <input id="fName" class="w-full border border-slate-200 rounded-xl px-3 py-2" required placeholder="请输入名称" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm mb-1">交通部代码</label>
+            <input id="fMot" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="选填" />
+          </div>
+          <div>
+            <label class="block text-sm mb-1">计量单位</label>
+            <select id="fUnit" class="w-full border border-slate-200 rounded-xl px-3 py-2"></select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm mb-1">散位类型</label>
+          <select id="fBulk" class="w-full border border-slate-200 rounded-xl px-3 py-2"></select>
+        </div>
+        <div>
+          <label class="block text-sm mb-1">说明</label>
+          <textarea id="fRemark" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="选填"></textarea>
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="closeForm()">取消</button>
+          <button type="submit" class="btn btn-brand px-5 py-2 text-sm">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="viewMask" class="modal-mask" onclick="closeView(event)">
+    <div class="card fade-in w-full max-w-md p-6" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold">查看货种</h2>
+        <button type="button" class="text-slate-400" onclick="closeView()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="viewBody" class="text-sm space-y-2 text-slate-700"></div>
+      <div class="mt-5 text-right">
+        <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="closeView()">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../assets/pc-sidebar.js"></script>
+  <script>
+    var major = '散货';
+    var editMode = false;
+
+    function showToast(msg, type) {
+      type = type || 'ok';
+      var el = document.createElement('div');
+      el.className = 'toast fade-in px-4 py-3 text-sm text-white ' + (type === 'err' ? 'bg-red-500' : type === 'warn' ? 'bg-amber-500' : 'bg-emerald-500');
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function () { el.remove(); }, 2400);
+    }
+
+    function v(x) { return (x === 0 || x) ? String(x) : '—'; }
+
+    function renderTabs() {
+      document.getElementById('majorTabs').innerHTML = CargoMgmtDemo.MAJORS.map(function (m) {
+        return '<button type="button" class="tab-btn' + (m === major ? ' active' : '') + '" onclick="switchMajor(\'' + m + '\')">' + m + '</button>';
+      }).join('');
+    }
+
+    function switchMajor(m) {
+      major = m;
+      renderTabs();
+      render();
+    }
+
+    function flatRows() {
+      var kw = (document.getElementById('fKw').value || '').trim();
+      var rows = [];
+      var seq = 0;
+      CargoMgmtDemo.listByMajor(major).forEach(function (n) {
+        seq += 1;
+        rows.push({ seq: seq, level: 1, node: n, parentId: null });
+        (n.children || []).forEach(function (c) {
+          seq += 1;
+          rows.push({ seq: seq, level: 2, node: c, parentId: n.id });
+        });
+      });
+      if (kw) {
+        rows = rows.filter(function (r) { return (r.node.name || '').indexOf(kw) >= 0; });
+      }
+      return rows;
+    }
+
+    function render() {
+      var rows = flatRows();
+      document.getElementById('pager').textContent = '共 ' + rows.length + ' 条';
+      var body = document.getElementById('tbody');
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="7" class="px-4 py-12 text-center text-slate-400">暂无数据</td></tr>';
+        return;
+      }
+      body.innerHTML = rows.map(function (r) {
+        var n = r.node;
+        var nameHtml = r.level === 2
+          ? '<span class="text-slate-300 mr-1">└</span>' + n.name
+          : '<span class="font-medium">' + n.name + '</span>';
+        var ops = '';
+        if (r.level === 1) {
+          ops += '<button class="text-teal-700 hover:underline mr-3" onclick="openForm(null,\'' + n.id + '\')">添加子级</button>';
+        }
+        ops += '<button class="text-teal-700 hover:underline mr-3" onclick="openView(\'' + n.id + '\')">查看</button>';
+        ops += '<button class="text-teal-700 hover:underline mr-3" onclick="openForm(\'' + n.id + '\'' + (r.parentId ? (',\'' + r.parentId + '\'') : ',null') + ')">编辑</button>';
+        ops += '<button class="text-rose-600 hover:underline" onclick="removeRow(\'' + n.id + '\')">删除</button>';
+        return '<tr class="table-row border-t">' +
+          '<td class="px-4 py-3 tabular-nums">' + r.seq + '</td>' +
+          '<td class="px-4 py-3">' + nameHtml + '</td>' +
+          '<td class="px-4 py-3">' + v(n.motCode) + '</td>' +
+          '<td class="px-4 py-3">' + v(n.unit) + '</td>' +
+          '<td class="px-4 py-3">' + v(n.bulkType) + '</td>' +
+          '<td class="px-4 py-3">' + v(n.remark) + '</td>' +
+          '<td class="px-4 py-3 whitespace-nowrap">' + ops + '</td></tr>';
+      }).join('');
+    }
+
+    function fillSelects() {
+      document.getElementById('fUnit').innerHTML = '<option value="">请选择</option>' +
+        CargoMgmtDemo.UNITS.map(function (u) { return '<option value="' + u + '">' + u + '</option>'; }).join('');
+      document.getElementById('fBulk').innerHTML = CargoMgmtDemo.BULK_TYPES.map(function (u) {
+        return '<option value="' + (u === '—' ? '' : u) + '">' + u + '</option>';
+      }).join('');
+    }
+
+    function openForm(id, parentId) {
+      editMode = !!id;
+      fillSelects();
+      document.getElementById('fId').value = id || '';
+      document.getElementById('fParentId').value = parentId || '';
+      document.getElementById('fName').value = '';
+      document.getElementById('fMot').value = '';
+      document.getElementById('fUnit').value = '';
+      document.getElementById('fBulk').value = '';
+      document.getElementById('fRemark').value = '';
+      if (id) {
+        var hit = CargoMgmtDemo.findNode(major, id);
+        if (!hit) return;
+        var n = hit.node;
+        document.getElementById('formTitle').textContent = hit.parent ? '编辑子级货种' : '编辑货种';
+        document.getElementById('fName').value = n.name || '';
+        document.getElementById('fMot').value = n.motCode || '';
+        document.getElementById('fUnit').value = n.unit || '';
+        document.getElementById('fBulk').value = n.bulkType || '';
+        document.getElementById('fRemark').value = n.remark || '';
+        if (hit.parent) document.getElementById('fParentId').value = hit.parent.id;
+      } else if (parentId) {
+        document.getElementById('formTitle').textContent = '添加子级';
+      } else {
+        document.getElementById('formTitle').textContent = '新增货种 · ' + major;
+      }
+      document.getElementById('formMask').classList.add('open');
+    }
+
+    function closeForm(e) {
+      if (e && e.target && e.target !== document.getElementById('formMask') && e.type === 'click') return;
+      document.getElementById('formMask').classList.remove('open');
+    }
+
+    function saveForm(e) {
+      e.preventDefault();
+      var parentId = document.getElementById('fParentId').value;
+      var id = document.getElementById('fId').value;
+      var row = {
+        id: id || undefined,
+        name: document.getElementById('fName').value,
+        motCode: document.getElementById('fMot').value,
+        unit: document.getElementById('fUnit').value,
+        bulkType: document.getElementById('fBulk').value,
+        remark: document.getElementById('fRemark').value
+      };
+      var opts = {};
+      if (id && parentId) opts = { isEdit: true, asChildOf: parentId };
+      else if (id) opts = { isEdit: true };
+      else if (parentId) opts = { asChildOf: parentId };
+      var res = CargoMgmtDemo.upsert(major, row, opts);
+      if (!res.ok) { showToast(res.msg, 'err'); return false; }
+      closeForm();
+      render();
+      showToast('已保存');
+      return false;
+    }
+
+    function openView(id) {
+      var hit = CargoMgmtDemo.findNode(major, id);
+      if (!hit) return;
+      var n = hit.node;
+      document.getElementById('viewBody').innerHTML =
+        '<div><span class="text-slate-400">大类</span> · ' + major + '</div>' +
+        '<div><span class="text-slate-400">层级</span> · ' + (hit.parent ? '子级' : '一级') + '</div>' +
+        (hit.parent ? '<div><span class="text-slate-400">上级</span> · ' + hit.parent.name + '</div>' : '') +
+        '<div><span class="text-slate-400">名称</span> · <strong>' + n.name + '</strong></div>' +
+        '<div><span class="text-slate-400">交通部代码</span> · ' + v(n.motCode) + '</div>' +
+        '<div><span class="text-slate-400">计量单位</span> · ' + v(n.unit) + '</div>' +
+        '<div><span class="text-slate-400">散位类型</span> · ' + v(n.bulkType) + '</div>' +
+        '<div><span class="text-slate-400">说明</span> · ' + v(n.remark) + '</div>';
+      document.getElementById('viewMask').classList.add('open');
+    }
+
+    function closeView(e) {
+      if (e && e.target && e.target !== document.getElementById('viewMask') && e.type === 'click') return;
+      document.getElementById('viewMask').classList.remove('open');
+    }
+
+    function removeRow(id) {
+      if (!confirm('确认删除该货种？若含有子级将一并删除。')) return;
+      var res = CargoMgmtDemo.remove(major, id);
+      if (!res.ok) { showToast(res.msg, 'err'); return; }
+      render();
+      showToast('已删除', 'warn');
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+      renderTabs();
+      render();
+    });
+  </script>
+</body>
+</html>

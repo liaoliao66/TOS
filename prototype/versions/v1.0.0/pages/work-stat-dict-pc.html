@@ -96,7 +96,6 @@
   <div class="flex flex-wrap gap-3 items-center">
     <div class="flex gap-2 text-sm" id="dictTabs">
       <button type="button" class="btn btn-brand px-4 py-2 tab-btn" data-tab="driver" onclick="switchDictTab('driver')">司机</button>
-      <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 tab-btn" data-tab="cargo" onclick="switchDictTab('cargo')">货种</button>
       <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 tab-btn" data-tab="abnormal" onclick="switchDictTab('abnormal')">异常原因</button>
       <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 tab-btn" data-tab="stop" onclick="switchDictTab('stop')">停工原因</button>
     </div>
@@ -190,22 +189,23 @@ function switchDictTab(tab) {
   if (tab === 'driver') {
     hint.innerHTML = '司机主数据已迁移至「工种管理」·司机工种；本页只读同步展示在职/离职人员。<a class="text-teal-700 hover:underline ml-1" href="job-type-mgmt-pc.html">前往维护</a>';
     add.href = 'job-type-mgmt-pc.html';
-    label.textContent = '去工种管理';
-  } else if (tab === 'abnormal') {
-    hint.textContent = '异常原因为扁平字典（原「备注原因」已更名）。';
-    add.href = 'work-stat-dict-edit-modal-pc.html?type=abnormal';
     add.onclick = null;
-    label.textContent = '新增异常原因';
+    label.textContent = '去工种管理';
   } else if (tab === 'stop') {
     hint.textContent = '船舶调度停工原因：须指定归类（天气/故障/其他），供船舶效率三类停工汇总。';
     add.href = 'javascript:void(0)';
     add.onclick = function (e) { e.preventDefault(); openStopEdit(); };
     label.textContent = '新增停工原因';
-  } else {
-    hint.textContent = '货种为二级树：先维护一级大类（如吨包袋），再在大类下新增二级货种（如磷肥）。';
-    add.href = 'work-stat-dict-edit-modal-pc.html?type=cargo_l1';
+  } else if (tab === 'abnormal') {
+    hint.textContent = '异常原因为扁平字典（原「备注原因」已更名）。货种已迁移至「货种配置」。';
+    add.href = 'work-stat-dict-edit-modal-pc.html?type=abnormal';
     add.onclick = null;
-    label.textContent = '新增一级货种';
+    label.textContent = '新增异常原因';
+  } else {
+    hint.innerHTML = '货种已迁移至系统配置「货种配置」。<a class="text-teal-700 hover:underline ml-1" href="cargo-mgmt-pc.html">前往维护</a>';
+    add.href = 'cargo-mgmt-pc.html';
+    add.onclick = null;
+    label.textContent = '去货种配置';
   }
   renderDict();
 }
@@ -271,37 +271,10 @@ function renderDict() {
         '</td></tr>';
     });
   } else {
-    head.innerHTML = '<tr><th class="px-4 py-3">名称</th><th class="px-4 py-3">层级</th><th class="px-4 py-3">状态</th><th class="px-4 py-3">操作</th></tr>';
-    DICT.cargo.forEach(function(g) {
-      count++;
-      var icon = g.open ? 'fa-chevron-down' : 'fa-chevron-right';
-      html += '<tr class="table-row border-t bg-slate-50/80">' +
-        '<td class="px-4 py-3">' +
-          '<button type="button" class="text-slate-500 mr-2 w-5" onclick="toggleCargo(\'' + g.id + '\')"><i class="fa-solid ' + icon + '"></i></button>' +
-          '<span class="font-medium">' + g.name + '</span>' +
-          '<span class="ml-2 text-[11px] text-slate-400">一级大类 · ' + (g.children ? g.children.length : 0) + ' 个二级</span>' +
-        '</td>' +
-        '<td class="px-4 py-3"><span class="badge bg-teal-50 text-teal-800">一级</span></td>' +
-        '<td class="px-4 py-3">' + statusBadge(g.status) + '</td>' +
-        '<td class="px-4 py-3 space-x-3">' +
-          '<a class="text-teal-700 hover:underline" href="work-stat-dict-edit-modal-pc.html?type=cargo_l1&id=' + g.id + '&name=' + encodeURIComponent(g.name) + '&status=' + encodeURIComponent(g.status) + '">编辑</a>' +
-          '<a class="text-teal-700 hover:underline" href="work-stat-dict-edit-modal-pc.html?type=cargo_l2&parent=' + g.id + '&parentName=' + encodeURIComponent(g.name) + '">新增二级</a>' +
-        '</td>' +
-      '</tr>';
-      if (g.open && g.children) {
-        g.children.forEach(function(c) {
-          count++;
-          html += '<tr class="table-row border-t">' +
-            '<td class="px-4 py-3 pl-12 text-slate-700">' +
-              '<span class="text-slate-300 mr-2">└</span>' + c.name +
-            '</td>' +
-            '<td class="px-4 py-3"><span class="badge bg-slate-100 text-slate-600">二级 · 隶属 ' + g.name + '</span></td>' +
-            '<td class="px-4 py-3">' + statusBadge(c.status) + '</td>' +
-            '<td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="work-stat-dict-edit-modal-pc.html?type=cargo_l2&id=' + c.id + '&parent=' + g.id + '&parentName=' + encodeURIComponent(g.name) + '&name=' + encodeURIComponent(c.name) + '&status=' + encodeURIComponent(c.status) + '">编辑</a></td>' +
-          '</tr>';
-        });
-      }
-    });
+    head.innerHTML = '<tr><th class="px-4 py-3">说明</th><th class="px-4 py-3">操作</th></tr>';
+    html = '<tr class="border-t"><td class="px-4 py-8 text-slate-600">货种已迁移至系统配置「货种配置」，本页不再维护。</td>' +
+      '<td class="px-4 py-8"><a class="text-teal-700 hover:underline" href="cargo-mgmt-pc.html">前往货种配置</a></td></tr>';
+    count = 1;
   }
 
   body.innerHTML = html || '<tr><td class="px-4 py-10 text-center text-slate-400" colspan="4">暂无数据</td></tr>';

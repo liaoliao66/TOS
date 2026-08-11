@@ -6,7 +6,7 @@
  * - 调度替代原「船舶作业」入口
  */
 (function (global) {
-  var KEY = 'tos_ship_ops_v3';
+  var KEY = 'tos_ship_ops_v4';
 
   var STOP_REASONS = (global.StopReasonDemo && StopReasonDemo.namesEnabled)
     ? StopReasonDemo.namesEnabled()
@@ -355,6 +355,31 @@
     return null;
   }
 
+  function requireOperator(row) {
+    var deptId = String(row.deptId || '').trim();
+    var deptName = String(row.deptName || '').trim();
+    var userId = String(row.userId || '').trim();
+    var userName = String(row.userName || '').trim();
+    if (!deptId || !deptName) return { ok: false, msg: '请选择操作部门' };
+    if (!userId || !userName) return { ok: false, msg: '请选择操作人员' };
+    return {
+      ok: true,
+      op: { deptId: deptId, deptName: deptName, userId: userId, userName: userName }
+    };
+  }
+
+  function applyOp(target, op) {
+    target.deptId = op.deptId;
+    target.deptName = op.deptName;
+    target.userId = op.userId;
+    target.userName = op.userName;
+  }
+
+  function logNote(base, op) {
+    var prefix = op.deptName + ' · ' + op.userName;
+    return base ? (prefix + ' · ' + base) : prefix;
+  }
+
   function doBerth(id, row) {
     var state = load();
     var d = findD(state, id);
@@ -362,12 +387,18 @@
     var t = String(row.actual || '').trim();
     if (!t) return { ok: false, msg: '请填写靠泊时间' };
     if (!String(row.berthNo || '').trim()) return { ok: false, msg: '请选择作业泊位' };
+    var opChk = requireOperator(row);
+    if (!opChk.ok) return opChk;
     d.berth.actual = t;
     d.berth.plan = row.plan || t;
     d.berth.berthNo = row.berthNo || '';
     d.berth.remark = row.remark || '';
+    applyOp(d.berth, opChk.op);
     d.status = 'berthed';
-    d.workLogs.push({ type: '靠泊', time: t, note: d.berth.berthNo || '' });
+    d.workLogs.push({
+      type: '靠泊', time: t, note: logNote(d.berth.berthNo || '', opChk.op),
+      deptName: opChk.op.deptName, userName: opChk.op.userName
+    });
     save(state);
     return { ok: true };
   }
@@ -380,6 +411,8 @@
     if (!t) return { ok: false, msg: '请填写开工时间' };
     if (!String(row.berthNo || '').trim()) return { ok: false, msg: '请选择作业泊位' };
     if (!String(row.cargoL2 || row.cargo || '').trim()) return { ok: false, msg: '请选择货种二级（子集）' };
+    var opChk = requireOperator(row);
+    if (!opChk.ok) return opChk;
     d.start.actual = t;
     d.start.plan = row.plan || t;
     d.start.berthNo = row.berthNo || d.berth.berthNo || '';
@@ -394,9 +427,13 @@
     d.start.craneDown = row.craneDown || '';
     d.start.shorePower = !!row.shorePower;
     d.start.remark = row.remark || '';
+    applyOp(d.start, opChk.op);
     if (row.workMode) d.workMode = row.workMode;
     d.status = 'working';
-    d.workLogs.push({ type: '开工', time: t, note: d.start.remark || '' });
+    d.workLogs.push({
+      type: '开工', time: t, note: logNote(d.start.remark || '', opChk.op),
+      deptName: opChk.op.deptName, userName: opChk.op.userName
+    });
     save(state);
     return { ok: true };
   }
@@ -406,22 +443,30 @@
     var d = findD(state, id);
     if (!d || d.status !== 'working') return { ok: false, msg: '仅开工状态可完工' };
     var t = String(row.actual || '').trim() || nowLocal();
-    var workers = Number(row.workers);
-    var qty = Number(row.qty);
-    if (row.workers === '' || row.workers == null || isNaN(workers) || workers < 0) {
-      return { ok: false, msg: '请填写作业人数' };
+    var workers = null;
+    if (row.workers !== '' && row.workers != null) {
+      workers = Number(row.workers);
+      if (isNaN(workers) || workers < 0) return { ok: false, msg: '作业人数须为不小于 0 的数字' };
     }
+    var qty = Number(row.qty);
     if (row.qty === '' || row.qty == null || isNaN(qty) || qty < 0) {
       return { ok: false, msg: '请填写产量（吨）' };
     }
+    var opChk = requireOperator(row);
+    if (!opChk.ok) return opChk;
     d.finish.actual = t;
     d.finish.plan = row.plan || t;
     d.finish.berthNo = row.berthNo || d.start.berthNo || d.berth.berthNo || '';
     d.finish.workers = workers;
     d.finish.qty = qty;
     d.finish.remark = row.remark || '';
+    applyOp(d.finish, opChk.op);
     d.status = 'finished';
-    d.workLogs.push({ type: '完工', time: t, note: '人数 ' + workers + ' · 产量 ' + qty + ' 吨' });
+    d.workLogs.push({
+      type: '完工', time: t,
+      note: logNote((workers != null ? ('人数 ' + workers + ' · ') : '') + '产量 ' + qty + ' 吨', opChk.op),
+      deptName: opChk.op.deptName, userName: opChk.op.userName
+    });
     save(state);
     return { ok: true };
   }
@@ -438,8 +483,17 @@
     if (!from || !to) return { ok: false, msg: '请填写停工开始与结束时间' };
     if (!reason) return { ok: false, msg: '请选择停工原因' };
     if (new Date(from) > new Date(to)) return { ok: false, msg: '停工结束时间须不早于开始时间' };
-    d.stoppages.push({ id: uid('stp'), from: from, to: to, reason: reason, remark: row.remark || '' });
-    d.workLogs.push({ type: '停工', time: from, note: reason + (row.remark ? ' · ' + row.remark : '') });
+    var opChk = requireOperator(row);
+    if (!opChk.ok) return opChk;
+    var stop = {
+      id: uid('stp'), from: from, to: to, reason: reason, remark: row.remark || ''
+    };
+    applyOp(stop, opChk.op);
+    d.stoppages.push(stop);
+    d.workLogs.push({
+      type: '停工', time: from, note: logNote(reason + (row.remark ? ' · ' + row.remark : ''), opChk.op),
+      deptName: opChk.op.deptName, userName: opChk.op.userName
+    });
     save(state);
     return { ok: true };
   }
@@ -450,22 +504,43 @@
     if (!d || d.status !== 'finished') return { ok: false, msg: '仅完工后可离泊' };
     var t = String(row.actual || '').trim();
     if (!t) return { ok: false, msg: '请填写离泊时间' };
+    var opChk = requireOperator(row);
+    if (!opChk.ok) return opChk;
     d.unberth.actual = t;
     d.unberth.plan = row.plan || t;
     d.unberth.remark = row.remark || '';
+    applyOp(d.unberth, opChk.op);
     d.depart.actual = row.departActual || t;
     d.depart.plan = row.departPlan || t;
     d.status = 'departed';
-    d.workLogs.push({ type: '离泊', time: t, note: d.unberth.remark || '' });
+    d.workLogs.push({
+      type: '离泊', time: t, note: logNote(d.unberth.remark || '', opChk.op),
+      deptName: opChk.op.deptName, userName: opChk.op.userName
+    });
     save(state);
     return { ok: true };
   }
 
-  function voidDispatch(id) {
+  function voidDispatch(id, row) {
     var state = load();
     var d = findD(state, id);
     if (!d) return { ok: false, msg: '调度单不存在' };
+    row = row || {};
+    var opChk = requireOperator(row);
+    if (!opChk.ok) return opChk;
     d.status = 'void';
+    d.voidInfo = {
+      at: nowLocal(),
+      remark: row.remark || '',
+      deptId: opChk.op.deptId,
+      deptName: opChk.op.deptName,
+      userId: opChk.op.userId,
+      userName: opChk.op.userName
+    };
+    d.workLogs.push({
+      type: '作废', time: d.voidInfo.at, note: logNote(d.voidInfo.remark || '', opChk.op),
+      deptName: opChk.op.deptName, userName: opChk.op.userName
+    });
     save(state);
     return { ok: true };
   }

@@ -61,7 +61,7 @@
       <main class="flex-1 p-6 overflow-auto">
         <div class="max-w-7xl mx-auto space-y-4">
           <div class="card p-5 flex flex-wrap items-center justify-between gap-3">
-            <div class="text-sm text-slate-500">维护船名、船型、MMSI、尺寸（船长/船口长/船宽/船口宽为非必填）及船公司等信息。</div>
+            <div class="text-sm text-slate-500">仅「船名中文」「联系方式」必填，其余选填。</div>
             <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="openForm()"><i class="fa-solid fa-plus mr-1"></i>新增船舶档案</button>
           </div>
 
@@ -121,16 +121,16 @@
               <select id="fNation" class="w-full border border-slate-200 rounded-xl px-3 py-2"></select>
             </div>
             <div>
-              <label class="block text-sm mb-1">船舶类型 <span class="req">*</span></label>
-              <select id="fType" class="w-full border border-slate-200 rounded-xl px-3 py-2" required></select>
+              <label class="block text-sm mb-1">船舶类型</label>
+              <select id="fType" class="w-full border border-slate-200 rounded-xl px-3 py-2"></select>
             </div>
             <div>
               <label class="block text-sm mb-1">IMO</label>
               <input id="fImo" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="请输入" />
             </div>
             <div>
-              <label class="block text-sm mb-1">MMSI <span class="req">*</span></label>
-              <input id="fMmsi" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="请输入" required />
+              <label class="block text-sm mb-1">MMSI</label>
+              <input id="fMmsi" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="请输入" />
             </div>
             <div>
               <label class="block text-sm mb-1">船舶呼号</label>
@@ -177,8 +177,8 @@
               <input id="fValidTo" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2" />
             </div>
             <div>
-              <label class="block text-sm mb-1">船舶状态 <span class="req">*</span></label>
-              <select id="fStatus" class="w-full border border-slate-200 rounded-xl px-3 py-2" required></select>
+              <label class="block text-sm mb-1">船舶状态</label>
+              <select id="fStatus" class="w-full border border-slate-200 rounded-xl px-3 py-2"></select>
             </div>
           </div>
         </section>
@@ -187,17 +187,18 @@
           <div class="sec-title">所属信息</div>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <div>
-              <label class="block text-sm mb-1">船公司 <span class="req">*</span></label>
-              <select id="fCompany" class="w-full border border-slate-200 rounded-xl px-3 py-2" required></select>
+              <label class="block text-sm mb-1">船公司</label>
+              <select id="fCompany" class="w-full border border-slate-200 rounded-xl px-3 py-2"></select>
             </div>
             <div>
               <label class="block text-sm mb-1">船长（人员）</label>
               <select id="fCaptain" class="w-full border border-slate-200 rounded-xl px-3 py-2"></select>
             </div>
             <div class="sm:col-span-2 lg:col-span-3">
-              <label class="block text-sm mb-1">联系方式</label>
+              <label class="block text-sm mb-1">联系方式 <span class="req">*</span></label>
               <div id="contactBox" class="space-y-2"></div>
               <button type="button" class="mt-2 text-sm text-teal-700 hover:underline" onclick="addContact()"><i class="fa-solid fa-plus mr-1"></i>新增</button>
+              <p class="text-[11px] text-slate-400 mt-1">至少填写 1 个有效联系电话</p>
             </div>
           </div>
         </section>

@@ -1,7 +1,7 @@
 /**
  * 船舶档案演示数据（原型）
  * - 菜单：作业管理 → 船舶档案
- * - 船长/船口长/船宽/船口宽：非必填
+ * - 新增/编辑：仅「船名中文」「联系方式」必填，其余选填
  * - 工班作业/船舶调度：船名从档案选择打通
  */
 (function (global) {
@@ -122,16 +122,17 @@
   function upsert(row, isEdit) {
     var list = load();
     var nameCn = String(row.nameCn || '').trim();
-    var shipType = row.shipType;
+    var shipType = row.shipType || '';
     var mmsi = String(row.mmsi || '').trim();
     var status = row.status || '正常';
-    var company = row.company;
+    var company = row.company || '';
+    var contacts = Array.isArray(row.contacts) ? row.contacts : [];
+    var hasPhone = contacts.some(function (c) {
+      return String((c && c.phone) || '').trim();
+    });
 
     if (!nameCn) return { ok: false, msg: '请填写船名中文' };
-    if (!shipType) return { ok: false, msg: '请选择船舶类型' };
-    if (!mmsi) return { ok: false, msg: '请填写 MMSI' };
-    if (!company) return { ok: false, msg: '请选择船公司' };
-    if (!status) return { ok: false, msg: '请选择船舶状态' };
+    if (!hasPhone) return { ok: false, msg: '请至少填写 1 个联系方式' };
 
     var dupName = list.some(function (s) {
       return s.nameCn === nameCn && (!isEdit || s.id !== row.id);
@@ -158,10 +159,10 @@
       licenseNo: String(row.licenseNo || '').trim(),
       validFrom: row.validFrom || '',
       validTo: row.validTo || '',
-      status: status,
+      status: status || '正常',
       company: company,
       captain: row.captain || '',
-      contacts: Array.isArray(row.contacts) ? row.contacts : [{ phone: '' }],
+      contacts: contacts.length ? contacts : [{ phone: '' }],
       remark: String(row.remark || ''),
       quals: Array.isArray(row.quals) ? row.quals : []
     };

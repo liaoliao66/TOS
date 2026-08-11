@@ -6,6 +6,8 @@
   <title>船舶效率 · 作业效率分析</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../assets/cargo-mgmt-demo.js"></script>
+  <script src="../assets/cargo-cascade.js"></script>
   <script src="../assets/stop-reason-demo.js"></script>
   <script src="../assets/ship-eff-demo.js"></script>
   <style>
@@ -67,6 +69,14 @@
                 <select id="fShip" class="border border-slate-200 rounded-xl px-3 py-2 min-w-[9rem]"></select>
               </div>
               <div>
+                <label class="block text-xs text-slate-500 mb-1">货种一级</label>
+                <select id="fCargoL1" class="border border-slate-200 rounded-xl px-3 py-2 min-w-[8rem]"></select>
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">货种二级</label>
+                <select id="fCargoL2" class="border border-slate-200 rounded-xl px-3 py-2 min-w-[8rem]"></select>
+              </div>
+              <div>
                 <label class="block text-xs text-slate-500 mb-1">装/卸</label>
                 <select id="fLoad" class="border border-slate-200 rounded-xl px-3 py-2">
                   <option value="">全部</option>
@@ -102,7 +112,7 @@
                     <tr>
                       <th class="px-3 py-2">排名</th>
                       <th class="px-3 py-2">船名</th>
-                      <th class="px-3 py-2">艘次</th>
+                      <th class="px-3 py-2">船次</th>
                       <th class="px-3 py-2">产量(吨)</th>
                       <th class="px-3 py-2">生产用时</th>
                       <th class="px-3 py-2">效率</th>
@@ -165,13 +175,18 @@
       return String(x) + (suffix || '');
     }
 
+    var cargoCtl = null;
+
     function getFilter() {
+      var cargo = cargoCtl && cargoCtl.getValue ? cargoCtl.getValue() : { l1: '全部', l2: '全部' };
       return {
         from: document.getElementById('fFrom').value,
         to: document.getElementById('fTo').value,
         ship: document.getElementById('fShip').value,
         loadUnload: document.getElementById('fLoad').value,
-        shorePower: document.getElementById('fShore').value
+        shorePower: document.getElementById('fShore').value,
+        cargoL1: cargo.l1 || '全部',
+        cargoL2: cargo.l2 || '全部'
       };
     }
 
@@ -181,6 +196,7 @@
       document.getElementById('fShip').value = '';
       document.getElementById('fLoad').value = '';
       document.getElementById('fShore').value = '';
+      if (cargoCtl && cargoCtl.setValue) cargoCtl.setValue('全部', '全部');
       renderAll();
     }
 
@@ -211,7 +227,7 @@
         return '<tr class="table-row border-t">' +
           '<td class="px-3 py-2 tabular-nums">' + (i + 1) + '</td>' +
           '<td class="px-3 py-2 font-medium">' + r.shipName + '</td>' +
-          '<td class="px-3 py-2">' + r.trips + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.voyage) + '</td>' +
           '<td class="px-3 py-2 tabular-nums">' + v(r.qty) + '</td>' +
           '<td class="px-3 py-2 tabular-nums">' + v(r.prodHours) + '</td>' +
           '<td class="px-3 py-2 tabular-nums font-semibold text-teal-800">' + v(r.efficiency) + '</td></tr>';
@@ -220,7 +236,8 @@
         var pct = Math.round(((r.efficiency || 0) / maxEff) * 100);
         return '<div>' +
           '<div class="flex justify-between text-xs mb-1"><span class="font-medium">' + (i + 1) + '. ' + r.shipName +
-          '</span><span class="tabular-nums text-teal-800">' + v(r.efficiency, ' 吨/h') + '</span></div>' +
+          ' <span class="text-slate-400 font-normal">' + v(r.voyage) + '</span></span>' +
+          '<span class="tabular-nums text-teal-800">' + v(r.efficiency, ' 吨/h') + '</span></div>' +
           '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%"></div></div></div>';
       }).join('');
     }
@@ -276,6 +293,13 @@
         ShipEffDemo.shipOptions().map(function (s) {
           return '<option value="' + s + '">' + s + '</option>';
         }).join('');
+      if (typeof CargoCascade !== 'undefined') {
+        cargoCtl = CargoCascade.bindPair(
+          document.getElementById('fCargoL1'),
+          document.getElementById('fCargoL2'),
+          { allowAll: true, defaultL1: '全部', defaultL2: '全部' }
+        );
+      }
       renderAll();
     });
   </script>

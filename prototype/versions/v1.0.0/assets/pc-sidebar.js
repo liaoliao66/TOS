@@ -7,7 +7,7 @@
  *   efficiency-master | efficiency-volume | efficiency-daily | efficiency-ship
  *   fill-shift
  *   ship-archive | ship-schedule | ship-dispatch
- *   cfg-device | cfg-berth | cfg-job | cfg-dict | cfg-wecom
+ *   cfg-device | cfg-berth | cfg-cargo | cfg-job | cfg-dict | cfg-wecom
  */
 (function () {
   function link(href, icon, label, active, indent) {
@@ -42,6 +42,7 @@
     html += group('系统配置');
     html += link('device-mgmt-pc.html', 'fa-solid fa-gears', '设备管理', active === 'cfg-device', true);
     html += link('berth-mgmt-pc.html', 'fa-solid fa-anchor', '泊位管理', active === 'cfg-berth', true);
+    html += link('cargo-mgmt-pc.html', 'fa-solid fa-boxes-stacked', '货种配置', active === 'cfg-cargo', true);
     html += link('job-type-mgmt-pc.html', 'fa-solid fa-id-badge', '工种管理', active === 'cfg-job', true);
     html += link('work-stat-dict-pc.html', 'fa-solid fa-book', '字典管理', active === 'cfg-dict', true);
     html += link('work-stat-wecom-push-pc.html', 'fa-brands fa-weixin', '企业微信推送配置', active === 'cfg-wecom', true);
