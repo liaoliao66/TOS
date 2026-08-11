@@ -208,7 +208,6 @@
         } else if (r.status === 'confirmed') {
           acts =
             '<button class="text-teal-700 hover:underline mr-3" onclick="openEdit(\'' + r.id + '\')">编辑</button>' +
-            '<a class="text-teal-700 hover:underline mr-3" href="ship-dispatch-pc.html?tab=pending">去调度</a>' +
             '<button class="text-rose-600 hover:underline" onclick="doVoid(\'' + r.id + '\')">作废</button>';
         } else {
           acts = '<span class="text-slate-300">—</span>';
@@ -308,7 +307,7 @@
       var res = ShipOpsDemo.confirmSchedule(id);
       if (!res.ok) { showToast(res.msg, 'err'); return; }
       render();
-      showToast('已确报，可前往调度');
+      showToast('已确报');
     }
 
     function doVoid(id) {
