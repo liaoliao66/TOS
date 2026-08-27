@@ -263,7 +263,7 @@
               <div class="card card-hover p-4 border-t-4 border-teal-600">
                 <div class="text-xs text-teal-800">总有效平均作业量</div>
                 <div id="kpiEffAvg" class="text-xl font-semibold mt-1 text-teal-800 tabular-nums">—</div>
-                <div class="text-[11px] text-slate-400 mt-0.5">吨/小时 · 正常产量÷有效时间</div>
+                <div class="text-[11px] text-slate-400 mt-0.5">吨/小时 · 非零产量÷有效时间</div>
               </div>
             </div>
 
@@ -280,7 +280,7 @@
               <div class="relative h-96">
                 <canvas id="evidenceChart"></canvas>
               </div>
-              <div class="mt-3 text-xs text-slate-400" id="evidenceFoot">柱状三项：总作业量（左轴·吨）、总平均量=总作业量÷总时长、有效平均量=正常作业量÷有效时长（右轴·吨/小时）；备注有内容视为异常，不计入有效平均；有效时长另剔除产量为 0 的填报日。</div>
+              <div class="mt-3 text-xs text-slate-400" id="evidenceFoot">柱状三项：总作业量（左轴·吨）、总平均量=总作业量÷总时长、有效平均量=作业量不为0的合计÷相应有效时长（右轴·吨/小时）；有效时长剔除产量为 0 的填报时段。</div>
             </div>
 
             <div class="card overflow-hidden">
@@ -569,9 +569,8 @@
       <ul class="text-sm text-slate-600 space-y-2 list-disc pl-5">
         <li>横轴为司机；每个司机并排展示三项：总作业量、总平均量、有效平均量。</li>
         <li>纵轴左侧为总作业量（吨），右侧为平均量（吨/小时）；已取消日/周/月切换，时间范围取顶部开班日起止。</li>
-        <li>总平均量 = 总作业量 ÷ 总时长；有效平均量 = 正常作业量 ÷ 有效时长。</li>
-        <li>异常判定：备注（原因）有内容的记录视为异常，其产量与对应时段不计入有效平均作业量。</li>
-        <li>有效时长：在正常作业时段内，剔除产量为 0 的填报日对应时长（演示按日汇总近似）。</li>
+        <li>总平均量 = 总作业量 ÷ 总时长；有效平均量 = 作业量不为 0 的合计 ÷ 相应有效时长。</li>
+        <li>有效作业量：产量不为 0 的填报均计入；有效时长为上述时段对应时长（演示按日汇总时，产量为 0 的日不计入有效时长）。</li>
         <li>货种与机械筛选保留：全部/一级/二级均按当前范围汇总到司机；不再按货种出柱。</li>
         <li>已去掉平均/最大/最小基准虚线；数据仅含已通过记录。</li>
       </ul>
@@ -860,13 +859,11 @@
     var DAILY_DETAIL_PAGE_SIZE = 20;
 
     /* 司机效率榜：一司机一行；白/夜分列；时长单位小时 */
-    function makeRankRow(name, shift, hours, totalQty, normalQty, abnormalQty, normalHours) {
-      var nh = normalHours != null ? normalHours : normalQty > 0 ? hours : 0;
+    function makeRankRow(name, shift, hours, totalQty, normalQty, abnormalQty) {
       return {
         name: name,
         shift: shift,
         hours: hours,
-        normalHours: nh,
         totalQty: totalQty,
         totalAvg: hours ? totalQty / hours : 0,
         normalQty: normalQty,
@@ -878,9 +875,7 @@
 
     function hydrateRankRows(list) {
       return (list || []).map(function (r) {
-        return makeRankRow(
-          r.name, r.shift, r.hours, r.totalQty, r.normalQty, r.abnormalQty, r.normalHours
-        );
+        return makeRankRow(r.name, r.shift, r.hours, r.totalQty, r.normalQty, r.abnormalQty);
       });
     }
 
@@ -1829,20 +1824,15 @@
       return [v.l2];
     }
 
-    function driverDaySeriesInScope(driverName, cargos, evidenceData, field) {
-      field = field || 'masters';
+    function driverDaySeriesInScope(driverName, cargos, evidenceData) {
       var data = evidenceData || getActiveEvidenceData();
       return EVIDENCE_DAYS.map(function (_, i) {
         return cargos.reduce(function (s, cargo) {
           var pack = data[cargo];
-          var arr = pack && pack[field] && pack[field][driverName];
+          var arr = pack && pack.masters && pack.masters[driverName];
           return s + (arr && arr[i] != null ? Number(arr[i]) || 0 : 0);
         }, 0);
       });
-    }
-
-    function driverDaySeriesNormalInScope(driverName, cargos, evidenceData) {
-      return driverDaySeriesInScope(driverName, cargos, evidenceData, 'mastersNormal');
     }
 
     function mergeRankRows(arrays) {
@@ -1851,11 +1841,10 @@
         (rows || []).forEach(function (r) {
           var key = r.name + '\0' + r.shift;
           if (!map[key]) {
-            map[key] = makeRankRow(r.name, r.shift, 0, 0, 0, 0, 0);
+            map[key] = makeRankRow(r.name, r.shift, 0, 0, 0, 0);
           }
           var m = map[key];
           m.hours += Number(r.hours) || 0;
-          m.normalHours += Number(r.normalHours) || 0;
           m.totalQty += Number(r.totalQty) || 0;
           m.normalQty += Number(r.normalQty) || 0;
           m.abnormalQty += Number(r.abnormalQty) || 0;
@@ -1875,7 +1864,7 @@
       (slices || []).forEach(function (src) {
         Object.keys(src || {}).forEach(function (cargo) {
           if (!out[cargo]) {
-            out[cargo] = { masters: {}, mastersNormal: {} };
+            out[cargo] = { masters: {} };
           }
           var sp = src[cargo] || {};
           var dp = out[cargo];
@@ -1885,16 +1874,6 @@
               dp.masters[driver] = EVIDENCE_DAYS.map(function () { return 0; });
             }
             var dArr = dp.masters[driver];
-            sArr.forEach(function (v, i) {
-              dArr[i] = (Number(dArr[i]) || 0) + (Number(v) || 0);
-            });
-          });
-          Object.keys(sp.mastersNormal || {}).forEach(function (driver) {
-            var sArr = sp.mastersNormal[driver] || [];
-            if (!dp.mastersNormal[driver]) {
-              dp.mastersNormal[driver] = EVIDENCE_DAYS.map(function () { return 0; });
-            }
-            var dArr = dp.mastersNormal[driver];
             sArr.forEach(function (v, i) {
               dArr[i] = (Number(dArr[i]) || 0) + (Number(v) || 0);
             });
@@ -1954,49 +1933,28 @@
     function aggregateRankHoursByDriver(rows) {
       var map = {};
       (rows || []).forEach(function (r) {
-        if (!map[r.name]) {
-          map[r.name] = { hours: 0, normalHours: 0, totalQty: 0, normalQty: 0 };
-        }
+        if (!map[r.name]) map[r.name] = { hours: 0, totalQty: 0 };
         map[r.name].hours += Number(r.hours) || 0;
-        map[r.name].normalHours += Number(r.normalHours != null ? r.normalHours : r.hours) || 0;
         map[r.name].totalQty += Number(r.totalQty) || 0;
-        map[r.name].normalQty += Number(r.normalQty) || 0;
       });
       return map;
     }
 
     /**
-     * 有效时长：仅统计正常作业（备注为空）；并在正常日序列中剔除产量为 0 的填报日。
+     * 有效平均：作业量不为 0 的合计 ÷ 相应有效时长。
+     * 演示按日汇总：有效时长 = 开班日范围内总时长 ×（有产量日 / 首末有产量日跨度）。
      */
-    function calcDriverEvidenceMetrics(driverName, daySeries, daySeriesNormal, dayIdxs, rankHours, rankQty, rankNormalHours, rankNormalQty) {
-      var filtered = dayIdxs.map(function (i) { return Number(daySeries[i]) || 0; });
-      var filteredNormal = dayIdxs.map(function (i) { return Number(daySeriesNormal[i]) || 0; });
-      var totalQty = filtered.reduce(function (s, v) { return s + v; }, 0);
-      var normalQty = filteredNormal.reduce(function (s, v) { return s + v; }, 0);
-      var hours = Number(rankHours) || 0;
-      var rq = Number(rankQty) || 0;
-      if (rq > 0 && Math.abs(rq - totalQty) > 0.01) {
-        hours = hours * (totalQty / rq);
-      } else if (rq <= 0 && dayIdxs.length && EVIDENCE_DAYS.length) {
-        hours = hours * (dayIdxs.length / EVIDENCE_DAYS.length);
-      }
-      var totalHours = hours;
+    function calcDriverEvidenceMetrics(driverName, daySeries, dayIdxs, rankHours, rankQty) {
+      var scaled = scaleShiftByDate(rankQty, rankHours, daySeries, dayIdxs);
+      var totalQty = scaled.qty;
+      var totalHours = scaled.hours;
+      var effRatio = calcEffRatio(daySeries, dayIdxs);
+      var effectiveHours = totalHours > 0 ? totalHours * effRatio : 0;
       var totalAvg = totalHours > 0 ? totalQty / totalHours : null;
-
-      var nh = Number(rankNormalHours != null ? rankNormalHours : rankHours) || 0;
-      var nq = Number(rankNormalQty != null ? rankNormalQty : rankQty) || 0;
-      if (nq > 0 && Math.abs(nq - normalQty) > 0.01) {
-        nh = nh * (normalQty / nq);
-      } else if (nq <= 0 && dayIdxs.length && EVIDENCE_DAYS.length) {
-        nh = nh * (dayIdxs.length / EVIDENCE_DAYS.length);
-      }
-      var effRatio = calcEffRatio(daySeriesNormal, dayIdxs);
-      var effectiveHours = nh > 0 ? nh * effRatio : 0;
-      var effectiveAvg = effectiveHours > 0 ? normalQty / effectiveHours : null;
+      var effectiveAvg = effectiveHours > 0 ? totalQty / effectiveHours : null;
       return {
         name: driverName,
         totalQty: totalQty,
-        normalQty: normalQty,
         totalHours: totalHours,
         effectiveHours: effectiveHours,
         totalAvg: totalAvg,
@@ -2249,20 +2207,19 @@
       return { qty: qty, hours: hours };
     }
 
-    function buildMetricBlock(qty, hours, normalQty, normalHours, effRatio) {
-      if (qty == null || hours == null) return null;
-      var q = Number(qty) || 0;
-      var h = Number(hours) || 0;
-      var nq = Number(normalQty) || 0;
-      var nh = Number(normalHours) || 0;
-      var effH = nh > 0 ? nh * (Number(effRatio) || 0) : 0;
+    function buildMetricBlock(rankQty, rankHours, daySeries, dayIdxs) {
+      if (rankQty == null || rankHours == null) return null;
+      var scaled = scaleShiftByDate(rankQty, rankHours, daySeries, dayIdxs);
+      var q = scaled.qty;
+      var h = scaled.hours;
+      var effRatio = calcEffRatio(daySeries, dayIdxs);
+      var effH = h > 0 ? h * effRatio : 0;
       return {
         qty: q,
-        normalQty: nq,
         hours: h,
         effHours: effH,
         avg: h > 0 ? q / h : null,
-        effAvg: effH > 0 ? nq / effH : null
+        effAvg: effH > 0 ? q / effH : null
       };
     }
 
@@ -2271,16 +2228,14 @@
       var hasNight = !!nightBlk;
       if (!hasDay && !hasNight) return null;
       var qty = (hasDay ? dayBlk.qty : 0) + (hasNight ? nightBlk.qty : 0);
-      var normalQty = (hasDay ? (dayBlk.normalQty || 0) : 0) + (hasNight ? (nightBlk.normalQty || 0) : 0);
       var hours = (hasDay ? dayBlk.hours : 0) + (hasNight ? nightBlk.hours : 0);
       var effHours = (hasDay ? dayBlk.effHours : 0) + (hasNight ? nightBlk.effHours : 0);
       return {
         qty: qty,
-        normalQty: normalQty,
         hours: hours,
         effHours: effHours,
         avg: hours > 0 ? qty / hours : null,
-        effAvg: effHours > 0 ? normalQty / effHours : null
+        effAvg: effHours > 0 ? qty / effHours : null
       };
     }
 
@@ -2332,9 +2287,7 @@
         if (!byName[r.name]) byName[r.name] = { name: r.name, dayRaw: null, nightRaw: null };
         var raw = {
           qty: Number(r.totalQty) || 0,
-          hours: Number(r.hours) || 0,
-          normalQty: Number(r.normalQty) || 0,
-          normalHours: Number(r.normalHours != null ? r.normalHours : r.hours) || 0
+          hours: Number(r.hours) || 0
         };
         if (r.shift === '白班') byName[r.name].dayRaw = raw;
         else if (r.shift === '夜班') byName[r.name].nightRaw = raw;
@@ -2343,19 +2296,13 @@
       return Object.keys(byName).map(function (name) {
         var item = byName[name];
         var series = driverDaySeriesInScope(name, cargos, evidenceData);
-        var seriesNormal = driverDaySeriesNormalInScope(name, cargos, evidenceData);
-        var effRatio = calcEffRatio(seriesNormal, dayIdxs);
         var dayBlk = null;
         var nightBlk = null;
         if (item.dayRaw) {
-          var ds = scaleShiftByDate(item.dayRaw.qty, item.dayRaw.hours, series, dayIdxs);
-          var dsn = scaleShiftByDate(item.dayRaw.normalQty, item.dayRaw.normalHours, seriesNormal, dayIdxs);
-          dayBlk = buildMetricBlock(ds.qty, ds.hours, dsn.qty, dsn.hours, effRatio);
+          dayBlk = buildMetricBlock(item.dayRaw.qty, item.dayRaw.hours, series, dayIdxs);
         }
         if (item.nightRaw) {
-          var ns = scaleShiftByDate(item.nightRaw.qty, item.nightRaw.hours, series, dayIdxs);
-          var nsn = scaleShiftByDate(item.nightRaw.normalQty, item.nightRaw.normalHours, seriesNormal, dayIdxs);
-          nightBlk = buildMetricBlock(ns.qty, ns.hours, nsn.qty, nsn.hours, effRatio);
+          nightBlk = buildMetricBlock(item.nightRaw.qty, item.nightRaw.hours, series, dayIdxs);
         }
         var totalBlk = mergeMetricBlocks(dayBlk, nightBlk);
         return { name: name, total: totalBlk, day: dayBlk, night: nightBlk };
@@ -2369,18 +2316,16 @@
         totalLabel.textContent = (scope.key === '全部' ? '本范围总产量' : '本筛选总产量');
       }
       var qty = 0;
-      var normalQty = 0;
       var hours = 0;
       var effHours = 0;
       (boardRows || []).forEach(function (r) {
         if (!r || !r.total) return;
         qty += Number(r.total.qty) || 0;
-        normalQty += Number(r.total.normalQty) || 0;
         hours += Number(r.total.hours) || 0;
         effHours += Number(r.total.effHours) || 0;
       });
       var avg = hours > 0 ? qty / hours : null;
-      var effAvg = effHours > 0 ? normalQty / effHours : null;
+      var effAvg = effHours > 0 ? qty / effHours : null;
       var elTotal = document.getElementById('kpiTotal');
       var elHours = document.getElementById('kpiHours');
       var elAvg = document.getElementById('kpiAvg');
@@ -2452,12 +2397,8 @@
 
       var metrics = names.map(function (name) {
         var series = driverDaySeriesInScope(name, cargos, evidenceData);
-        var seriesNormal = driverDaySeriesNormalInScope(name, cargos, evidenceData);
-        var rk = rankMap[name] || { hours: 0, normalHours: 0, totalQty: 0, normalQty: 0 };
-        return calcDriverEvidenceMetrics(
-          name, series, seriesNormal, dayIdxs,
-          rk.hours, rk.totalQty, rk.normalHours, rk.normalQty
-        );
+        var rk = rankMap[name] || { hours: 0, totalQty: 0 };
+        return calcDriverEvidenceMetrics(name, series, dayIdxs, rk.hours, rk.totalQty);
       }).filter(function (m) {
         return m.totalQty > 0 || m.totalHours > 0;
       });
@@ -2480,7 +2421,7 @@
       if (machineHint && machineHint !== '未选机械') {
         hint += ' 当前机械：' + machineHint + '。';
       }
-      var foot = '总平均量=总作业量÷总时长；有效平均量=正常作业量÷有效时长（备注有内容视为异常，不计入有效平均；有效时长另剔除产量为 0 的填报日）。';
+      var foot = '总平均量=总作业量÷总时长；有效平均量=作业量不为0的合计÷相应有效时长（有效时长剔除产量为 0 的填报时段；演示按日近似）。';
 
       var hintEl = document.getElementById('evidenceHint');
       var footEl = document.getElementById('evidenceFoot');

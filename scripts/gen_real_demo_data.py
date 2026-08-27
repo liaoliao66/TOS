@@ -247,15 +247,11 @@ def hydrate_rank_rows(rows: list[dict]) -> list[dict]:
     out_rows = []
     for r in rows:
         h = r["hours"] or 0
-        hn = r.get("normalHours")
-        if hn is None:
-            hn = h
         out_rows.append(
             {
                 "name": r["name"],
                 "shift": r["shift"],
                 "hours": r["hours"],
-                "normalHours": round(hn, 2),
                 "totalQty": r["totalQty"],
                 "totalAvg": (r["totalQty"] / h) if h else 0,
                 "normalQty": r["normalQty"],
@@ -275,13 +271,8 @@ def build_driver_scope(
 ) -> dict:
     """司机效率页专用：按记录子集汇总榜单与日序列。"""
     by_driver_cargo_day = {c: {dr: {d: 0.0 for d in dates} for dr in drivers} for c in cargos}
-    by_driver_cargo_day_normal = {
-        c: {dr: {d: 0.0 for d in dates} for dr in drivers} for c in cargos
-    }
     hours_driver_shift_cargo: dict[tuple, float] = defaultdict(float)
-    hours_driver_shift_cargo_normal: dict[tuple, float] = defaultdict(float)
     hours_driver_shift: dict[tuple, float] = defaultdict(float)
-    hours_driver_shift_normal: dict[tuple, float] = defaultdict(float)
     qty_driver_shift_cargo: dict[tuple, dict] = defaultdict(
         lambda: {"total": 0.0, "normal": 0.0, "abnormal": 0.0}
     )
@@ -289,14 +280,10 @@ def build_driver_scope(
         lambda: {"total": 0.0, "normal": 0.0, "abnormal": 0.0}
     )
     seen_hour: set[tuple] = set()
-    seen_hour_normal: set[tuple] = set()
     seen_hour_all: set[tuple] = set()
-    seen_hour_all_normal: set[tuple] = set()
 
     for r in records:
         by_driver_cargo_day[r["cargo"]][r["driver"]][r["date"]] += r["qty"]
-        if not r["abnormal"]:
-            by_driver_cargo_day_normal[r["cargo"]][r["driver"]][r["date"]] += r["qty"]
         k = (r["driver"], r["shift"], r["cargo"], r["date"], r["period"])
         k2 = (r["driver"], r["shift"], r["date"], r["period"])
         if k not in seen_hour:
@@ -305,13 +292,6 @@ def build_driver_scope(
         if k2 not in seen_hour_all:
             seen_hour_all.add(k2)
             hours_driver_shift[(r["driver"], r["shift"])] += 1.0
-        if not r["abnormal"]:
-            if k not in seen_hour_normal:
-                seen_hour_normal.add(k)
-                hours_driver_shift_cargo_normal[(r["driver"], r["shift"], r["cargo"])] += 1.0
-            if k2 not in seen_hour_all_normal:
-                seen_hour_all_normal.add(k2)
-                hours_driver_shift_normal[(r["driver"], r["shift"])] += 1.0
         bucket = qty_driver_shift_cargo[(r["driver"], r["shift"], r["cargo"])]
         bucket["total"] += r["qty"]
         if r["abnormal"]:
@@ -328,21 +308,16 @@ def build_driver_scope(
     evidence: dict = {}
     for c in cargos:
         masters = {}
-        masters_normal = {}
         for dr in drivers:
             series = [round(by_driver_cargo_day[c][dr][d], 2) for d in dates]
             if sum(series) > 0:
                 masters[dr] = series
-            series_n = [round(by_driver_cargo_day_normal[c][dr][d], 2) for d in dates]
-            if sum(series_n) > 0:
-                masters_normal[dr] = series_n
         flat = [v for series in masters.values() for v in series if v > 0]
         evidence[c] = {
             "avg": round(sum(flat) / len(flat), 2) if flat else 0,
             "max": round(max(flat), 2) if flat else 0,
             "min": round(min(flat), 2) if flat else 0,
             "masters": masters,
-            "mastersNormal": masters_normal,
         }
 
     def make_rank(scope_filter):
@@ -350,13 +325,11 @@ def build_driver_scope(
         if scope_filter is None:
             for (dr, sh), q in sorted(qty_driver_shift.items()):
                 h = hours_driver_shift[(dr, sh)]
-                hn = hours_driver_shift_normal[(dr, sh)]
                 rows.append(
                     {
                         "name": dr,
                         "shift": sh,
                         "hours": round(h, 2),
-                        "normalHours": round(hn, 2),
                         "totalQty": round(q["total"], 2),
                         "normalQty": round(q["normal"], 2),
                         "abnormalQty": round(q["abnormal"], 2),
@@ -368,13 +341,11 @@ def build_driver_scope(
                 if c != cargo:
                     continue
                 h = hours_driver_shift_cargo[(dr, sh, c)]
-                hn = hours_driver_shift_cargo_normal[(dr, sh, c)]
                 rows.append(
                     {
                         "name": dr,
                         "shift": sh,
                         "hours": round(h, 2),
-                        "normalHours": round(hn, 2),
                         "totalQty": round(q["total"], 2),
                         "normalQty": round(q["normal"], 2),
                         "abnormalQty": round(q["abnormal"], 2),
@@ -385,9 +356,7 @@ def build_driver_scope(
             kids = [c for c, p in L1_MAP.items() if p == l1]
             agg = defaultdict(lambda: {"total": 0.0, "normal": 0.0, "abnormal": 0.0})
             hours = defaultdict(float)
-            hours_normal = defaultdict(float)
             seen = set()
-            seen_n = set()
             for r in records:
                 if r["cargo"] not in kids:
                     continue
@@ -400,16 +369,12 @@ def build_driver_scope(
                 if kk not in seen:
                     seen.add(kk)
                     hours[(r["driver"], r["shift"])] += 1.0
-                if not r["abnormal"] and kk not in seen_n:
-                    seen_n.add(kk)
-                    hours_normal[(r["driver"], r["shift"])] += 1.0
             for (dr, sh), q in sorted(agg.items()):
                 rows.append(
                     {
                         "name": dr,
                         "shift": sh,
                         "hours": round(hours[(dr, sh)], 2),
-                        "normalHours": round(hours_normal[(dr, sh)], 2),
                         "totalQty": round(q["total"], 2),
                         "normalQty": round(q["normal"], 2),
                         "abnormalQty": round(q["abnormal"], 2),
