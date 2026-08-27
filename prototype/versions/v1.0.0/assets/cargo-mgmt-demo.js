@@ -6,11 +6,21 @@
  */
 (function (global) {
   var KEY = 'tos_cargo_mgmt_v1';
-  var MAJORS = ['集装箱', '散货', '件杂货'];
+  var MAJORS = ['吨包袋', '散货', '集装箱', '件杂货'];
   var UNITS = ['吨', 'TEU', '件', '立方米'];
   var BULK_TYPES = ['—', '固体散货', '液体散货', '件杂', '集装箱'];
 
   var SEED = {
+    '吨包袋': [
+      {
+        id: 'tb-1', name: '工铵吨包', motCode: '81001', unit: '吨', bulkType: '件杂', remark: '',
+        children: []
+      },
+      {
+        id: 'tb-2', name: '吨包', motCode: '81002', unit: '吨', bulkType: '件杂', remark: '',
+        children: []
+      }
+    ],
     '集装箱': [
       {
         id: 'ct-1', name: '20尺标箱', motCode: 'JZX20', unit: 'TEU', bulkType: '集装箱', remark: '',
@@ -43,6 +53,22 @@
       },
       {
         id: 'sg-5', name: '硫矿', motCode: '80004', unit: '吨', bulkType: '固体散货', remark: '',
+        children: []
+      },
+      {
+        id: 'sg-6', name: '二氢钾', motCode: '80005', unit: '吨', bulkType: '固体散货', remark: '',
+        children: []
+      },
+      {
+        id: 'sg-7', name: '硫磺', motCode: '80006', unit: '吨', bulkType: '固体散货', remark: '',
+        children: []
+      },
+      {
+        id: 'sg-8', name: '磷酸二氢氨', motCode: '80007', unit: '吨', bulkType: '固体散货', remark: '',
+        children: []
+      },
+      {
+        id: 'sg-9', name: '脱硫石膏', motCode: '80008', unit: '吨', bulkType: '固体散货', remark: '',
         children: []
       }
     ],

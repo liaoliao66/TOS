@@ -168,12 +168,12 @@
                 </div>
                 <div>
                   <label class="block text-xs text-slate-500 mb-1">开班日（止）</label>
-                  <input id="filterDateTo" type="date" value="2026-08-10" class="border border-slate-200 rounded-xl px-3 py-2" />
+                  <input id="filterDateTo" type="date" value="2026-08-26" class="border border-slate-200 rounded-xl px-3 py-2" />
                 </div>
               </div>
               <div id="shiftFilterWrap">
                 <label class="block text-xs text-slate-500 mb-1">班次</label>
-                <select class="border border-slate-200 rounded-xl px-3 py-2">
+                <select id="filterShift" class="border border-slate-200 rounded-xl px-3 py-2" onchange="onFilterChange()">
                   <option>全部</option>
                   <option>白班</option>
                   <option>夜班</option>
@@ -401,7 +401,7 @@
                     <div class="text-slate-300 pb-2 hidden sm:block">—</div>
                     <div>
                       <label class="block text-[11px] text-slate-500 mb-1">时间范围（止）</label>
-                      <input id="volumeSharedDateTo" type="date" value="2026-08-10" class="structure-date" onchange="onVolumeSharedRangeChange()" />
+                      <input id="volumeSharedDateTo" type="date" value="2026-08-26" class="structure-date" onchange="onVolumeSharedRangeChange()" />
                     </div>
                   </div>
                 </div>
@@ -497,32 +497,17 @@
                       <th class="px-4 py-3">操作</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    <tr class="table-row border-t">
-                      <td class="px-4 py-3">2026-08-10</td>
-                      <td class="px-4 py-3">白班</td>
-                      <td class="px-4 py-3"><span class="badge badge-ok">已通过</span></td>
-                      <td class="px-4 py-3 font-medium">1,420.00</td>
-                      <td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="work-stat-view-pc.html">查看</a></td>
-                    </tr>
-                    <tr class="table-row border-t">
-                      <td class="px-4 py-3">2026-08-10</td>
-                      <td class="px-4 py-3">夜班</td>
-                      <td class="px-4 py-3"><span class="badge badge-ok">已通过</span></td>
-                      <td class="px-4 py-3 font-medium">1,240.50</td>
-                      <td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="work-stat-view-pc.html">查看</a></td>
-                    </tr>
-                    <tr class="table-row border-t">
-                      <td class="px-4 py-3">2026-08-09</td>
-                      <td class="px-4 py-3">白班</td>
-                      <td class="px-4 py-3"><span class="badge badge-ok">已通过</span></td>
-                      <td class="px-4 py-3 font-medium">2,106.00</td>
-                      <td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="work-stat-view-pc.html">查看</a></td>
-                    </tr>
-                  </tbody>
+                  <tbody id="detailBody"></tbody>
                 </table>
               </div>
-              <div class="px-5 py-4 border-t text-sm text-slate-500 flex justify-between"><span>共 3 条</span><span>1 / 1</span></div>
+              <div id="detailPager" class="px-5 py-4 border-t text-sm text-slate-500 flex flex-wrap items-center justify-between gap-3">
+                <span id="detailPagerTotal">共 0 条</span>
+                <div class="flex items-center gap-2">
+                  <button type="button" id="detailPagerPrev" class="btn border border-slate-200 px-3 py-1 bg-white text-sm" onclick="dailyDetailPrevPage()">上一页</button>
+                  <span id="detailPagerInfo" class="px-2 tabular-nums">1 / 1</span>
+                  <button type="button" id="detailPagerNext" class="btn border border-slate-200 px-3 py-1 bg-white text-sm" onclick="dailyDetailNextPage()">下一页</button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -636,6 +621,9 @@
           if (window.__volumeChart) window.__volumeChart.resize();
         }, 30);
       }
+      if (name === 'daily') {
+        renderDailyDetailTable();
+      }
     }
 
     function onFilterChange() {
@@ -645,6 +633,8 @@
       } else if (currentTab === 'volume') {
         refreshVolumeCharts();
         renderVolumeDayTable();
+      } else if (currentTab === 'daily') {
+        renderDailyDetailTable();
       }
     }
     function onCargoFilterChange() { onFilterChange(); }
@@ -656,7 +646,7 @@
     }
     function getVolumeDataDateBounds() {
       if (!VOLUME_DAYS || !VOLUME_DAYS.length) {
-        return { from: DEMO_META.date_from || '2026-07-26', to: DEMO_META.date_to || '2026-08-10' };
+        return { from: DEMO_META.date_from || '2026-07-26', to: DEMO_META.date_to || '2026-08-26' };
       }
       return {
         from: volumeDayFullDate(VOLUME_DAYS[0]),
@@ -812,10 +802,12 @@
     var VOLUME_DAY_ROWS_ALL = [];
     var VOLUME_DAY_ROWS_BY_CARGO = {};
     var ABNORMAL_TYPE_TONS = [];
-    var DEMO_META = { normal_ratio: 0.88, date_from: '2026-07-26', date_to: '2026-08-10' };
+    var DEMO_META = { normal_ratio: 0.88, date_from: '2026-07-26', date_to: '2026-08-26' };
     var DRIVER_OPTIONS = [];
     var selectedRankDrivers = [];
     var L1_COLORS = { '吨包袋': '#d97706', '散货': '#0f766e' };
+    var dailyDetailPage = 1;
+    var DAILY_DETAIL_PAGE_SIZE = 20;
 
     /* 司机效率榜：一司机一行；白/夜分列；时长单位小时 */
     function makeRankRow(name, shift, hours, totalQty, normalQty, abnormalQty) {
@@ -838,12 +830,74 @@
       });
     }
 
+    /** 兼容生成器字段：CARGO_SHIFT / VOLUME_DAY_SHIFT / ABNORMAL_BY_TYPE 等 */
+    function normalizeDemoPayload(D) {
+      var meta = D.meta || {};
+      var l1map = meta.l1_map || {};
+      var cargos = meta.cargos || Object.keys(D.CARGO_SHIFT || {});
+
+      var cargoRank = D.CARGO_RANK;
+      if (!cargoRank || !cargoRank.length) {
+        cargoRank = cargos.map(function (name) {
+          var s = (D.CARGO_SHIFT || {})[name] || {};
+          return {
+            name: name,
+            l1: l1map[name] || '散货',
+            day: s.day || 0,
+            night: s.night || 0
+          };
+        }).filter(function (r) { return (r.day + r.night) > 0; });
+      }
+
+      var dayRowsAll = D.VOLUME_DAY_ROWS_ALL;
+      if (!dayRowsAll || !dayRowsAll.length) {
+        dayRowsAll = (D.VOLUME_DAY_SHIFT || []).map(function (r) {
+          return { date: r.date, day: r.day || 0, night: r.night || 0 };
+        });
+      }
+
+      var dayRowsByCargo = D.VOLUME_DAY_ROWS_BY_CARGO;
+      if (!dayRowsByCargo || !Object.keys(dayRowsByCargo).length) {
+        dayRowsByCargo = {};
+        Object.keys(D.VOLUME_CARGO_DAY_SHIFT || {}).forEach(function (cargo) {
+          dayRowsByCargo[cargo] = (D.VOLUME_CARGO_DAY_SHIFT[cargo] || []).map(function (r) {
+            return { date: r.date, day: r.day || 0, night: r.night || 0 };
+          });
+        });
+      }
+
+      var abnormalTons = D.ABNORMAL_TYPE_TONS;
+      if (!abnormalTons || !abnormalTons.length) {
+        abnormalTons = (D.ABNORMAL_BY_TYPE || []).map(function (r) {
+          return { name: r.name, tons: r.tons != null ? r.tons : (r.qty || 0) };
+        });
+      }
+
+      var shiftByCargo = D.VOLUME_SHIFT_BY_CARGO;
+      if (!shiftByCargo || !Object.keys(shiftByCargo).length) {
+        shiftByCargo = {};
+        Object.keys(D.CARGO_SHIFT || {}).forEach(function (name) {
+          var s = D.CARGO_SHIFT[name] || {};
+          shiftByCargo[name] = { day: s.day || 0, night: s.night || 0, total: s.total || 0 };
+        });
+      }
+
+      return {
+        cargoRank: cargoRank,
+        dayRowsAll: dayRowsAll,
+        dayRowsByCargo: dayRowsByCargo,
+        abnormalTons: abnormalTons,
+        shiftByCargo: shiftByCargo
+      };
+    }
+
     function applyRealWorkStatDemo() {
       var D = window.RealWorkStatDemo;
       if (!D) {
         console.error('RealWorkStatDemo missing');
         return;
       }
+      var norm = normalizeDemoPayload(D);
       DEMO_META = D.meta || DEMO_META;
       EVIDENCE_DAYS = (D.EVIDENCE_DAYS || []).slice();
       EVIDENCE_DATA = D.EVIDENCE_DATA || {};
@@ -852,12 +906,12 @@
       VOLUME_CARGO_COLORS = D.L2_COLORS || {};
       VOLUME_DAYS = (D.VOLUME_DAYS || D.EVIDENCE_DAYS || []).slice();
       VOLUME_BY_CARGO_DAY = D.VOLUME_BY_CARGO_DAY || {};
-      VOLUME_SHIFT_BY_CARGO = D.VOLUME_SHIFT_BY_CARGO || {};
-      VOLUME_DAY_ROWS_ALL = D.VOLUME_DAY_ROWS_ALL || [];
-      VOLUME_DAY_ROWS_BY_CARGO = D.VOLUME_DAY_ROWS_BY_CARGO || {};
-      CARGO_RANK = D.CARGO_RANK || [];
+      VOLUME_SHIFT_BY_CARGO = norm.shiftByCargo;
+      VOLUME_DAY_ROWS_ALL = norm.dayRowsAll;
+      VOLUME_DAY_ROWS_BY_CARGO = norm.dayRowsByCargo;
+      CARGO_RANK = norm.cargoRank;
       KPI_BY_SCOPE = D.KPI_BY_SCOPE || {};
-      ABNORMAL_TYPE_TONS = D.ABNORMAL_TYPE_TONS || [];
+      ABNORMAL_TYPE_TONS = norm.abnormalTons;
       DRIVER_OPTIONS = (D.DRIVER_OPTIONS || []).slice();
       selectedRankDrivers = DRIVER_OPTIONS.slice();
       RANK_ROWS_ALL = hydrateRankRows(D.RANK_ROWS_ALL);
@@ -869,6 +923,38 @@
       Object.keys(D.RANK_BY_L2 || {}).forEach(function (k) {
         RANK_BY_L2[k] = hydrateRankRows(D.RANK_BY_L2[k]);
       });
+      syncFilterDateDefaults();
+    }
+
+    function syncFilterDateDefaults() {
+      var from = DEMO_META.date_from || '2026-07-26';
+      var to = DEMO_META.date_to || '2026-08-26';
+      var fromEl = document.getElementById('filterDateFrom');
+      var toEl = document.getElementById('filterDateTo');
+      if (fromEl) {
+        fromEl.value = from;
+        fromEl.min = from;
+        fromEl.max = to;
+      }
+      if (toEl) {
+        toEl.value = to;
+        toEl.min = from;
+        toEl.max = to;
+      }
+      var volFrom = document.getElementById('volumeSharedDateFrom');
+      var volTo = document.getElementById('volumeSharedDateTo');
+      if (volFrom) {
+        delete volFrom.dataset.inited;
+        volFrom.value = from;
+        volFrom.min = from;
+        volFrom.max = to;
+      }
+      if (volTo) {
+        delete volTo.dataset.inited;
+        volTo.value = to;
+        volTo.min = from;
+        volTo.max = to;
+      }
     }
     applyRealWorkStatDemo();
 
@@ -878,6 +964,132 @@
     function fmtPct(part, total) {
       if (!total) return '0.0%';
       return (Math.round(part * 1000 / total) / 10).toFixed(1) + '%';
+    }
+
+    function getDailyDetailDayRows() {
+      var cargo = getTopCargoFilter();
+      if (cargo.l1 === '全部' || cargo.l2 === '全部') {
+        if (cargo.l1 !== '全部' && cargo.l2 === '全部') {
+          var kids = (typeof CargoCascade !== 'undefined') ? CargoCascade.childrenOf(cargo.l1) : [];
+          var map = {};
+          kids.forEach(function (c) {
+            (VOLUME_DAY_ROWS_BY_CARGO[c] || []).forEach(function (r) {
+              if (!map[r.date]) map[r.date] = { date: r.date, day: 0, night: 0 };
+              map[r.date].day += r.day;
+              map[r.date].night += r.night;
+            });
+          });
+          return Object.keys(map).sort().map(function (k) { return map[k]; });
+        }
+        return VOLUME_DAY_ROWS_ALL.slice();
+      }
+      return (VOLUME_DAY_ROWS_BY_CARGO[cargo.l2] || []).slice();
+    }
+
+    function getFilterShift() {
+      var el = document.getElementById('filterShift');
+      return (el && el.value) || '全部';
+    }
+
+    function buildDailyDetailRows() {
+      var range = getFilterRange();
+      var shiftFilter = getFilterShift();
+      var dayRows = getDailyDetailDayRows();
+      var rows = [];
+
+      dayRows.forEach(function (r) {
+        if (!r || !r.date) return;
+        if (r.date < range.from || r.date > range.to) return;
+        if (shiftFilter === '全部' || shiftFilter === '白班') {
+          if ((r.day || 0) > 0) {
+            rows.push({ date: r.date, shift: '白班', qty: r.day });
+          }
+        }
+        if (shiftFilter === '全部' || shiftFilter === '夜班') {
+          if ((r.night || 0) > 0) {
+            rows.push({ date: r.date, shift: '夜班', qty: r.night });
+          }
+        }
+      });
+
+      rows.sort(function (a, b) {
+        if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+        if (a.shift === b.shift) return 0;
+        return a.shift === '白班' ? -1 : 1;
+      });
+      return rows;
+    }
+
+    function updateDailyDetailPager(total, totalPages) {
+      var totalEl = document.getElementById('detailPagerTotal');
+      var infoEl = document.getElementById('detailPagerInfo');
+      var prevBtn = document.getElementById('detailPagerPrev');
+      var nextBtn = document.getElementById('detailPagerNext');
+      if (totalEl) totalEl.textContent = '共 ' + total + ' 条';
+      if (infoEl) infoEl.textContent = (total ? dailyDetailPage : 0) + ' / ' + (total ? totalPages : 0);
+      if (prevBtn) {
+        prevBtn.disabled = dailyDetailPage <= 1 || !total;
+        prevBtn.classList.toggle('opacity-40', prevBtn.disabled);
+        prevBtn.classList.toggle('cursor-not-allowed', prevBtn.disabled);
+      }
+      if (nextBtn) {
+        nextBtn.disabled = dailyDetailPage >= totalPages || !total;
+        nextBtn.classList.toggle('opacity-40', nextBtn.disabled);
+        nextBtn.classList.toggle('cursor-not-allowed', nextBtn.disabled);
+      }
+    }
+
+    function renderDailyDetailTable(resetPage) {
+      var body = document.getElementById('detailBody');
+      var empty = document.getElementById('emptyDemo');
+      var table = document.getElementById('detailTable');
+      if (!body) return;
+
+      if (resetPage !== false) dailyDetailPage = 1;
+
+      var rows = buildDailyDetailRows();
+      var total = rows.length;
+      var totalPages = Math.max(1, Math.ceil(total / DAILY_DETAIL_PAGE_SIZE));
+      if (dailyDetailPage > totalPages) dailyDetailPage = totalPages;
+      if (dailyDetailPage < 1) dailyDetailPage = 1;
+
+      if (!total) {
+        body.innerHTML = '';
+        if (empty) empty.classList.remove('hidden');
+        if (table) table.classList.add('hidden');
+        updateDailyDetailPager(0, 0);
+        return;
+      }
+
+      if (empty) empty.classList.add('hidden');
+      if (table) table.classList.remove('hidden');
+
+      var start = (dailyDetailPage - 1) * DAILY_DETAIL_PAGE_SIZE;
+      var pageRows = rows.slice(start, start + DAILY_DETAIL_PAGE_SIZE);
+      body.innerHTML = pageRows.map(function (r) {
+        return '<tr class="table-row border-t">' +
+          '<td class="px-4 py-3">' + r.date + '</td>' +
+          '<td class="px-4 py-3">' + r.shift + '</td>' +
+          '<td class="px-4 py-3"><span class="badge badge-ok">已通过</span></td>' +
+          '<td class="px-4 py-3 font-medium tabular-nums">' + fmtNum(r.qty) + '</td>' +
+          '<td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="work-stat-view-pc.html">查看</a></td>' +
+          '</tr>';
+      }).join('');
+
+      updateDailyDetailPager(total, totalPages);
+    }
+
+    function dailyDetailPrevPage() {
+      if (dailyDetailPage <= 1) return;
+      dailyDetailPage--;
+      renderDailyDetailTable(false);
+    }
+
+    function dailyDetailNextPage() {
+      var totalPages = Math.max(1, Math.ceil(buildDailyDetailRows().length / DAILY_DETAIL_PAGE_SIZE));
+      if (dailyDetailPage >= totalPages) return;
+      dailyDetailPage++;
+      renderDailyDetailTable(false);
     }
 
     function renderVolumeDayTable() {
@@ -1484,7 +1696,7 @@
       var toEl = document.getElementById('filterDateTo');
       return {
         from: (fromEl && fromEl.value) || (DEMO_META.date_from || '2026-07-26'),
-        to: (toEl && toEl.value) || (DEMO_META.date_to || '2026-08-10')
+        to: (toEl && toEl.value) || (DEMO_META.date_to || '2026-08-26')
       };
     }
 

@@ -5,12 +5,39 @@
  */
 (function (global) {
   var FALLBACK = [
-    { name: '集装箱', children: ['20尺标箱', '40尺高箱'] },
-    { name: '散货', children: ['氧化钙', '氮磷肥', '硫矿', '磷矿', '二氢钾'] },
-    { name: '件杂货', children: ['钢材', '设备件'] }
+    { name: '吨包袋', children: ['工铵吨包', '吨包'] },
+    {
+      name: '散货',
+      children: ['二氢钾', '氧化钙', '氮磷肥', '硫矿', '硫磺', '磷矿', '磷酸二氢氨', '脱硫石膏']
+    }
   ];
 
+  function treeFromRealDemo() {
+    var D = global.RealWorkStatDemo;
+    if (!D || !D.meta || !D.meta.cargos || !D.meta.cargos.length) return null;
+    var meta = D.meta;
+    var l1map = meta.l1_map || {};
+    var byL1 = {};
+    meta.cargos.forEach(function (c) {
+      var l1 = l1map[c] || '散货';
+      if (!byL1[l1]) byL1[l1] = [];
+      byL1[l1].push(c);
+    });
+    var order = ['吨包袋', '散货'];
+    return Object.keys(byL1).sort(function (a, b) {
+      var ia = order.indexOf(a);
+      var ib = order.indexOf(b);
+      if (ia < 0) ia = 99;
+      if (ib < 0) ib = 99;
+      return ia - ib || a.localeCompare(b, 'zh-CN');
+    }).map(function (k) {
+      return { name: k, children: byL1[k] };
+    });
+  }
+
   function getTree() {
+    var demoTree = treeFromRealDemo();
+    if (demoTree && demoTree.length) return demoTree;
     if (global.CargoMgmtDemo && CargoMgmtDemo.cascadeTree) {
       try {
         var t = CargoMgmtDemo.cascadeTree();
