@@ -154,6 +154,8 @@ def parse_sheet(ws):
                 remark = ws.cell(r, m["备注（原因）"]).value if "备注（原因）" in m else None
                 if isinstance(remark, str):
                     remark = remark.strip() or None
+                elif remark is not None:
+                    remark = str(remark).strip() or None
 
                 if qty is None or qty == 0:
                     continue
@@ -229,31 +231,72 @@ def resolve_inputs(mode: str, explicit: Path | None) -> list[Path]:
     return files
 
 
-def build_payload(records: list[dict], sources: list[str]) -> dict:
-    if not records:
-        sys.exit("未解析到任何作业记录，请检查 Excel 表结构")
+def machine_type(name: str | None) -> str:
+    if not name:
+        return "其他"
+    if "装船" in name:
+        return "装船机"
+    if "卸船" in name:
+        return "卸船机"
+    if "门机" in name:
+        return "门机"
+    return "其他"
 
-    dates = sorted(set(r["date"] for r in records))
-    drivers = sorted(set(r["driver"] for r in records))
-    cargos = sorted(set(r["cargo"] for r in records))
 
-    by_cargo_day = {c: {d: 0.0 for d in dates} for c in cargos}
+def hydrate_rank_rows(rows: list[dict]) -> list[dict]:
+    out_rows = []
+    for r in rows:
+        h = r["hours"] or 0
+        hn = r.get("normalHours")
+        if hn is None:
+            hn = h
+        out_rows.append(
+            {
+                "name": r["name"],
+                "shift": r["shift"],
+                "hours": r["hours"],
+                "normalHours": round(hn, 2),
+                "totalQty": r["totalQty"],
+                "totalAvg": (r["totalQty"] / h) if h else 0,
+                "normalQty": r["normalQty"],
+                "normalAvg": (r["normalQty"] / h) if h else 0,
+                "abnormalQty": r["abnormalQty"],
+                "abnormalAvg": (r["abnormalQty"] / h) if h else 0,
+            }
+        )
+    return out_rows
+
+
+def build_driver_scope(
+    records: list[dict],
+    dates: list[str],
+    drivers: list[str],
+    cargos: list[str],
+) -> dict:
+    """司机效率页专用：按记录子集汇总榜单与日序列。"""
     by_driver_cargo_day = {c: {dr: {d: 0.0 for d in dates} for dr in drivers} for c in cargos}
-    hours_driver_shift_cargo = defaultdict(float)
-    hours_driver_shift = defaultdict(float)
-    qty_driver_shift_cargo = defaultdict(lambda: {"total": 0.0, "normal": 0.0, "abnormal": 0.0})
-    qty_driver_shift = defaultdict(lambda: {"total": 0.0, "normal": 0.0, "abnormal": 0.0})
+    by_driver_cargo_day_normal = {
+        c: {dr: {d: 0.0 for d in dates} for dr in drivers} for c in cargos
+    }
+    hours_driver_shift_cargo: dict[tuple, float] = defaultdict(float)
+    hours_driver_shift_cargo_normal: dict[tuple, float] = defaultdict(float)
+    hours_driver_shift: dict[tuple, float] = defaultdict(float)
+    hours_driver_shift_normal: dict[tuple, float] = defaultdict(float)
+    qty_driver_shift_cargo: dict[tuple, dict] = defaultdict(
+        lambda: {"total": 0.0, "normal": 0.0, "abnormal": 0.0}
+    )
+    qty_driver_shift: dict[tuple, dict] = defaultdict(
+        lambda: {"total": 0.0, "normal": 0.0, "abnormal": 0.0}
+    )
     seen_hour: set[tuple] = set()
+    seen_hour_normal: set[tuple] = set()
     seen_hour_all: set[tuple] = set()
-    by_day_shift = defaultdict(lambda: {"day": 0.0, "night": 0.0})
-    by_cargo_day_shift = defaultdict(lambda: defaultdict(lambda: {"day": 0.0, "night": 0.0}))
-    ab_counter = Counter()
-    normal_qty = 0.0
-    ab_qty = 0.0
+    seen_hour_all_normal: set[tuple] = set()
 
     for r in records:
-        by_cargo_day[r["cargo"]][r["date"]] += r["qty"]
         by_driver_cargo_day[r["cargo"]][r["driver"]][r["date"]] += r["qty"]
+        if not r["abnormal"]:
+            by_driver_cargo_day_normal[r["cargo"]][r["driver"]][r["date"]] += r["qty"]
         k = (r["driver"], r["shift"], r["cargo"], r["date"], r["period"])
         k2 = (r["driver"], r["shift"], r["date"], r["period"])
         if k not in seen_hour:
@@ -262,52 +305,58 @@ def build_payload(records: list[dict], sources: list[str]) -> dict:
         if k2 not in seen_hour_all:
             seen_hour_all.add(k2)
             hours_driver_shift[(r["driver"], r["shift"])] += 1.0
+        if not r["abnormal"]:
+            if k not in seen_hour_normal:
+                seen_hour_normal.add(k)
+                hours_driver_shift_cargo_normal[(r["driver"], r["shift"], r["cargo"])] += 1.0
+            if k2 not in seen_hour_all_normal:
+                seen_hour_all_normal.add(k2)
+                hours_driver_shift_normal[(r["driver"], r["shift"])] += 1.0
         bucket = qty_driver_shift_cargo[(r["driver"], r["shift"], r["cargo"])]
         bucket["total"] += r["qty"]
         if r["abnormal"]:
             bucket["abnormal"] += r["qty"]
-            ab_qty += r["qty"]
-            ab_counter[r["remark"] or "其他"] += r["qty"]
         else:
             bucket["normal"] += r["qty"]
-            normal_qty += r["qty"]
         bucket2 = qty_driver_shift[(r["driver"], r["shift"])]
         bucket2["total"] += r["qty"]
         if r["abnormal"]:
             bucket2["abnormal"] += r["qty"]
         else:
             bucket2["normal"] += r["qty"]
-        key = "day" if r["shift"] == "白班" else "night"
-        by_day_shift[r["date"]][key] += r["qty"]
-        by_cargo_day_shift[r["cargo"]][r["date"]][key] += r["qty"]
 
-    evidence = {}
+    evidence: dict = {}
     for c in cargos:
         masters = {}
+        masters_normal = {}
         for dr in drivers:
             series = [round(by_driver_cargo_day[c][dr][d], 2) for d in dates]
             if sum(series) > 0:
                 masters[dr] = series
+            series_n = [round(by_driver_cargo_day_normal[c][dr][d], 2) for d in dates]
+            if sum(series_n) > 0:
+                masters_normal[dr] = series_n
         flat = [v for series in masters.values() for v in series if v > 0]
         evidence[c] = {
             "avg": round(sum(flat) / len(flat), 2) if flat else 0,
             "max": round(max(flat), 2) if flat else 0,
             "min": round(min(flat), 2) if flat else 0,
             "masters": masters,
+            "mastersNormal": masters_normal,
         }
-
-    volume_by_cargo_day = {c: [round(by_cargo_day[c][d], 2) for d in dates] for c in cargos}
 
     def make_rank(scope_filter):
         rows = []
         if scope_filter is None:
             for (dr, sh), q in sorted(qty_driver_shift.items()):
                 h = hours_driver_shift[(dr, sh)]
+                hn = hours_driver_shift_normal[(dr, sh)]
                 rows.append(
                     {
                         "name": dr,
                         "shift": sh,
                         "hours": round(h, 2),
+                        "normalHours": round(hn, 2),
                         "totalQty": round(q["total"], 2),
                         "normalQty": round(q["normal"], 2),
                         "abnormalQty": round(q["abnormal"], 2),
@@ -319,11 +368,13 @@ def build_payload(records: list[dict], sources: list[str]) -> dict:
                 if c != cargo:
                     continue
                 h = hours_driver_shift_cargo[(dr, sh, c)]
+                hn = hours_driver_shift_cargo_normal[(dr, sh, c)]
                 rows.append(
                     {
                         "name": dr,
                         "shift": sh,
                         "hours": round(h, 2),
+                        "normalHours": round(hn, 2),
                         "totalQty": round(q["total"], 2),
                         "normalQty": round(q["normal"], 2),
                         "abnormalQty": round(q["abnormal"], 2),
@@ -334,7 +385,9 @@ def build_payload(records: list[dict], sources: list[str]) -> dict:
             kids = [c for c, p in L1_MAP.items() if p == l1]
             agg = defaultdict(lambda: {"total": 0.0, "normal": 0.0, "abnormal": 0.0})
             hours = defaultdict(float)
+            hours_normal = defaultdict(float)
             seen = set()
+            seen_n = set()
             for r in records:
                 if r["cargo"] not in kids:
                     continue
@@ -347,18 +400,87 @@ def build_payload(records: list[dict], sources: list[str]) -> dict:
                 if kk not in seen:
                     seen.add(kk)
                     hours[(r["driver"], r["shift"])] += 1.0
+                if not r["abnormal"] and kk not in seen_n:
+                    seen_n.add(kk)
+                    hours_normal[(r["driver"], r["shift"])] += 1.0
             for (dr, sh), q in sorted(agg.items()):
                 rows.append(
                     {
                         "name": dr,
                         "shift": sh,
                         "hours": round(hours[(dr, sh)], 2),
+                        "normalHours": round(hours_normal[(dr, sh)], 2),
                         "totalQty": round(q["total"], 2),
                         "normalQty": round(q["normal"], 2),
                         "abnormalQty": round(q["abnormal"], 2),
                     }
                 )
         return rows
+
+    rank_all = make_rank(None)
+    rank_l1 = {l1: make_rank(("l1", l1)) for l1 in ["吨包袋", "散货"]}
+    rank_l2 = {c: make_rank(("l2", c)) for c in cargos}
+
+    return {
+        "EVIDENCE_DATA": evidence,
+        "RANK_ROWS_ALL": hydrate_rank_rows(rank_all),
+        "RANK_BY_L1": {k: hydrate_rank_rows(v) for k, v in rank_l1.items()},
+        "RANK_BY_L2": {k: hydrate_rank_rows(v) for k, v in rank_l2.items()},
+    }
+
+
+def build_machine_slices(
+    records: list[dict],
+    dates: list[str],
+    drivers: list[str],
+    cargos: list[str],
+) -> tuple[dict[str, list[str]], dict[str, dict]]:
+    machines = sorted({r["machine"] for r in records if r.get("machine")})
+    by_type: dict[str, list[str]] = defaultdict(list)
+    for m in machines:
+        by_type[machine_type(m)].append(m)
+    for key in by_type:
+        by_type[key] = sorted(by_type[key])
+
+    slices: dict[str, dict] = {}
+    for m in machines:
+        sub = [r for r in records if r.get("machine") == m]
+        if sub:
+            slices[m] = build_driver_scope(sub, dates, drivers, cargos)
+    return dict(by_type), slices
+
+
+def build_payload(records: list[dict], sources: list[str]) -> dict:
+    if not records:
+        sys.exit("未解析到任何作业记录，请检查 Excel 表结构")
+
+    dates = sorted(set(r["date"] for r in records))
+    drivers = sorted(set(r["driver"] for r in records))
+    cargos = sorted(set(r["cargo"] for r in records))
+
+    by_cargo_day = {c: {d: 0.0 for d in dates} for c in cargos}
+    by_day_shift = defaultdict(lambda: {"day": 0.0, "night": 0.0})
+    by_cargo_day_shift = defaultdict(lambda: defaultdict(lambda: {"day": 0.0, "night": 0.0}))
+    ab_counter = Counter()
+    normal_qty = 0.0
+    ab_qty = 0.0
+
+    for r in records:
+        by_cargo_day[r["cargo"]][r["date"]] += r["qty"]
+        if r["abnormal"]:
+            ab_qty += r["qty"]
+            ab_counter[r["remark"] or "其他"] += r["qty"]
+        else:
+            normal_qty += r["qty"]
+        key = "day" if r["shift"] == "白班" else "night"
+        by_day_shift[r["date"]][key] += r["qty"]
+        by_cargo_day_shift[r["cargo"]][r["date"]][key] += r["qty"]
+
+    driver_scope = build_driver_scope(records, dates, drivers, cargos)
+    evidence = driver_scope["EVIDENCE_DATA"]
+    machine_by_type, machine_slices = build_machine_slices(records, dates, drivers, cargos)
+
+    volume_by_cargo_day = {c: [round(by_cargo_day[c][d], 2) for d in dates] for c in cargos}
 
     def kpi_from_rows(rows):
         if not rows:
@@ -372,13 +494,50 @@ def build_payload(records: list[dict], sources: list[str]) -> dict:
             "min": f"{min(avgs):.2f}",
         }
 
-    rank_all = make_rank(None)
-    rank_l1 = {l1: make_rank(("l1", l1)) for l1 in ["吨包袋", "散货"]}
-    rank_l2 = {c: make_rank(("l2", c)) for c in cargos}
-    kpi = {"全部": kpi_from_rows(rank_all)}
-    for l1, rows in rank_l1.items():
+    rank_all_raw = [
+        {
+            "name": r["name"],
+            "shift": r["shift"],
+            "hours": r["hours"],
+            "totalQty": r["totalQty"],
+            "normalQty": r["normalQty"],
+            "abnormalQty": r["abnormalQty"],
+        }
+        for r in driver_scope["RANK_ROWS_ALL"]
+    ]
+    rank_l1_raw = {
+        k: [
+            {
+                "name": r["name"],
+                "shift": r["shift"],
+                "hours": r["hours"],
+                "totalQty": r["totalQty"],
+                "normalQty": r["normalQty"],
+                "abnormalQty": r["abnormalQty"],
+            }
+            for r in v
+        ]
+        for k, v in driver_scope["RANK_BY_L1"].items()
+    }
+    rank_l2_raw = {
+        k: [
+            {
+                "name": r["name"],
+                "shift": r["shift"],
+                "hours": r["hours"],
+                "totalQty": r["totalQty"],
+                "normalQty": r["normalQty"],
+                "abnormalQty": r["abnormalQty"],
+            }
+            for r in v
+        ]
+        for k, v in driver_scope["RANK_BY_L2"].items()
+    }
+
+    kpi = {"全部": kpi_from_rows(rank_all_raw)}
+    for l1, rows in rank_l1_raw.items():
         kpi[l1] = kpi_from_rows(rows)
-    for c, rows in rank_l2.items():
+    for c, rows in rank_l2_raw.items():
         kpi[c] = kpi_from_rows(rows)
 
     volume_day_shift = [
@@ -425,25 +584,6 @@ def build_payload(records: list[dict], sources: list[str]) -> dict:
 
     evidence_days_md = [d[5:] for d in dates]
 
-    def hydrate_rank(rows):
-        out_rows = []
-        for r in rows:
-            h = r["hours"] or 0
-            out_rows.append(
-                {
-                    "name": r["name"],
-                    "shift": r["shift"],
-                    "hours": r["hours"],
-                    "totalQty": r["totalQty"],
-                    "totalAvg": (r["totalQty"] / h) if h else 0,
-                    "normalQty": r["normalQty"],
-                    "normalAvg": (r["normalQty"] / h) if h else 0,
-                    "abnormalQty": r["abnormalQty"],
-                    "abnormalAvg": (r["abnormalQty"] / h) if h else 0,
-                }
-            )
-        return out_rows
-
     source_label = sources[-1] if len(sources) == 1 else f"{len(sources)} 个文件（最新：{sources[-1]}）"
 
     return {
@@ -456,6 +596,8 @@ def build_payload(records: list[dict], sources: list[str]) -> dict:
             "drivers": drivers,
             "cargos": cargos,
             "l1_map": L1_MAP,
+            "machines": sorted(machine_slices.keys()),
+            "machine_by_type": machine_by_type,
             "total_qty": round(sum(r["qty"] for r in records), 2),
             "normal_qty": round(normal_qty, 2),
             "abnormal_qty": round(ab_qty, 2),
@@ -464,6 +606,8 @@ def build_payload(records: list[dict], sources: list[str]) -> dict:
         "EVIDENCE_DAYS": evidence_days_md,
         "EVIDENCE_DATES": dates,
         "EVIDENCE_DATA": evidence,
+        "MACHINE_BY_TYPE": machine_by_type,
+        "MACHINE_SLICES": machine_slices,
         "VOLUME_DAYS": evidence_days_md,
         "VOLUME_BY_CARGO_DAY": volume_by_cargo_day,
         "VOLUME_SHIFT_BY_CARGO": volume_shift_by_cargo,
@@ -475,9 +619,9 @@ def build_payload(records: list[dict], sources: list[str]) -> dict:
         "CARGO_TOTALS": cargo_totals,
         "CARGO_SHIFT": cargo_shift,
         "DRIVER_OPTIONS": drivers,
-        "RANK_ROWS_ALL": hydrate_rank(rank_all),
-        "RANK_BY_L1": {k: hydrate_rank(v) for k, v in rank_l1.items()},
-        "RANK_BY_L2": {k: hydrate_rank(v) for k, v in rank_l2.items()},
+        "RANK_ROWS_ALL": driver_scope["RANK_ROWS_ALL"],
+        "RANK_BY_L1": driver_scope["RANK_BY_L1"],
+        "RANK_BY_L2": driver_scope["RANK_BY_L2"],
         "KPI_BY_SCOPE": kpi,
         "ABNORMAL_TYPE_TONS": [{"name": k, "tons": round(v, 2)} for k, v in ab_counter.most_common(10)],
         "L2_COLORS": {

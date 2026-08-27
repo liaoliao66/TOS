@@ -189,6 +189,50 @@
                   <select id="filterCargoL2" class="border border-slate-200 rounded-xl px-3 py-2"></select>
                 </div>
               </div>
+              <div id="machineFilterWrap" class="flex flex-wrap gap-3 items-end">
+                <div class="ms-wrap" id="machineWrapLoader">
+                  <label class="block text-xs text-slate-500 mb-1">装船机</label>
+                  <button type="button" class="ms-btn" onclick="toggleMachinePanel('loader', event)">
+                    <span id="machineSummaryLoader">全部</span>
+                    <i class="fa-solid fa-chevron-down text-xs text-slate-400"></i>
+                  </button>
+                  <div id="machinePanelLoader" class="ms-panel" onclick="event.stopPropagation()">
+                    <div class="ms-actions">
+                      <button type="button" onclick="setAllMachinesByType('loader', true)">全选</button>
+                      <button type="button" onclick="setAllMachinesByType('loader', false)">清空</button>
+                    </div>
+                    <div id="machineChecksLoader"></div>
+                  </div>
+                </div>
+                <div class="ms-wrap" id="machineWrapUnloader">
+                  <label class="block text-xs text-slate-500 mb-1">卸船机</label>
+                  <button type="button" class="ms-btn" onclick="toggleMachinePanel('unloader', event)">
+                    <span id="machineSummaryUnloader">全部</span>
+                    <i class="fa-solid fa-chevron-down text-xs text-slate-400"></i>
+                  </button>
+                  <div id="machinePanelUnloader" class="ms-panel" onclick="event.stopPropagation()">
+                    <div class="ms-actions">
+                      <button type="button" onclick="setAllMachinesByType('unloader', true)">全选</button>
+                      <button type="button" onclick="setAllMachinesByType('unloader', false)">清空</button>
+                    </div>
+                    <div id="machineChecksUnloader"></div>
+                  </div>
+                </div>
+                <div class="ms-wrap" id="machineWrapGantry">
+                  <label class="block text-xs text-slate-500 mb-1">门机</label>
+                  <button type="button" class="ms-btn" onclick="toggleMachinePanel('gantry', event)">
+                    <span id="machineSummaryGantry">全部</span>
+                    <i class="fa-solid fa-chevron-down text-xs text-slate-400"></i>
+                  </button>
+                  <div id="machinePanelGantry" class="ms-panel" onclick="event.stopPropagation()">
+                    <div class="ms-actions">
+                      <button type="button" onclick="setAllMachinesByType('gantry', true)">全选</button>
+                      <button type="button" onclick="setAllMachinesByType('gantry', false)">清空</button>
+                    </div>
+                    <div id="machineChecksGantry"></div>
+                  </div>
+                </div>
+              </div>
               <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="onFilterChange(); showToast('已刷新分析数据')">查询</button>
               <div class="text-xs text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2">状态固定：已通过</div>
             </div>
@@ -219,7 +263,7 @@
               <div class="card card-hover p-4 border-t-4 border-teal-600">
                 <div class="text-xs text-teal-800">总有效平均作业量</div>
                 <div id="kpiEffAvg" class="text-xl font-semibold mt-1 text-teal-800 tabular-nums">—</div>
-                <div class="text-[11px] text-slate-400 mt-0.5">吨/小时 · 产量÷有效时间</div>
+                <div class="text-[11px] text-slate-400 mt-0.5">吨/小时 · 正常产量÷有效时间</div>
               </div>
             </div>
 
@@ -227,7 +271,7 @@
               <div class="mb-4 flex items-start justify-between gap-3">
                 <div>
                   <div class="text-sm font-medium">每日作业量趋势</div>
-                  <p class="text-xs text-slate-500 mt-1" id="evidenceHint">横轴=司机；纵轴=总作业量（吨）与总平均量/有效平均量（吨/小时）；时间取顶部开班日起止；货种筛选保留，序列固定为司机</p>
+                  <p class="text-xs text-slate-500 mt-1" id="evidenceHint">横轴=司机；纵轴=总作业量（吨）与总平均量/有效平均量（吨/小时）；时间取顶部开班日起止；货种与机械筛选后汇总到司机</p>
                 </div>
                 <div class="flex items-center gap-2 shrink-0">
                   <button type="button" class="info-btn" title="图表说明" onclick="openChartHelp()"><i class="fa-solid fa-exclamation"></i></button>
@@ -236,7 +280,7 @@
               <div class="relative h-96">
                 <canvas id="evidenceChart"></canvas>
               </div>
-              <div class="mt-3 text-xs text-slate-400" id="evidenceFoot">柱状三项：总作业量（左轴·吨）、总平均量=总作业量÷总时长、有效平均量=总作业量÷有效时长（右轴·吨/小时）；有效时长剔除产量为 0 的填报时段。</div>
+              <div class="mt-3 text-xs text-slate-400" id="evidenceFoot">柱状三项：总作业量（左轴·吨）、总平均量=总作业量÷总时长、有效平均量=正常作业量÷有效时长（右轴·吨/小时）；备注有内容视为异常，不计入有效平均；有效时长另剔除产量为 0 的填报日。</div>
             </div>
 
             <div class="card overflow-hidden">
@@ -525,9 +569,10 @@
       <ul class="text-sm text-slate-600 space-y-2 list-disc pl-5">
         <li>横轴为司机；每个司机并排展示三项：总作业量、总平均量、有效平均量。</li>
         <li>纵轴左侧为总作业量（吨），右侧为平均量（吨/小时）；已取消日/周/月切换，时间范围取顶部开班日起止。</li>
-        <li>总平均量 = 总作业量 ÷ 总时长；有效平均量 = 总作业量 ÷ 有效时长。</li>
-        <li>有效时长：剔除产量为 0 的填报时段对应时长（演示数据按日汇总时，以「作业日内产量为 0」近似该口径）。</li>
-        <li>货种筛选保留：全部/一级/二级均按当前范围汇总到司机；不再按货种出柱。</li>
+        <li>总平均量 = 总作业量 ÷ 总时长；有效平均量 = 正常作业量 ÷ 有效时长。</li>
+        <li>异常判定：备注（原因）有内容的记录视为异常，其产量与对应时段不计入有效平均作业量。</li>
+        <li>有效时长：在正常作业时段内，剔除产量为 0 的填报日对应时长（演示按日汇总近似）。</li>
+        <li>货种与机械筛选保留：全部/一级/二级均按当前范围汇总到司机；不再按货种出柱。</li>
         <li>已去掉平均/最大/最小基准虚线；数据仅含已通过记录。</li>
       </ul>
       <div class="mt-5 text-right">
@@ -575,6 +620,7 @@
       document.getElementById('cargoLabelL1').textContent = '货种一级';
       document.getElementById('cargoLabelL2').textContent = '货种二级';
       document.getElementById('cargoFilterWrap').classList.toggle('hidden', currentTab === 'volume');
+      document.getElementById('machineFilterWrap').classList.toggle('hidden', currentTab !== 'master');
       document.getElementById('shiftFilterWrap').classList.toggle('hidden', currentTab === 'volume');
       var dateWrap = document.getElementById('dateFilterWrap');
       if (dateWrap) dateWrap.classList.toggle('hidden', currentTab === 'volume');
@@ -805,16 +851,22 @@
     var DEMO_META = { normal_ratio: 0.88, date_from: '2026-07-26', date_to: '2026-08-26' };
     var DRIVER_OPTIONS = [];
     var selectedRankDrivers = [];
+    var MACHINE_BY_TYPE = {};
+    var MACHINE_SLICES = {};
+    var MACHINE_TYPE_MAP = { loader: '装船机', unloader: '卸船机', gantry: '门机' };
+    var selectedMachines = { loader: [], unloader: [], gantry: [] };
     var L1_COLORS = { '吨包袋': '#d97706', '散货': '#0f766e' };
     var dailyDetailPage = 1;
     var DAILY_DETAIL_PAGE_SIZE = 20;
 
     /* 司机效率榜：一司机一行；白/夜分列；时长单位小时 */
-    function makeRankRow(name, shift, hours, totalQty, normalQty, abnormalQty) {
+    function makeRankRow(name, shift, hours, totalQty, normalQty, abnormalQty, normalHours) {
+      var nh = normalHours != null ? normalHours : normalQty > 0 ? hours : 0;
       return {
         name: name,
         shift: shift,
         hours: hours,
+        normalHours: nh,
         totalQty: totalQty,
         totalAvg: hours ? totalQty / hours : 0,
         normalQty: normalQty,
@@ -826,7 +878,9 @@
 
     function hydrateRankRows(list) {
       return (list || []).map(function (r) {
-        return makeRankRow(r.name, r.shift, r.hours, r.totalQty, r.normalQty, r.abnormalQty);
+        return makeRankRow(
+          r.name, r.shift, r.hours, r.totalQty, r.normalQty, r.abnormalQty, r.normalHours
+        );
       });
     }
 
@@ -922,6 +976,28 @@
       RANK_BY_L2 = {};
       Object.keys(D.RANK_BY_L2 || {}).forEach(function (k) {
         RANK_BY_L2[k] = hydrateRankRows(D.RANK_BY_L2[k]);
+      });
+      MACHINE_BY_TYPE = D.MACHINE_BY_TYPE || {};
+      MACHINE_SLICES = {};
+      Object.keys(D.MACHINE_SLICES || {}).forEach(function (m) {
+        var s = D.MACHINE_SLICES[m] || {};
+        var slice = {
+          EVIDENCE_DATA: s.EVIDENCE_DATA || {},
+          RANK_ROWS_ALL: hydrateRankRows(s.RANK_ROWS_ALL),
+          RANK_BY_L1: {},
+          RANK_BY_L2: {}
+        };
+        Object.keys(s.RANK_BY_L1 || {}).forEach(function (k) {
+          slice.RANK_BY_L1[k] = hydrateRankRows(s.RANK_BY_L1[k]);
+        });
+        Object.keys(s.RANK_BY_L2 || {}).forEach(function (k) {
+          slice.RANK_BY_L2[k] = hydrateRankRows(s.RANK_BY_L2[k]);
+        });
+        MACHINE_SLICES[m] = slice;
+      });
+      ['loader', 'unloader', 'gantry'].forEach(function (typeKey) {
+        var typeName = MACHINE_TYPE_MAP[typeKey];
+        selectedMachines[typeKey] = (MACHINE_BY_TYPE[typeName] || []).slice();
       });
       syncFilterDateDefaults();
     }
@@ -1753,62 +1829,174 @@
       return [v.l2];
     }
 
-    function driverDaySeriesInScope(driverName, cargos) {
+    function driverDaySeriesInScope(driverName, cargos, evidenceData, field) {
+      field = field || 'masters';
+      var data = evidenceData || getActiveEvidenceData();
       return EVIDENCE_DAYS.map(function (_, i) {
         return cargos.reduce(function (s, cargo) {
-          var pack = EVIDENCE_DATA[cargo];
-          var arr = pack && pack.masters && pack.masters[driverName];
+          var pack = data[cargo];
+          var arr = pack && pack[field] && pack[field][driverName];
           return s + (arr && arr[i] != null ? Number(arr[i]) || 0 : 0);
         }, 0);
       });
     }
 
+    function driverDaySeriesNormalInScope(driverName, cargos, evidenceData) {
+      return driverDaySeriesInScope(driverName, cargos, evidenceData, 'mastersNormal');
+    }
+
+    function mergeRankRows(arrays) {
+      var map = {};
+      (arrays || []).forEach(function (rows) {
+        (rows || []).forEach(function (r) {
+          var key = r.name + '\0' + r.shift;
+          if (!map[key]) {
+            map[key] = makeRankRow(r.name, r.shift, 0, 0, 0, 0, 0);
+          }
+          var m = map[key];
+          m.hours += Number(r.hours) || 0;
+          m.normalHours += Number(r.normalHours) || 0;
+          m.totalQty += Number(r.totalQty) || 0;
+          m.normalQty += Number(r.normalQty) || 0;
+          m.abnormalQty += Number(r.abnormalQty) || 0;
+        });
+      });
+      return Object.keys(map).map(function (k) {
+        var m = map[k];
+        m.totalAvg = m.hours ? m.totalQty / m.hours : 0;
+        m.normalAvg = m.hours ? m.normalQty / m.hours : 0;
+        m.abnormalAvg = m.hours ? m.abnormalQty / m.hours : 0;
+        return m;
+      });
+    }
+
+    function mergeEvidenceData(slices) {
+      var out = {};
+      (slices || []).forEach(function (src) {
+        Object.keys(src || {}).forEach(function (cargo) {
+          if (!out[cargo]) {
+            out[cargo] = { masters: {}, mastersNormal: {} };
+          }
+          var sp = src[cargo] || {};
+          var dp = out[cargo];
+          Object.keys(sp.masters || {}).forEach(function (driver) {
+            var sArr = sp.masters[driver] || [];
+            if (!dp.masters[driver]) {
+              dp.masters[driver] = EVIDENCE_DAYS.map(function () { return 0; });
+            }
+            var dArr = dp.masters[driver];
+            sArr.forEach(function (v, i) {
+              dArr[i] = (Number(dArr[i]) || 0) + (Number(v) || 0);
+            });
+          });
+          Object.keys(sp.mastersNormal || {}).forEach(function (driver) {
+            var sArr = sp.mastersNormal[driver] || [];
+            if (!dp.mastersNormal[driver]) {
+              dp.mastersNormal[driver] = EVIDENCE_DAYS.map(function () { return 0; });
+            }
+            var dArr = dp.mastersNormal[driver];
+            sArr.forEach(function (v, i) {
+              dArr[i] = (Number(dArr[i]) || 0) + (Number(v) || 0);
+            });
+          });
+        });
+      });
+      return out;
+    }
+
+    function getSelectedMachines() {
+      var all = [];
+      var total = 0;
+      var selected = 0;
+      ['loader', 'unloader', 'gantry'].forEach(function (typeKey) {
+        var typeName = MACHINE_TYPE_MAP[typeKey];
+        var list = MACHINE_BY_TYPE[typeName] || [];
+        total += list.length;
+        var sel = selectedMachines[typeKey] || [];
+        selected += sel.length;
+        sel.forEach(function (m) { all.push(m); });
+      });
+      if (!total) return null;
+      if (selected === total) return null;
+      return all;
+    }
+
+    function getMachineFilterLabel() {
+      var machines = getSelectedMachines();
+      if (machines === null) return '';
+      if (!machines.length) return '未选机械';
+      if (machines.length <= 2) return machines.join('、');
+      return '已选 ' + machines.length + ' 台机械';
+    }
+
+    function getRankRowsForCargoScope(scopeDef, dataSource) {
+      if (scopeDef.rankSource === 'all') return (dataSource.RANK_ROWS_ALL || []).slice();
+      if (scopeDef.rankSource === 'l1') {
+        return ((dataSource.RANK_BY_L1 || {})[scopeDef.l1] || dataSource.RANK_ROWS_ALL || []).slice();
+      }
+      return ((dataSource.RANK_BY_L2 || {})[scopeDef.l2] || dataSource.RANK_ROWS_ALL || []).slice();
+    }
+
+    function buildCargoScopeDef(v) {
+      if (v.l1 === '全部') {
+        return { key: '全部', label: '全部货种', rankSource: 'all' };
+      }
+      if (v.l2 === '全部') {
+        return { key: v.l1, label: v.l1 + ' / 全部', rankSource: 'l1', l1: v.l1 };
+      }
+      return { key: v.l2, label: v.l1 + ' / ' + v.l2, rankSource: 'l2', l2: v.l2 };
+    }
+
+    function getActiveEvidenceData() {
+      return resolveRankScope().evidenceData || EVIDENCE_DATA;
+    }
+
     function aggregateRankHoursByDriver(rows) {
       var map = {};
       (rows || []).forEach(function (r) {
-        if (!map[r.name]) map[r.name] = { hours: 0, totalQty: 0 };
+        if (!map[r.name]) {
+          map[r.name] = { hours: 0, normalHours: 0, totalQty: 0, normalQty: 0 };
+        }
         map[r.name].hours += Number(r.hours) || 0;
+        map[r.name].normalHours += Number(r.normalHours != null ? r.normalHours : r.hours) || 0;
         map[r.name].totalQty += Number(r.totalQty) || 0;
+        map[r.name].normalQty += Number(r.normalQty) || 0;
       });
       return map;
     }
 
     /**
-     * 有效时长：剔除产量为 0 的填报时段。
-     * 演示数据仅到「日」：在司机首末有产量日之间，将总时长按日均摊，产量为 0 的日对应时长不计入有效时长。
+     * 有效时长：仅统计正常作业（备注为空）；并在正常日序列中剔除产量为 0 的填报日。
      */
-    function calcDriverEvidenceMetrics(driverName, daySeries, dayIdxs, rankHours, rankQty) {
+    function calcDriverEvidenceMetrics(driverName, daySeries, daySeriesNormal, dayIdxs, rankHours, rankQty, rankNormalHours, rankNormalQty) {
       var filtered = dayIdxs.map(function (i) { return Number(daySeries[i]) || 0; });
+      var filteredNormal = dayIdxs.map(function (i) { return Number(daySeriesNormal[i]) || 0; });
       var totalQty = filtered.reduce(function (s, v) { return s + v; }, 0);
-      var first = -1;
-      var last = -1;
-      var nonzero = 0;
-      filtered.forEach(function (v, i) {
-        if (v > 0) {
-          if (first < 0) first = i;
-          last = i;
-          nonzero += 1;
-        }
-      });
-      var span = (first >= 0 && last >= first) ? (last - first + 1) : 0;
+      var normalQty = filteredNormal.reduce(function (s, v) { return s + v; }, 0);
       var hours = Number(rankHours) || 0;
       var rq = Number(rankQty) || 0;
-      /* 开班日筛选后：按时段产量占比缩放总时长；若序列产量为 0 则时长记 0 */
       if (rq > 0 && Math.abs(rq - totalQty) > 0.01) {
         hours = hours * (totalQty / rq);
       } else if (rq <= 0 && dayIdxs.length && EVIDENCE_DAYS.length) {
         hours = hours * (dayIdxs.length / EVIDENCE_DAYS.length);
       }
       var totalHours = hours;
-      var effectiveHours = 0;
-      if (span > 0 && totalHours > 0) {
-        effectiveHours = totalHours * (nonzero / span);
-      }
       var totalAvg = totalHours > 0 ? totalQty / totalHours : null;
-      var effectiveAvg = effectiveHours > 0 ? totalQty / effectiveHours : null;
+
+      var nh = Number(rankNormalHours != null ? rankNormalHours : rankHours) || 0;
+      var nq = Number(rankNormalQty != null ? rankNormalQty : rankQty) || 0;
+      if (nq > 0 && Math.abs(nq - normalQty) > 0.01) {
+        nh = nh * (normalQty / nq);
+      } else if (nq <= 0 && dayIdxs.length && EVIDENCE_DAYS.length) {
+        nh = nh * (dayIdxs.length / EVIDENCE_DAYS.length);
+      }
+      var effRatio = calcEffRatio(daySeriesNormal, dayIdxs);
+      var effectiveHours = nh > 0 ? nh * effRatio : 0;
+      var effectiveAvg = effectiveHours > 0 ? normalQty / effectiveHours : null;
       return {
         name: driverName,
         totalQty: totalQty,
+        normalQty: normalQty,
         totalHours: totalHours,
         effectiveHours: effectiveHours,
         totalAvg: totalAvg,
@@ -1834,6 +2022,97 @@
     function chartTitleText(modeLabel) {
       var range = getFilterRange();
       return modeLabel + ' · ' + range.from + ' ~ ' + range.to;
+    }
+
+    function initMachineMultiSelect() {
+      var wrapMap = { loader: 'machineWrapLoader', unloader: 'machineWrapUnloader', gantry: 'machineWrapGantry' };
+      var boxMap = { loader: 'machineChecksLoader', unloader: 'machineChecksUnloader', gantry: 'machineChecksGantry' };
+      var summaryMap = { loader: 'machineSummaryLoader', unloader: 'machineSummaryUnloader', gantry: 'machineSummaryGantry' };
+      ['loader', 'unloader', 'gantry'].forEach(function (typeKey) {
+        var typeName = MACHINE_TYPE_MAP[typeKey];
+        var list = MACHINE_BY_TYPE[typeName] || [];
+        var wrap = document.getElementById(wrapMap[typeKey]);
+        if (wrap) wrap.classList.toggle('hidden', !list.length);
+        var box = document.getElementById(boxMap[typeKey]);
+        if (!box) return;
+        if (!list.length) {
+          box.innerHTML = '<div class="px-3 py-2 text-xs text-slate-400">暂无数据</div>';
+          var sumEl = document.getElementById(summaryMap[typeKey]);
+          if (sumEl) sumEl.textContent = '暂无';
+          return;
+        }
+        if (!selectedMachines[typeKey] || !selectedMachines[typeKey].length) {
+          selectedMachines[typeKey] = list.slice();
+        }
+        box.innerHTML = list.map(function (name) {
+          var checked = selectedMachines[typeKey].indexOf(name) >= 0 ? ' checked' : '';
+          return '<label class="ms-item"><input type="checkbox" value="' + name + '"' + checked + ' onchange="onMachineCheckChange(\'' + typeKey + '\')" />' + name + '</label>';
+        }).join('');
+        syncMachineSummary(typeKey);
+      });
+      if (!window.__machinePanelCloseBound) {
+        window.__machinePanelCloseBound = true;
+        document.addEventListener('click', function () {
+          ['Loader', 'Unloader', 'Gantry'].forEach(function (suffix) {
+            var panel = document.getElementById('machinePanel' + suffix);
+            if (panel) panel.classList.remove('open');
+          });
+        });
+      }
+    }
+
+    function toggleMachinePanel(typeKey, e) {
+      e.stopPropagation();
+      var suffix = typeKey.charAt(0).toUpperCase() + typeKey.slice(1);
+      var panel = document.getElementById('machinePanel' + suffix);
+      if (!panel) return;
+      ['Loader', 'Unloader', 'Gantry'].forEach(function (s) {
+        var p = document.getElementById('machinePanel' + s);
+        if (p && p !== panel) p.classList.remove('open');
+      });
+      panel.classList.toggle('open');
+    }
+
+    function onMachineCheckChange(typeKey) {
+      var suffix = typeKey.charAt(0).toUpperCase() + typeKey.slice(1);
+      var box = document.getElementById('machineChecks' + suffix);
+      if (!box) return;
+      selectedMachines[typeKey] = Array.prototype.map.call(
+        box.querySelectorAll('input[type="checkbox"]:checked'),
+        function (el) { return el.value; }
+      );
+      syncMachineSummary(typeKey);
+      onFilterChange();
+    }
+
+    function setAllMachinesByType(typeKey, all) {
+      var suffix = typeKey.charAt(0).toUpperCase() + typeKey.slice(1);
+      var box = document.getElementById('machineChecks' + suffix);
+      if (!box) return;
+      Array.prototype.forEach.call(box.querySelectorAll('input[type="checkbox"]'), function (el) {
+        el.checked = !!all;
+      });
+      onMachineCheckChange(typeKey);
+    }
+
+    function syncMachineSummary(typeKey) {
+      var suffix = typeKey.charAt(0).toUpperCase() + typeKey.slice(1);
+      var el = document.getElementById('machineSummary' + suffix);
+      if (!el) return;
+      var typeName = MACHINE_TYPE_MAP[typeKey];
+      var allList = MACHINE_BY_TYPE[typeName] || [];
+      var sel = selectedMachines[typeKey] || [];
+      if (!allList.length) {
+        el.textContent = '暂无';
+      } else if (!sel.length) {
+        el.textContent = '未选';
+      } else if (sel.length === allList.length) {
+        el.textContent = '全部';
+      } else if (sel.length <= 2) {
+        el.textContent = sel.join('、');
+      } else {
+        el.textContent = '已选 ' + sel.length + ' 台';
+      }
     }
 
     function initRankDriverMultiSelect() {
@@ -1898,13 +2177,43 @@
 
     function resolveRankScope() {
       var v = getTopCargoFilter();
-      if (v.l1 === '全部') {
-        return { key: '全部', rows: RANK_ROWS_ALL, label: '全部货种' };
+      var base = buildCargoScopeDef(v);
+      var machines = getSelectedMachines();
+      if (machines === null) {
+        return {
+          key: base.key,
+          rows: getRankRowsForCargoScope(base, {
+            RANK_ROWS_ALL: RANK_ROWS_ALL,
+            RANK_BY_L1: RANK_BY_L1,
+            RANK_BY_L2: RANK_BY_L2
+          }),
+          label: base.label,
+          evidenceData: EVIDENCE_DATA
+        };
       }
-      if (v.l2 === '全部') {
-        return { key: v.l1, rows: RANK_BY_L1[v.l1] || RANK_ROWS_ALL, label: v.l1 + ' / 全部' };
+      if (!machines.length) {
+        return {
+          key: base.key + '|none',
+          rows: [],
+          label: base.label + ' · 未选机械',
+          evidenceData: {}
+        };
       }
-      return { key: v.l2, rows: RANK_BY_L2[v.l2] || RANK_ROWS_ALL, label: v.l1 + ' / ' + v.l2 };
+      var rowArrays = [];
+      var evidenceSlices = [];
+      machines.forEach(function (m) {
+        var slice = MACHINE_SLICES[m];
+        if (!slice) return;
+        rowArrays.push(getRankRowsForCargoScope(base, slice));
+        evidenceSlices.push(slice.EVIDENCE_DATA || {});
+      });
+      var machineLabel = getMachineFilterLabel();
+      return {
+        key: base.key + '|' + machines.join(','),
+        rows: mergeRankRows(rowArrays),
+        label: base.label + (machineLabel ? ' · ' + machineLabel : ''),
+        evidenceData: mergeEvidenceData(evidenceSlices)
+      };
     }
 
     function calcEffRatio(daySeries, dayIdxs) {
@@ -1940,17 +2249,20 @@
       return { qty: qty, hours: hours };
     }
 
-    function buildMetricBlock(qty, hours, effRatio) {
+    function buildMetricBlock(qty, hours, normalQty, normalHours, effRatio) {
       if (qty == null || hours == null) return null;
       var q = Number(qty) || 0;
       var h = Number(hours) || 0;
-      var effH = h > 0 ? h * (Number(effRatio) || 0) : 0;
+      var nq = Number(normalQty) || 0;
+      var nh = Number(normalHours) || 0;
+      var effH = nh > 0 ? nh * (Number(effRatio) || 0) : 0;
       return {
         qty: q,
+        normalQty: nq,
         hours: h,
         effHours: effH,
         avg: h > 0 ? q / h : null,
-        effAvg: effH > 0 ? q / effH : null
+        effAvg: effH > 0 ? nq / effH : null
       };
     }
 
@@ -1959,14 +2271,16 @@
       var hasNight = !!nightBlk;
       if (!hasDay && !hasNight) return null;
       var qty = (hasDay ? dayBlk.qty : 0) + (hasNight ? nightBlk.qty : 0);
+      var normalQty = (hasDay ? (dayBlk.normalQty || 0) : 0) + (hasNight ? (nightBlk.normalQty || 0) : 0);
       var hours = (hasDay ? dayBlk.hours : 0) + (hasNight ? nightBlk.hours : 0);
       var effHours = (hasDay ? dayBlk.effHours : 0) + (hasNight ? nightBlk.effHours : 0);
       return {
         qty: qty,
+        normalQty: normalQty,
         hours: hours,
         effHours: effHours,
         avg: hours > 0 ? qty / hours : null,
-        effAvg: effHours > 0 ? qty / effHours : null
+        effAvg: effHours > 0 ? normalQty / effHours : null
       };
     }
 
@@ -2010,29 +2324,38 @@
     function buildRankDriverBoardRows(scopeRows) {
       var v = getTopCargoFilter();
       var cargos = listEvidenceCargos(v);
+      var evidenceData = getActiveEvidenceData();
       var dayIdxs = getEvidenceDayIndicesInRange();
       var byName = {};
 
       (scopeRows || []).forEach(function (r) {
         if (!byName[r.name]) byName[r.name] = { name: r.name, dayRaw: null, nightRaw: null };
-        var raw = { qty: Number(r.totalQty) || 0, hours: Number(r.hours) || 0 };
+        var raw = {
+          qty: Number(r.totalQty) || 0,
+          hours: Number(r.hours) || 0,
+          normalQty: Number(r.normalQty) || 0,
+          normalHours: Number(r.normalHours != null ? r.normalHours : r.hours) || 0
+        };
         if (r.shift === '白班') byName[r.name].dayRaw = raw;
         else if (r.shift === '夜班') byName[r.name].nightRaw = raw;
       });
 
       return Object.keys(byName).map(function (name) {
         var item = byName[name];
-        var series = driverDaySeriesInScope(name, cargos);
-        var effRatio = calcEffRatio(series, dayIdxs);
+        var series = driverDaySeriesInScope(name, cargos, evidenceData);
+        var seriesNormal = driverDaySeriesNormalInScope(name, cargos, evidenceData);
+        var effRatio = calcEffRatio(seriesNormal, dayIdxs);
         var dayBlk = null;
         var nightBlk = null;
         if (item.dayRaw) {
           var ds = scaleShiftByDate(item.dayRaw.qty, item.dayRaw.hours, series, dayIdxs);
-          dayBlk = buildMetricBlock(ds.qty, ds.hours, effRatio);
+          var dsn = scaleShiftByDate(item.dayRaw.normalQty, item.dayRaw.normalHours, seriesNormal, dayIdxs);
+          dayBlk = buildMetricBlock(ds.qty, ds.hours, dsn.qty, dsn.hours, effRatio);
         }
         if (item.nightRaw) {
           var ns = scaleShiftByDate(item.nightRaw.qty, item.nightRaw.hours, series, dayIdxs);
-          nightBlk = buildMetricBlock(ns.qty, ns.hours, effRatio);
+          var nsn = scaleShiftByDate(item.nightRaw.normalQty, item.nightRaw.normalHours, seriesNormal, dayIdxs);
+          nightBlk = buildMetricBlock(ns.qty, ns.hours, nsn.qty, nsn.hours, effRatio);
         }
         var totalBlk = mergeMetricBlocks(dayBlk, nightBlk);
         return { name: name, total: totalBlk, day: dayBlk, night: nightBlk };
@@ -2046,16 +2369,18 @@
         totalLabel.textContent = (scope.key === '全部' ? '本范围总产量' : '本筛选总产量');
       }
       var qty = 0;
+      var normalQty = 0;
       var hours = 0;
       var effHours = 0;
       (boardRows || []).forEach(function (r) {
         if (!r || !r.total) return;
         qty += Number(r.total.qty) || 0;
+        normalQty += Number(r.total.normalQty) || 0;
         hours += Number(r.total.hours) || 0;
         effHours += Number(r.total.effHours) || 0;
       });
       var avg = hours > 0 ? qty / hours : null;
-      var effAvg = effHours > 0 ? qty / effHours : null;
+      var effAvg = effHours > 0 ? normalQty / effHours : null;
       var elTotal = document.getElementById('kpiTotal');
       var elHours = document.getElementById('kpiHours');
       var elAvg = document.getElementById('kpiAvg');
@@ -2075,6 +2400,7 @@
       var body = document.getElementById('rankBody');
       if (!body) return;
       var driverFilter = getSelectedRankDrivers();
+      var machinesFilter = getSelectedMachines();
       var rows = buildRankDriverBoardRows(scope.rows);
       if (driverFilter !== null) {
         rows = rows.filter(function (r) { return driverFilter.indexOf(r.name) >= 0; });
@@ -2086,7 +2412,10 @@
         return be - ae;
       });
       if (!rows.length) {
-        body.innerHTML = '<tr><td colspan="16" class="px-4 py-10 text-center text-slate-400">当前未选中任何司机，或无匹配数据</td></tr>';
+        var emptyMsg = (machinesFilter && !machinesFilter.length)
+          ? '当前未选中任何机械，或无匹配数据'
+          : '当前未选中任何司机，或无匹配数据';
+        body.innerHTML = '<tr><td colspan="16" class="px-4 py-10 text-center text-slate-400">' + emptyMsg + '</td></tr>';
         return;
       }
       body.innerHTML = rows.map(function (r) {
@@ -2104,13 +2433,14 @@
       var cargos = listEvidenceCargos(v);
       var dayIdxs = getEvidenceDayIndicesInRange();
       var scope = resolveRankScope();
+      var evidenceData = scope.evidenceData || EVIDENCE_DATA;
       var rankMap = aggregateRankHoursByDriver(scope.rows);
       var driverFilter = getSelectedRankDrivers();
       var nameSet = {};
 
       Object.keys(rankMap).forEach(function (n) { nameSet[n] = true; });
       cargos.forEach(function (cargo) {
-        var pack = EVIDENCE_DATA[cargo];
+        var pack = evidenceData[cargo];
         if (!pack || !pack.masters) return;
         Object.keys(pack.masters).forEach(function (n) { nameSet[n] = true; });
       });
@@ -2121,9 +2451,13 @@
       });
 
       var metrics = names.map(function (name) {
-        var series = driverDaySeriesInScope(name, cargos);
-        var rk = rankMap[name] || { hours: 0, totalQty: 0 };
-        return calcDriverEvidenceMetrics(name, series, dayIdxs, rk.hours, rk.totalQty);
+        var series = driverDaySeriesInScope(name, cargos, evidenceData);
+        var seriesNormal = driverDaySeriesNormalInScope(name, cargos, evidenceData);
+        var rk = rankMap[name] || { hours: 0, normalHours: 0, totalQty: 0, normalQty: 0 };
+        return calcDriverEvidenceMetrics(
+          name, series, seriesNormal, dayIdxs,
+          rk.hours, rk.totalQty, rk.normalHours, rk.normalQty
+        );
       }).filter(function (m) {
         return m.totalQty > 0 || m.totalHours > 0;
       });
@@ -2141,8 +2475,12 @@
 
       var cargoLabel = scope.label || '当前筛选';
       var title = '按司机 · ' + cargoLabel;
-      var hint = '横轴=司机；左轴=总作业量（吨）；右轴=总平均量/有效平均量（吨/小时）。时间取开班日起止；货种筛选后汇总到司机。';
-      var foot = '总平均量=总作业量÷总时长；有效平均量=总作业量÷有效时长（剔除产量为 0 的填报时段；演示按日近似）。';
+      var machineHint = getMachineFilterLabel();
+      var hint = '横轴=司机；左轴=总作业量（吨）；右轴=总平均量/有效平均量（吨/小时）。时间取开班日起止；货种与机械筛选后汇总到司机。';
+      if (machineHint && machineHint !== '未选机械') {
+        hint += ' 当前机械：' + machineHint + '。';
+      }
+      var foot = '总平均量=总作业量÷总时长；有效平均量=正常作业量÷有效时长（备注有内容视为异常，不计入有效平均；有效时长另剔除产量为 0 的填报日）。';
 
       var hintEl = document.getElementById('evidenceHint');
       var footEl = document.getElementById('evidenceFoot');
@@ -2179,6 +2517,7 @@
     function initEvidenceChart() {
       syncVolumeTrendRangeDefaults();
       syncTopCargoCascade();
+      initMachineMultiSelect();
       initRankDriverMultiSelect();
       if (typeof CargoCascade !== 'undefined') {
         trendCargoCtl = CargoCascade.bindPair(
