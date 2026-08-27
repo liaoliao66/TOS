@@ -26,16 +26,20 @@ OUT_JSON = ROOT / "prototype" / "versions" / "v1.0.0" / "assets" / "real-work-st
 OUT_JS = ROOT / "prototype" / "versions" / "v1.0.0" / "assets" / "real-work-stat-demo.js"
 
 L1_MAP = {
-    "工铵吨包": "吨包袋",
+    "吨包": "吨包袋",
     "氧化钙": "散货",
     "氮磷肥": "散货",
     "硫矿": "散货",
     "磷矿": "散货",
     "二氢钾": "散货",
-    "吨包": "吨包袋",
     "硫磺": "散货",
     "磷酸二氢氨": "散货",
     "脱硫石膏": "散货",
+}
+
+# Excel 历史写法 → 统一二级货种名
+CARGO_ALIASES = {
+    "工铵吨包": "吨包",
 }
 
 
@@ -57,7 +61,7 @@ def norm_cargo(v):
         return None
     if s.replace("，", ",") == "二氢钾,氮磷肥":
         return "二氢钾"
-    return s
+    return CARGO_ALIASES.get(s, s)
 
 
 def to_num(v):
@@ -147,7 +151,8 @@ def parse_sheet(ws):
                 else:
                     cargo = cargo_ff.get(key)
 
-                qty = to_num(ws.cell(r, m["作业量"]).value) if "作业量" in m else None
+                qty_raw = to_num(ws.cell(r, m["作业量"]).value) if "作业量" in m else None
+                qty = qty_raw if qty_raw is not None else 0.0
                 machine = ws.cell(r, m["机械名称"]).value if "机械名称" in m else None
                 if isinstance(machine, str):
                     machine = machine.strip() or None
@@ -157,8 +162,6 @@ def parse_sheet(ws):
                 elif remark is not None:
                     remark = str(remark).strip() or None
 
-                if qty is None or qty == 0:
-                    continue
                 if not driver or not cargo:
                     continue
 
@@ -173,7 +176,7 @@ def parse_sheet(ws):
                         "cargo": cargo,
                         "qty": round(qty, 2),
                         "remark": remark,
-                        "abnormal": bool(remark),
+                        "abnormal": bool(remark) if qty > 0 else False,
                     }
                 )
     return records
@@ -247,13 +250,16 @@ def hydrate_rank_rows(rows: list[dict]) -> list[dict]:
     out_rows = []
     for r in rows:
         h = r["hours"] or 0
+        eh = r.get("effHours") or 0
         out_rows.append(
             {
                 "name": r["name"],
                 "shift": r["shift"],
                 "hours": r["hours"],
+                "effHours": r.get("effHours", 0),
                 "totalQty": r["totalQty"],
                 "totalAvg": (r["totalQty"] / h) if h else 0,
+                "effAvg": (r["totalQty"] / eh) if eh else 0,
                 "normalQty": r["normalQty"],
                 "normalAvg": (r["normalQty"] / h) if h else 0,
                 "abnormalQty": r["abnormalQty"],
@@ -269,10 +275,27 @@ def build_driver_scope(
     drivers: list[str],
     cargos: list[str],
 ) -> dict:
-    """司机效率页专用：按记录子集汇总榜单与日序列。"""
+    """司机效率页专用：按记录子集汇总榜单与日序列（时长最小单位 1 小时）。"""
+    date_index = {d: i for i, d in enumerate(dates)}
     by_driver_cargo_day = {c: {dr: {d: 0.0 for d in dates} for dr in drivers} for c in cargos}
+    by_driver_cargo_shift_day = {
+        c: {dr: {"白班": {d: 0.0 for d in dates}, "夜班": {d: 0.0 for d in dates}} for dr in drivers}
+        for c in cargos
+    }
+    by_driver_cargo_shift_day_hours = {
+        c: {
+            dr: {
+                "白班": {d: {"total": 0, "eff": 0} for d in dates},
+                "夜班": {d: {"total": 0, "eff": 0} for d in dates},
+            }
+            for dr in drivers
+        }
+        for c in cargos
+    }
     hours_driver_shift_cargo: dict[tuple, float] = defaultdict(float)
+    eff_hours_driver_shift_cargo: dict[tuple, float] = defaultdict(float)
     hours_driver_shift: dict[tuple, float] = defaultdict(float)
+    eff_hours_driver_shift: dict[tuple, float] = defaultdict(float)
     qty_driver_shift_cargo: dict[tuple, dict] = defaultdict(
         lambda: {"total": 0.0, "normal": 0.0, "abnormal": 0.0}
     )
@@ -281,43 +304,88 @@ def build_driver_scope(
     )
     seen_hour: set[tuple] = set()
     seen_hour_all: set[tuple] = set()
+    seen_shift_day_hour: set[tuple] = set()
 
     for r in records:
-        by_driver_cargo_day[r["cargo"]][r["driver"]][r["date"]] += r["qty"]
-        k = (r["driver"], r["shift"], r["cargo"], r["date"], r["period"])
-        k2 = (r["driver"], r["shift"], r["date"], r["period"])
+        d = r["date"]
+        if d not in date_index:
+            continue
+        qty = r["qty"] or 0
+        if qty > 0:
+            by_driver_cargo_day[r["cargo"]][r["driver"]][d] += qty
+            by_driver_cargo_shift_day[r["cargo"]][r["driver"]][r["shift"]][d] += qty
+
+        k = (r["driver"], r["shift"], r["cargo"], d, r["period"])
+        k2 = (r["driver"], r["shift"], d, r["period"])
+        k3 = (r["driver"], r["shift"], r["cargo"], d, r["period"])
         if k not in seen_hour:
             seen_hour.add(k)
             hours_driver_shift_cargo[(r["driver"], r["shift"], r["cargo"])] += 1.0
+            if qty > 0:
+                eff_hours_driver_shift_cargo[(r["driver"], r["shift"], r["cargo"])] += 1.0
         if k2 not in seen_hour_all:
             seen_hour_all.add(k2)
             hours_driver_shift[(r["driver"], r["shift"])] += 1.0
+            if qty > 0:
+                eff_hours_driver_shift[(r["driver"], r["shift"])] += 1.0
+        if k3 not in seen_shift_day_hour:
+            seen_shift_day_hour.add(k3)
+            bucket = by_driver_cargo_shift_day_hours[r["cargo"]][r["driver"]][r["shift"]][d]
+            bucket["total"] += 1
+            if qty > 0:
+                bucket["eff"] += 1
+
+        if qty <= 0:
+            continue
+
         bucket = qty_driver_shift_cargo[(r["driver"], r["shift"], r["cargo"])]
-        bucket["total"] += r["qty"]
+        bucket["total"] += qty
         if r["abnormal"]:
-            bucket["abnormal"] += r["qty"]
+            bucket["abnormal"] += qty
         else:
-            bucket["normal"] += r["qty"]
+            bucket["normal"] += qty
         bucket2 = qty_driver_shift[(r["driver"], r["shift"])]
-        bucket2["total"] += r["qty"]
+        bucket2["total"] += qty
         if r["abnormal"]:
-            bucket2["abnormal"] += r["qty"]
+            bucket2["abnormal"] += qty
         else:
-            bucket2["normal"] += r["qty"]
+            bucket2["normal"] += qty
 
     evidence: dict = {}
     for c in cargos:
         masters = {}
+        shift_qty_masters: dict = {}
+        shift_hour_masters: dict = {}
         for dr in drivers:
             series = [round(by_driver_cargo_day[c][dr][d], 2) for d in dates]
             if sum(series) > 0:
                 masters[dr] = series
+            day_qty = [round(by_driver_cargo_shift_day[c][dr]["白班"][d], 2) for d in dates]
+            night_qty = [round(by_driver_cargo_shift_day[c][dr]["夜班"][d], 2) for d in dates]
+            day_total_h = [
+                by_driver_cargo_shift_day_hours[c][dr]["白班"][d]["total"] for d in dates
+            ]
+            day_eff_h = [by_driver_cargo_shift_day_hours[c][dr]["白班"][d]["eff"] for d in dates]
+            night_total_h = [
+                by_driver_cargo_shift_day_hours[c][dr]["夜班"][d]["total"] for d in dates
+            ]
+            night_eff_h = [
+                by_driver_cargo_shift_day_hours[c][dr]["夜班"][d]["eff"] for d in dates
+            ]
+            if sum(day_qty) + sum(night_qty) > 0 or sum(day_total_h) + sum(night_total_h) > 0:
+                shift_qty_masters[dr] = {"白班": day_qty, "夜班": night_qty}
+                shift_hour_masters[dr] = {
+                    "白班": {"total": day_total_h, "eff": day_eff_h},
+                    "夜班": {"total": night_total_h, "eff": night_eff_h},
+                }
         flat = [v for series in masters.values() for v in series if v > 0]
         evidence[c] = {
             "avg": round(sum(flat) / len(flat), 2) if flat else 0,
             "max": round(max(flat), 2) if flat else 0,
             "min": round(min(flat), 2) if flat else 0,
             "masters": masters,
+            "shiftQtyMasters": shift_qty_masters,
+            "shiftHourMasters": shift_hour_masters,
         }
 
     def make_rank(scope_filter):
@@ -325,11 +393,13 @@ def build_driver_scope(
         if scope_filter is None:
             for (dr, sh), q in sorted(qty_driver_shift.items()):
                 h = hours_driver_shift[(dr, sh)]
+                eh = eff_hours_driver_shift[(dr, sh)]
                 rows.append(
                     {
                         "name": dr,
                         "shift": sh,
-                        "hours": round(h, 2),
+                        "hours": int(h),
+                        "effHours": int(eh),
                         "totalQty": round(q["total"], 2),
                         "normalQty": round(q["normal"], 2),
                         "abnormalQty": round(q["abnormal"], 2),
@@ -341,11 +411,13 @@ def build_driver_scope(
                 if c != cargo:
                     continue
                 h = hours_driver_shift_cargo[(dr, sh, c)]
+                eh = eff_hours_driver_shift_cargo[(dr, sh, c)]
                 rows.append(
                     {
                         "name": dr,
                         "shift": sh,
-                        "hours": round(h, 2),
+                        "hours": int(h),
+                        "effHours": int(eh),
                         "totalQty": round(q["total"], 2),
                         "normalQty": round(q["normal"], 2),
                         "abnormalQty": round(q["abnormal"], 2),
@@ -355,26 +427,32 @@ def build_driver_scope(
             l1 = scope_filter[1]
             kids = [c for c, p in L1_MAP.items() if p == l1]
             agg = defaultdict(lambda: {"total": 0.0, "normal": 0.0, "abnormal": 0.0})
-            hours = defaultdict(float)
+            hours = defaultdict(int)
+            eff_hours = defaultdict(int)
             seen = set()
             for r in records:
                 if r["cargo"] not in kids:
                     continue
-                agg[(r["driver"], r["shift"])]["total"] += r["qty"]
-                if r["abnormal"]:
-                    agg[(r["driver"], r["shift"])]["abnormal"] += r["qty"]
-                else:
-                    agg[(r["driver"], r["shift"])]["normal"] += r["qty"]
+                qty = r["qty"] or 0
+                if qty > 0:
+                    agg[(r["driver"], r["shift"])]["total"] += qty
+                    if r["abnormal"]:
+                        agg[(r["driver"], r["shift"])]["abnormal"] += qty
+                    else:
+                        agg[(r["driver"], r["shift"])]["normal"] += qty
                 kk = (r["driver"], r["shift"], r["date"], r["period"])
                 if kk not in seen:
                     seen.add(kk)
-                    hours[(r["driver"], r["shift"])] += 1.0
+                    hours[(r["driver"], r["shift"])] += 1
+                    if qty > 0:
+                        eff_hours[(r["driver"], r["shift"])] += 1
             for (dr, sh), q in sorted(agg.items()):
                 rows.append(
                     {
                         "name": dr,
                         "shift": sh,
-                        "hours": round(hours[(dr, sh)], 2),
+                        "hours": hours[(dr, sh)],
+                        "effHours": eff_hours[(dr, sh)],
                         "totalQty": round(q["total"], 2),
                         "normalQty": round(q["normal"], 2),
                         "abnormalQty": round(q["abnormal"], 2),
@@ -464,6 +542,7 @@ def build_payload(records: list[dict], sources: list[str]) -> dict:
             "name": r["name"],
             "shift": r["shift"],
             "hours": r["hours"],
+            "effHours": r.get("effHours", 0),
             "totalQty": r["totalQty"],
             "normalQty": r["normalQty"],
             "abnormalQty": r["abnormalQty"],
@@ -476,6 +555,7 @@ def build_payload(records: list[dict], sources: list[str]) -> dict:
                 "name": r["name"],
                 "shift": r["shift"],
                 "hours": r["hours"],
+                "effHours": r.get("effHours", 0),
                 "totalQty": r["totalQty"],
                 "normalQty": r["normalQty"],
                 "abnormalQty": r["abnormalQty"],
@@ -490,6 +570,7 @@ def build_payload(records: list[dict], sources: list[str]) -> dict:
                 "name": r["name"],
                 "shift": r["shift"],
                 "hours": r["hours"],
+                "effHours": r.get("effHours", 0),
                 "totalQty": r["totalQty"],
                 "normalQty": r["normalQty"],
                 "abnormalQty": r["abnormalQty"],
@@ -595,7 +676,7 @@ def build_payload(records: list[dict], sources: list[str]) -> dict:
             "硫矿": "#7c3aed",
             "磷矿": "#0891b2",
             "二氢钾": "#ca8a04",
-            "工铵吨包": "#db2777",
+            "吨包": "#db2777",
         },
         "MASTER_COLORS": {
             "涂峰": "#0f766e",

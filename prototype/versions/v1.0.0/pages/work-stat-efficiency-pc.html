@@ -280,7 +280,7 @@
               <div class="relative h-96">
                 <canvas id="evidenceChart"></canvas>
               </div>
-              <div class="mt-3 text-xs text-slate-400" id="evidenceFoot">柱状三项：总作业量（左轴·吨）、总平均量=总作业量÷总时长、有效平均量=作业量不为0的合计÷相应有效时长（右轴·吨/小时）；有效时长剔除产量为 0 的填报时段。</div>
+              <div class="mt-3 text-xs text-slate-400" id="evidenceFoot">柱状三项：总作业量（左轴·吨）、总平均量=总作业量÷总时长、有效平均量=非零产量÷有效作业时长（右轴·吨/小时）；有效时长按填报时段计数，最小单位 1 小时。</div>
             </div>
 
             <div class="card overflow-hidden">
@@ -569,8 +569,8 @@
       <ul class="text-sm text-slate-600 space-y-2 list-disc pl-5">
         <li>横轴为司机；每个司机并排展示三项：总作业量、总平均量、有效平均量。</li>
         <li>纵轴左侧为总作业量（吨），右侧为平均量（吨/小时）；已取消日/周/月切换，时间范围取顶部开班日起止。</li>
-        <li>总平均量 = 总作业量 ÷ 总时长；有效平均量 = 作业量不为 0 的合计 ÷ 相应有效时长。</li>
-        <li>有效作业量：产量不为 0 的填报均计入；有效时长为上述时段对应时长（演示按日汇总时，产量为 0 的日不计入有效时长）。</li>
+        <li>总平均量 = 总作业量 ÷ 总时长；有效平均量 = 非零产量合计 ÷ 有效作业时长。</li>
+        <li>有效作业量：产量不为 0 的填报均计入；有效时长按填报时段计数（最小单位 1 小时），产量为 0 的时段不计入。</li>
         <li>货种与机械筛选保留：全部/一级/二级均按当前范围汇总到司机；不再按货种出柱。</li>
         <li>已去掉平均/最大/最小基准虚线；数据仅含已通过记录。</li>
       </ul>
@@ -858,14 +858,17 @@
     var dailyDetailPage = 1;
     var DAILY_DETAIL_PAGE_SIZE = 20;
 
-    /* 司机效率榜：一司机一行；白/夜分列；时长单位小时 */
-    function makeRankRow(name, shift, hours, totalQty, normalQty, abnormalQty) {
+    /* 司机效率榜：一司机一行；白/夜分列；时长单位小时（最小 1 小时整数） */
+    function makeRankRow(name, shift, hours, totalQty, normalQty, abnormalQty, effHours) {
+      var eh = effHours != null ? effHours : hours;
       return {
         name: name,
         shift: shift,
         hours: hours,
+        effHours: eh,
         totalQty: totalQty,
         totalAvg: hours ? totalQty / hours : 0,
+        effAvg: eh ? totalQty / eh : 0,
         normalQty: normalQty,
         normalAvg: hours ? normalQty / hours : 0,
         abnormalQty: abnormalQty,
@@ -875,7 +878,7 @@
 
     function hydrateRankRows(list) {
       return (list || []).map(function (r) {
-        return makeRankRow(r.name, r.shift, r.hours, r.totalQty, r.normalQty, r.abnormalQty);
+        return makeRankRow(r.name, r.shift, r.hours, r.totalQty, r.normalQty, r.abnormalQty, r.effHours);
       });
     }
 
@@ -1824,14 +1827,49 @@
       return [v.l2];
     }
 
-    function driverDaySeriesInScope(driverName, cargos, evidenceData) {
+    function sumDayIndices(series, dayIdxs) {
+      return (dayIdxs || []).reduce(function (s, i) {
+        return s + (Number(series[i]) || 0);
+      }, 0);
+    }
+
+    function driverShiftQtySeriesInScope(driverName, shift, cargos, evidenceData) {
       var data = evidenceData || getActiveEvidenceData();
       return EVIDENCE_DAYS.map(function (_, i) {
         return cargos.reduce(function (s, cargo) {
           var pack = data[cargo];
-          var arr = pack && pack.masters && pack.masters[driverName];
+          var sq = pack && pack.shiftQtyMasters && pack.shiftQtyMasters[driverName];
+          var arr = sq && sq[shift];
           return s + (arr && arr[i] != null ? Number(arr[i]) || 0 : 0);
         }, 0);
+      });
+    }
+
+    function driverDaySeriesInScope(driverName, cargos, evidenceData) {
+      var dayQty = driverShiftQtySeriesInScope(driverName, '白班', cargos, evidenceData);
+      var nightQty = driverShiftQtySeriesInScope(driverName, '夜班', cargos, evidenceData);
+      return EVIDENCE_DAYS.map(function (_, i) {
+        return (Number(dayQty[i]) || 0) + (Number(nightQty[i]) || 0);
+      });
+    }
+
+    function driverShiftHourSeriesInScope(driverName, shift, hourKind, cargos, evidenceData) {
+      var data = evidenceData || getActiveEvidenceData();
+      return EVIDENCE_DAYS.map(function (_, i) {
+        return cargos.reduce(function (s, cargo) {
+          var pack = data[cargo];
+          var sh = pack && pack.shiftHourMasters && pack.shiftHourMasters[driverName];
+          var arr = sh && sh[shift] && sh[shift][hourKind];
+          return s + (arr && arr[i] != null ? Number(arr[i]) || 0 : 0);
+        }, 0);
+      });
+    }
+
+    function driverCombinedHourSeriesInScope(driverName, hourKind, cargos, evidenceData) {
+      var day = driverShiftHourSeriesInScope(driverName, '白班', hourKind, cargos, evidenceData);
+      var night = driverShiftHourSeriesInScope(driverName, '夜班', hourKind, cargos, evidenceData);
+      return EVIDENCE_DAYS.map(function (_, i) {
+        return (Number(day[i]) || 0) + (Number(night[i]) || 0);
       });
     }
 
@@ -1841,10 +1879,11 @@
         (rows || []).forEach(function (r) {
           var key = r.name + '\0' + r.shift;
           if (!map[key]) {
-            map[key] = makeRankRow(r.name, r.shift, 0, 0, 0, 0);
+            map[key] = makeRankRow(r.name, r.shift, 0, 0, 0, 0, 0);
           }
           var m = map[key];
           m.hours += Number(r.hours) || 0;
+          m.effHours += Number(r.effHours != null ? r.effHours : r.hours) || 0;
           m.totalQty += Number(r.totalQty) || 0;
           m.normalQty += Number(r.normalQty) || 0;
           m.abnormalQty += Number(r.abnormalQty) || 0;
@@ -1853,18 +1892,42 @@
       return Object.keys(map).map(function (k) {
         var m = map[k];
         m.totalAvg = m.hours ? m.totalQty / m.hours : 0;
+        m.effAvg = m.effHours ? m.totalQty / m.effHours : 0;
         m.normalAvg = m.hours ? m.normalQty / m.hours : 0;
         m.abnormalAvg = m.hours ? m.abnormalQty / m.hours : 0;
         return m;
       });
     }
 
+    function mergeShiftSeries(dst, src, len) {
+      if (!src || !src.length) return dst;
+      if (!dst || !dst.length) return src.slice();
+      var out = dst.slice();
+      src.forEach(function (v, i) {
+        if (i >= len) return;
+        out[i] = (Number(out[i]) || 0) + (Number(v) || 0);
+      });
+      return out;
+    }
+
+    function mergeShiftHourPack(dst, src, len) {
+      if (!src) {
+        return dst || { total: EVIDENCE_DAYS.map(function () { return 0; }), eff: EVIDENCE_DAYS.map(function () { return 0; }) };
+      }
+      var base = dst || { total: EVIDENCE_DAYS.map(function () { return 0; }), eff: EVIDENCE_DAYS.map(function () { return 0; }) };
+      return {
+        total: mergeShiftSeries(base.total, src.total, len),
+        eff: mergeShiftSeries(base.eff, src.eff, len)
+      };
+    }
+
     function mergeEvidenceData(slices) {
       var out = {};
+      var len = EVIDENCE_DAYS.length;
       (slices || []).forEach(function (src) {
         Object.keys(src || {}).forEach(function (cargo) {
           if (!out[cargo]) {
-            out[cargo] = { masters: {} };
+            out[cargo] = { masters: {}, shiftQtyMasters: {}, shiftHourMasters: {} };
           }
           var sp = src[cargo] || {};
           var dp = out[cargo];
@@ -1876,6 +1939,28 @@
             var dArr = dp.masters[driver];
             sArr.forEach(function (v, i) {
               dArr[i] = (Number(dArr[i]) || 0) + (Number(v) || 0);
+            });
+          });
+          ['白班', '夜班'].forEach(function (shift) {
+            Object.keys(sp.shiftQtyMasters || {}).forEach(function (driver) {
+              var sq = sp.shiftQtyMasters[driver] || {};
+              if (!dp.shiftQtyMasters[driver]) {
+                dp.shiftQtyMasters[driver] = {
+                  白班: EVIDENCE_DAYS.map(function () { return 0; }),
+                  夜班: EVIDENCE_DAYS.map(function () { return 0; })
+                };
+              }
+              dp.shiftQtyMasters[driver][shift] = mergeShiftSeries(dp.shiftQtyMasters[driver][shift], sq[shift], len);
+            });
+            Object.keys(sp.shiftHourMasters || {}).forEach(function (driver) {
+              var sh = sp.shiftHourMasters[driver] || {};
+              if (!dp.shiftHourMasters[driver]) {
+                dp.shiftHourMasters[driver] = {
+                  白班: { total: EVIDENCE_DAYS.map(function () { return 0; }), eff: EVIDENCE_DAYS.map(function () { return 0; }) },
+                  夜班: { total: EVIDENCE_DAYS.map(function () { return 0; }), eff: EVIDENCE_DAYS.map(function () { return 0; }) }
+                };
+              }
+              dp.shiftHourMasters[driver][shift] = mergeShiftHourPack(dp.shiftHourMasters[driver][shift], sh[shift], len);
             });
           });
         });
@@ -1941,24 +2026,22 @@
     }
 
     /**
-     * 有效平均：作业量不为 0 的合计 ÷ 相应有效时长。
-     * 演示按日汇总：有效时长 = 开班日范围内总时长 ×（有产量日 / 首末有产量日跨度）。
+     * 有效平均：非零产量合计 ÷ 有效作业时长（按填报时段计数，最小 1 小时整数）。
      */
-    function calcDriverEvidenceMetrics(driverName, daySeries, dayIdxs, rankHours, rankQty) {
-      var scaled = scaleShiftByDate(rankQty, rankHours, daySeries, dayIdxs);
-      var totalQty = scaled.qty;
-      var totalHours = scaled.hours;
-      var effRatio = calcEffRatio(daySeries, dayIdxs);
-      var effectiveHours = totalHours > 0 ? totalHours * effRatio : 0;
-      var totalAvg = totalHours > 0 ? totalQty / totalHours : null;
-      var effectiveAvg = effectiveHours > 0 ? totalQty / effectiveHours : null;
+    function calcDriverEvidenceMetrics(driverName, cargos, evidenceData, dayIdxs) {
+      var qtySeries = driverDaySeriesInScope(driverName, cargos, evidenceData);
+      var totalHourSeries = driverCombinedHourSeriesInScope(driverName, 'total', cargos, evidenceData);
+      var effHourSeries = driverCombinedHourSeriesInScope(driverName, 'eff', cargos, evidenceData);
+      var totalQty = sumDayIndices(qtySeries, dayIdxs);
+      var totalHours = sumDayIndices(totalHourSeries, dayIdxs);
+      var effectiveHours = sumDayIndices(effHourSeries, dayIdxs);
       return {
         name: driverName,
         totalQty: totalQty,
         totalHours: totalHours,
         effectiveHours: effectiveHours,
-        totalAvg: totalAvg,
-        effectiveAvg: effectiveAvg
+        totalAvg: totalHours > 0 ? totalQty / totalHours : null,
+        effectiveAvg: effectiveHours > 0 ? totalQty / effectiveHours : null
       };
     }
 
@@ -2174,46 +2257,11 @@
       };
     }
 
-    function calcEffRatio(daySeries, dayIdxs) {
-      var filtered = (dayIdxs || []).map(function (i) { return Number(daySeries[i]) || 0; });
-      var first = -1;
-      var last = -1;
-      var nonzero = 0;
-      filtered.forEach(function (v, i) {
-        if (v > 0) {
-          if (first < 0) first = i;
-          last = i;
-          nonzero += 1;
-        }
-      });
-      var span = (first >= 0 && last >= first) ? (last - first + 1) : 0;
-      if (!span) return 0;
-      return nonzero / span;
-    }
-
-    function scaleShiftByDate(rankQty, rankHours, daySeries, dayIdxs) {
-      var fullQty = (daySeries || []).reduce(function (s, v) { return s + (Number(v) || 0); }, 0);
-      var filteredQty = (dayIdxs || []).reduce(function (s, i) { return s + (Number(daySeries[i]) || 0); }, 0);
-      var hours = Number(rankHours) || 0;
-      var qty = Number(rankQty) || 0;
-      if (fullQty > 0) {
-        var ratio = filteredQty / fullQty;
-        return { qty: qty * ratio, hours: hours * ratio };
-      }
-      if (EVIDENCE_DAYS.length && dayIdxs && dayIdxs.length) {
-        var dr = dayIdxs.length / EVIDENCE_DAYS.length;
-        return { qty: qty * dr, hours: hours * dr };
-      }
-      return { qty: qty, hours: hours };
-    }
-
-    function buildMetricBlock(rankQty, rankHours, daySeries, dayIdxs) {
-      if (rankQty == null || rankHours == null) return null;
-      var scaled = scaleShiftByDate(rankQty, rankHours, daySeries, dayIdxs);
-      var q = scaled.qty;
-      var h = scaled.hours;
-      var effRatio = calcEffRatio(daySeries, dayIdxs);
-      var effH = h > 0 ? h * effRatio : 0;
+    function buildMetricBlock(qtySeries, totalHourSeries, effHourSeries, dayIdxs) {
+      var q = sumDayIndices(qtySeries, dayIdxs);
+      var h = sumDayIndices(totalHourSeries, dayIdxs);
+      var effH = sumDayIndices(effHourSeries, dayIdxs);
+      if (q <= 0 && h <= 0 && effH <= 0) return null;
       return {
         qty: q,
         hours: h,
@@ -2250,7 +2298,7 @@
 
     function fmtRankHours(v) {
       if (v == null || isNaN(v)) return fmtRankDash();
-      return (Math.round(Number(v) * 100) / 100) + ' 小时';
+      return Math.round(Number(v)).toLocaleString('zh-CN') + ' 小时';
     }
 
     function fmtRankAvg(v) {
@@ -2295,15 +2343,14 @@
 
       return Object.keys(byName).map(function (name) {
         var item = byName[name];
-        var series = driverDaySeriesInScope(name, cargos, evidenceData);
-        var dayBlk = null;
-        var nightBlk = null;
-        if (item.dayRaw) {
-          dayBlk = buildMetricBlock(item.dayRaw.qty, item.dayRaw.hours, series, dayIdxs);
-        }
-        if (item.nightRaw) {
-          nightBlk = buildMetricBlock(item.nightRaw.qty, item.nightRaw.hours, series, dayIdxs);
-        }
+        var dayQty = driverShiftQtySeriesInScope(name, '白班', cargos, evidenceData);
+        var nightQty = driverShiftQtySeriesInScope(name, '夜班', cargos, evidenceData);
+        var dayTotalH = driverShiftHourSeriesInScope(name, '白班', 'total', cargos, evidenceData);
+        var dayEffH = driverShiftHourSeriesInScope(name, '白班', 'eff', cargos, evidenceData);
+        var nightTotalH = driverShiftHourSeriesInScope(name, '夜班', 'total', cargos, evidenceData);
+        var nightEffH = driverShiftHourSeriesInScope(name, '夜班', 'eff', cargos, evidenceData);
+        var dayBlk = buildMetricBlock(dayQty, dayTotalH, dayEffH, dayIdxs);
+        var nightBlk = buildMetricBlock(nightQty, nightTotalH, nightEffH, dayIdxs);
         var totalBlk = mergeMetricBlocks(dayBlk, nightBlk);
         return { name: name, total: totalBlk, day: dayBlk, night: nightBlk };
       });
@@ -2332,9 +2379,9 @@
       var elEffHours = document.getElementById('kpiEffHours');
       var elEffAvg = document.getElementById('kpiEffAvg');
       if (elTotal) elTotal.textContent = fmtNum(qty);
-      if (elHours) elHours.textContent = (Math.round(hours * 100) / 100).toLocaleString('zh-CN');
+      if (elHours) elHours.textContent = Math.round(hours).toLocaleString('zh-CN');
       if (elAvg) elAvg.textContent = avg == null ? '—' : avg.toFixed(2);
-      if (elEffHours) elEffHours.textContent = (Math.round(effHours * 100) / 100).toLocaleString('zh-CN');
+      if (elEffHours) elEffHours.textContent = Math.round(effHours).toLocaleString('zh-CN');
       if (elEffAvg) elEffAvg.textContent = effAvg == null ? '—' : effAvg.toFixed(2);
     }
 
@@ -2396,9 +2443,7 @@
       });
 
       var metrics = names.map(function (name) {
-        var series = driverDaySeriesInScope(name, cargos, evidenceData);
-        var rk = rankMap[name] || { hours: 0, totalQty: 0 };
-        return calcDriverEvidenceMetrics(name, series, dayIdxs, rk.hours, rk.totalQty);
+        return calcDriverEvidenceMetrics(name, cargos, evidenceData, dayIdxs);
       }).filter(function (m) {
         return m.totalQty > 0 || m.totalHours > 0;
       });
@@ -2421,7 +2466,7 @@
       if (machineHint && machineHint !== '未选机械') {
         hint += ' 当前机械：' + machineHint + '。';
       }
-      var foot = '总平均量=总作业量÷总时长；有效平均量=作业量不为0的合计÷相应有效时长（有效时长剔除产量为 0 的填报时段；演示按日近似）。';
+      var foot = '总平均量=总作业量÷总时长；有效平均量=非零产量合计÷有效作业时长（按填报时段计数，最小单位 1 小时；产量为 0 的时段不计入有效时长）。';
 
       var hintEl = document.getElementById('evidenceHint');
       var footEl = document.getElementById('evidenceFoot');
@@ -2718,7 +2763,7 @@ function answerQuestion(q) {
   if (q.indexOf('二氢钾') >= 0) { appendBot(resultEfficiency('二氢钾')); return; }
   if (q.indexOf('氮磷肥') >= 0) { appendBot(resultEfficiency('氮磷肥')); return; }
   if (q.indexOf('硫矿') >= 0) { appendBot(resultEfficiency('硫矿')); return; }
-  if (q.indexOf('工铵') >= 0) { appendBot(resultEfficiency('工铵吨包')); return; }
+  if (q.indexOf('工铵') >= 0 || q.indexOf('吨包') >= 0) { appendBot(resultEfficiency('吨包')); return; }
   if (q.indexOf('效率') >= 0 || q.indexOf('司机') >= 0 || q.indexOf('师傅') >= 0 || q.indexOf('排名') >= 0 || q.indexOf('氧化钙') >= 0) { appendBot(resultEfficiency('氧化钙')); return; }
   if (q.indexOf('货种') >= 0) { appendBot(resultCargo()); return; }
   if (q.indexOf('总作业') >= 0 || q.indexOf('全港') >= 0) {

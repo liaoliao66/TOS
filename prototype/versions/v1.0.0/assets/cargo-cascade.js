@@ -5,7 +5,7 @@
  */
 (function (global) {
   var FALLBACK = [
-    { name: '吨包袋', children: ['工铵吨包', '吨包'] },
+    { name: '吨包袋', children: ['吨包'] },
     {
       name: '散货',
       children: ['二氢钾', '氧化钙', '氮磷肥', '硫矿', '硫磺', '磷矿', '磷酸二氢氨', '脱硫石膏']
