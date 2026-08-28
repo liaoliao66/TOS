@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>作业填报 · 企微H5</title>
+  <title>作业记录 · 企微H5</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../assets/work-stat-sheet-store.js"></script>
   <style>
-    :root { --brand: #0f766e; --brand-hover: #0d9488; }
+    :root { --brand: #0f766e; }
     body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; font-size: 14px; background: #f1f5f9; }
     .btn { border-radius: 20px; -webkit-transition: all .15s ease; transition: all .15s ease; }
     .btn:active { -webkit-transform: scale(0.95); transform: scale(0.95); }
@@ -19,28 +20,20 @@
     .badge-ok { background: #d1fae5; color: #047857; }
     .badge-reject { background: #fee2e2; color: #b91c1c; }
     .toast { position: absolute; top: 72px; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); z-index: 90; min-width: 220px; max-width: 90%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
-    .fade-in { -webkit-animation: fadeIn .2s ease; animation: fadeIn .2s ease; }
-    @-webkit-keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    .mask { position: absolute; inset: 0; background: rgba(15,23,42,0.45); z-index: 50; display: none; -webkit-box-align: end; -webkit-align-items: flex-end; align-items: flex-end; -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center; }
-    .mask.open { display: -webkit-box; display: -webkit-flex; display: flex; }
-    .sheet { width: 100%; background: #fff; border-radius: 20px 20px 0 0; padding: 16px 16px 20px; box-shadow: 0 -4px 20px rgba(0,0,0,0.08); }
-    .field label { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
-    .field input, .field select {
-      width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px;
-      font-size: 14px; min-height: 40px; background: #fff; box-sizing: border-box;
-    }
-    .shift-opt {
-      flex: 1; text-align: center; padding: 10px 0; border: 1px solid #e2e8f0; border-radius: 12px;
-      background: #f8fafc; color: #475569; font-size: 14px; cursor: pointer;
-    }
-    .shift-opt.active { border-color: #0f766e; background: #f0fdfa; color: #0f766e; font-weight: 600; }
     .page-bg { background: #e2e8f0; min-height: 100vh; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center; padding: 24px 12px; box-sizing: border-box; }
     .phone-frame { width: 390px; height: 844px; border-radius: 48px; border: 3px solid #e5e7eb; background: #0f172a; box-shadow: 0 12px 40px rgba(15,23,42,0.18); padding: 12px; box-sizing: border-box; }
     .phone-screen { width: 100%; height: 100%; border-radius: 36px; background: #f1f5f9; overflow: hidden; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-orient: vertical; -webkit-flex-direction: column; flex-direction: column; position: relative; }
     .phone-status { height: 28px; background: #fff; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; padding: 0 16px; font-size: 11px; color: #334155; border-bottom: 1px solid #f1f5f9; -webkit-flex-shrink: 0; flex-shrink: 0; }
     .phone-scroll { -webkit-box-flex: 1; -webkit-flex: 1; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; }
     .wecom-tag { font-size: 10px; color: #0f766e; background: #ccfbf1; border-radius: 999px; padding: 1px 8px; }
+    .field label { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
+    .field input, .field select { width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px; font-size: 14px; min-height: 40px; background: #fff; box-sizing: border-box; }
+    .op-link { color: #0f766e; font-size: 12px; background: none; border: none; padding: 0; margin-right: 12px; }
+    .op-ok { color: #047857; }
+    .op-reject { color: #dc2626; }
+    .mask { position: absolute; inset: 0; background: rgba(15,23,42,0.45); z-index: 60; display: none; -webkit-box-align: end; -webkit-align-items: flex-end; align-items: flex-end; }
+    .mask.open { display: -webkit-box; display: -webkit-flex; display: flex; }
+    .sheet { width: 100%; background: #fff; border-radius: 20px 20px 0 0; padding: 16px 16px 20px; }
   </style>
 </head>
 <body class="page-bg text-slate-800">
@@ -53,90 +46,68 @@
       </div>
 
       <div class="phone-scroll">
-        <header class="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 h-12 flex items-center relative">
-          <div class="absolute left-0 right-0 text-center font-semibold text-base pointer-events-none">作业填报</div>
-          <button type="button" class="btn btn-brand text-xs px-3 py-1.5 ml-auto relative z-10" onclick="openNewSheet()">新建日班</button>
+        <header class="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 h-12 flex items-center gap-3">
+          <div class="font-semibold text-base flex-1 text-center">作业记录</div>
+          <a href="work-stat-edit-wecom.html" class="text-teal-700 text-xs shrink-0">去填报</a>
         </header>
 
         <div class="px-4 pt-3 pb-2">
           <div class="text-xs text-teal-800 bg-teal-50 rounded-xl px-3 py-2">
-            新建日班需先选开班日与班次；同一开班日+班次不可重复创建。录明细后在单据页「提交审核」。
+            按开班日+班次展示 · <strong>白班/夜班各审批一次</strong>。一条记录=一个班次，含其下全部机台表。
           </div>
         </div>
 
-        <main class="px-4 space-y-3 pb-20">
-          <a href="work-stat-edit-wecom.html" class="card p-4 block active:bg-slate-50">
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <div class="font-medium">2026-07-29 · 白班</div>
-                <div class="text-xs text-slate-500 mt-1">已录 3 条 · 产量 246.50 吨</div>
-              </div>
-              <span class="badge badge-draft">草稿</span>
+        <div class="px-4 pb-2 card p-3 space-y-2">
+          <div class="grid grid-cols-2 gap-2">
+            <div class="field mb-0">
+              <label>开班日</label>
+              <input id="filterDate" type="date" />
             </div>
-            <div class="mt-2 text-xs text-teal-700">继续添加明细 / 提交审核 <i class="fa-solid fa-chevron-right text-[12px]"></i></div>
-          </a>
+            <div class="field mb-0">
+              <label>班次</label>
+              <select id="filterShift">
+                <option value="">全部</option>
+                <option value="白班">白班</option>
+                <option value="夜班">夜班</option>
+              </select>
+            </div>
+          </div>
+          <div class="field mb-0">
+            <label>状态</label>
+            <select id="filterStatus">
+              <option value="">全部</option>
+              <option>草稿</option>
+              <option>审批中</option>
+              <option>已驳回</option>
+              <option>已通过</option>
+            </select>
+          </div>
+          <div class="flex gap-2 pt-1">
+            <button type="button" class="btn btn-brand flex-1 py-2.5 text-sm" onclick="renderList()">查询</button>
+            <button type="button" class="btn border border-slate-200 bg-white flex-1 py-2.5 text-sm" onclick="resetFilters()">重置</button>
+          </div>
+        </div>
 
-          <a href="work-stat-view-wecom.html" class="card p-4 block active:bg-slate-50">
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <div class="font-medium">2026-07-28 · 夜班</div>
-                <div class="text-xs text-slate-500 mt-1">已录 8 条 · 产量 980.50 吨</div>
-              </div>
-              <span class="badge badge-pending">审批中</span>
-            </div>
-            <div class="mt-2 text-xs text-slate-500">已提交，等待平台处理</div>
-          </a>
-
-          <a href="work-stat-view-wecom.html" class="card p-4 block active:bg-slate-50">
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <div class="font-medium">2026-07-28 · 白班</div>
-                <div class="text-xs text-slate-500 mt-1">已录 12 条 · 产量 2,106.00 吨</div>
-              </div>
-              <span class="badge badge-ok">已通过</span>
-            </div>
-            <div class="mt-2 text-xs text-teal-700">查看明细 <i class="fa-solid fa-chevron-right text-[12px]"></i></div>
-          </a>
-
-          <a href="work-stat-edit-wecom.html" class="card p-4 block active:bg-slate-50">
-            <div class="flex items-start justify-between gap-3">
-              <div>
-                <div class="font-medium">2026-07-27 · 白班</div>
-                <div class="text-xs text-slate-500 mt-1">已录 6 条 · 产量 1,050.00 吨</div>
-              </div>
-              <span class="badge badge-reject">已驳回</span>
-            </div>
-            <div class="mt-2 text-xs text-teal-700">修改明细后重新提交 <i class="fa-solid fa-chevron-right text-[12px]"></i></div>
-          </a>
-        </main>
+        <div class="px-4 pb-1 text-xs text-slate-500" id="listCount">共 0 条</div>
+        <main class="px-4 space-y-3 pb-20" id="listBody"></main>
+        <div id="emptyState" class="hidden px-4 pb-20 text-center text-sm text-slate-400">暂无作业记录</div>
 
         <div class="px-4 pt-2 pb-4 text-center text-xs text-slate-400">
           <a href="../wecom-index.html" class="text-teal-700">返回企微入口</a>
         </div>
       </div>
 
-      <!-- 新建日班弹窗 -->
-      <div id="newMask" class="mask" onclick="onMaskClick(event)">
+      <div id="rejectMask" class="mask" onclick="closeIfMask(event,'rejectMask')">
         <div class="sheet" onclick="event.stopPropagation()">
           <div class="flex items-center justify-between mb-3">
-            <div class="font-semibold text-base">新建日班</div>
-            <button type="button" class="text-slate-400 text-sm" onclick="closeNewSheet()"><i class="fa-solid fa-xmark"></i></button>
+            <div class="font-semibold text-base">驳回本班</div>
+            <button type="button" class="text-slate-400" onclick="closeReject()"><i class="fa-solid fa-xmark"></i></button>
           </div>
-          <div class="field mb-3">
-            <label>开班日</label>
-            <input id="newDate" type="date" value="2026-07-30" />
-          </div>
-          <div class="mb-4">
-            <label class="block text-xs text-slate-500 mb-2">班次</label>
-            <div class="flex gap-2">
-              <button type="button" id="shiftDay" class="shift-opt active" onclick="pickShift('白班')">白班</button>
-              <button type="button" id="shiftNight" class="shift-opt" onclick="pickShift('夜班')">夜班</button>
-            </div>
-          </div>
-          <div id="dupHint" class="hidden text-xs text-rose-600 bg-rose-50 rounded-xl px-3 py-2 mb-3">该开班日+班次已存在填报，不可重复创建</div>
-          <div class="flex gap-2">
-            <button type="button" class="btn border border-slate-200 bg-white flex-1 py-2.5 text-sm" onclick="closeNewSheet()">取消</button>
-            <button type="button" class="btn btn-brand flex-1 py-2.5 text-sm" onclick="confirmNewSheet()">确定创建</button>
+          <p class="text-xs text-slate-500 mb-2" id="rejectHint">—</p>
+          <textarea id="rejectReason" rows="3" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="驳回原因（选填）"></textarea>
+          <div class="flex gap-2 mt-4">
+            <button type="button" class="btn border border-slate-200 bg-white flex-1 py-2.5 text-sm" onclick="closeReject()">取消</button>
+            <button type="button" class="btn flex-1 py-2.5 text-sm text-white" style="background:#dc2626" onclick="confirmReject()">确认驳回</button>
           </div>
         </div>
       </div>
@@ -144,81 +115,128 @@
   </div>
 
   <script>
-    /* 演示：列表中已存在的开班日+班次（含各状态） */
-    var EXISTING_SHEETS = [
-      { date: '2026-07-29', shift: '白班', status: '草稿' },
-      { date: '2026-07-28', shift: '夜班', status: '审批中' },
-      { date: '2026-07-28', shift: '白班', status: '已通过' },
-      { date: '2026-07-27', shift: '白班', status: '已驳回' }
-    ];
-    var selectedShift = '白班';
+    var S = WorkStatSheetStore;
+    var rejectTarget = null;
+    var range = S.dateRange();
 
     function showToast(msg, type) {
-      type = type || 'err';
-      var host = document.querySelector('.phone-screen') || document.body;
+      type = type || 'ok';
+      var host = document.querySelector('.phone-screen');
       var el = document.createElement('div');
-      el.className = 'toast fade-in px-4 py-3 text-sm text-white text-center ' + (type === 'ok' ? 'bg-emerald-500' : 'bg-red-500');
+      el.className = 'toast px-4 py-3 text-sm text-white text-center ' + (type === 'err' ? 'bg-red-500' : type === 'warn' ? 'bg-amber-500' : 'bg-emerald-500');
       el.textContent = msg;
       host.appendChild(el);
-      setTimeout(function(){ el.remove(); }, 2400);
+      setTimeout(function () { el.remove(); }, 2400);
     }
 
-    function openNewSheet() {
-      selectedShift = '白班';
-      document.getElementById('shiftDay').classList.add('active');
-      document.getElementById('shiftNight').classList.remove('active');
-      document.getElementById('dupHint').classList.add('hidden');
-      document.getElementById('newMask').classList.add('open');
+    function statusClass(st) {
+      if (st === '审批中') return 'badge-pending';
+      if (st === '已驳回') return 'badge-reject';
+      if (st === '已通过') return 'badge-ok';
+      return 'badge-draft';
     }
 
-    function closeNewSheet() {
-      document.getElementById('newMask').classList.remove('open');
+    function resetFilters() {
+      document.getElementById('filterDate').value = '';
+      document.getElementById('filterShift').value = '';
+      document.getElementById('filterStatus').value = '';
+      renderList();
     }
 
-    function onMaskClick(e) {
-      if (e.target === document.getElementById('newMask')) closeNewSheet();
+    function openFill(date, shift) {
+      S.setActive({ date: date, shift: shift, unitId: '' });
+      window.location.href = 'work-stat-edit-wecom.html?date=' + encodeURIComponent(date) + '&shift=' + encodeURIComponent(shift);
     }
 
-    function pickShift(shift) {
-      selectedShift = shift;
-      document.getElementById('shiftDay').classList.toggle('active', shift === '白班');
-      document.getElementById('shiftNight').classList.toggle('active', shift === '夜班');
-      document.getElementById('dupHint').classList.add('hidden');
+    function doApprove(date, shift) {
+      if (!confirm('确认通过本班？\n' + date + ' · ' + shift + '\n（该班次下全部机台表一并通过）')) return;
+      var res = S.approveSheet(date, shift);
+      if (!res.ok) { showToast(res.msg, 'err'); return; }
+      showToast('已通过 ' + date + ' ' + shift);
+      renderList();
     }
 
-    function findExisting(date, shift) {
-      for (var i = 0; i < EXISTING_SHEETS.length; i++) {
-        if (EXISTING_SHEETS[i].date === date && EXISTING_SHEETS[i].shift === shift) {
-          return EXISTING_SHEETS[i];
+    function openReject(date, shift) {
+      rejectTarget = { date: date, shift: shift };
+      document.getElementById('rejectHint').textContent = date + ' · ' + shift + ' · 整班驳回';
+      document.getElementById('rejectReason').value = '';
+      document.getElementById('rejectMask').classList.add('open');
+    }
+
+    function closeReject() {
+      rejectTarget = null;
+      document.getElementById('rejectMask').classList.remove('open');
+    }
+
+    function confirmReject() {
+      if (!rejectTarget) return;
+      var res = S.rejectSheet(rejectTarget.date, rejectTarget.shift, document.getElementById('rejectReason').value.trim());
+      if (!res.ok) { showToast(res.msg, 'err'); return; }
+      showToast('已驳回 ' + rejectTarget.date + ' ' + rejectTarget.shift, 'warn');
+      closeReject();
+      renderList();
+    }
+
+    function closeIfMask(e, id) {
+      if (e.target === document.getElementById(id)) document.getElementById(id).classList.remove('open');
+    }
+
+    function renderList() {
+      var date = document.getElementById('filterDate').value;
+      var shift = document.getElementById('filterShift').value;
+      var status = document.getElementById('filterStatus').value;
+      var rows = S.listSheets().filter(function (s) {
+        if (s.date < range.from || s.date > range.to) return false;
+        if (date && s.date !== date) return false;
+        if (shift && s.shift !== shift) return false;
+        if (status && s.status !== status) return false;
+        return true;
+      });
+
+      document.getElementById('listCount').textContent = '共 ' + rows.length + ' 条（近 7 天）';
+      var box = document.getElementById('listBody');
+      var empty = document.getElementById('emptyState');
+      if (!rows.length) {
+        box.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+      box.innerHTML = rows.map(function (s) {
+        var units = (s.units || []).map(function (u) {
+          return u.berth + '/' + u.machine + '/' + u.driver + '/' + u.cargoL2;
+        }).join('；') || '—';
+        var st = s.status || '草稿';
+        var ops = '<div class="mt-3 pt-3 border-t border-slate-100 flex flex-wrap gap-y-2">';
+        if (st === '审批中') {
+          ops += '<button type="button" class="op-link op-ok" onclick="doApprove(\'' + s.date + '\',\'' + s.shift + '\')">通过</button>';
+          ops += '<button type="button" class="op-link op-reject" onclick="openReject(\'' + s.date + '\',\'' + s.shift + '\')">驳回</button>';
         }
-      }
-      return null;
+        if (st === '草稿' || st === '已驳回') {
+          ops += '<button type="button" class="op-link" onclick="openFill(\'' + s.date + '\',\'' + s.shift + '\')">继续填报</button>';
+        } else {
+          ops += '<button type="button" class="op-link" onclick="openFill(\'' + s.date + '\',\'' + s.shift + '\')">查看</button>';
+        }
+        ops += '</div>';
+        return '<div class="card p-4">' +
+          '<div class="flex items-start justify-between gap-3">' +
+            '<div><div class="font-medium">' + s.date + ' · ' + s.shift + '</div>' +
+            '<div class="text-xs text-slate-500 mt-1">' + (s.units ? s.units.length : 0) + ' 张机台表 · 合计 ' + S.sheetTotal(s).toFixed(2) + ' 吨</div></div>' +
+            '<span class="badge ' + statusClass(st) + '">' + st + '</span>' +
+          '</div>' +
+          '<div class="mt-2 text-xs text-slate-500 line-clamp-2">' + units + '</div>' +
+          '<div class="text-xs text-slate-400 mt-1">更新 ' + (s.updatedAt || '—') + '</div>' +
+          ops +
+        '</div>';
+      }).join('');
     }
 
-    function confirmNewSheet() {
-      var date = document.getElementById('newDate').value;
-      if (!date) {
-        showToast('请选择开班日');
-        return;
-      }
-      if (!selectedShift) {
-        showToast('请选择班次');
-        return;
-      }
-      var hit = findExisting(date, selectedShift);
-      if (hit) {
-        document.getElementById('dupHint').classList.remove('hidden');
-        document.getElementById('dupHint').textContent =
-          '「' + date + ' · ' + selectedShift + '」已存在（' + hit.status + '），不可重复创建';
-        showToast('该开班日+班次已填写，不可重复创建');
-        return;
-      }
-      try {
-        sessionStorage.setItem('wecomNewSheet', JSON.stringify({ date: date, shift: selectedShift, lines: [] }));
-      } catch (e) {}
-      closeNewSheet();
-      window.location.href = 'work-stat-edit-wecom.html?new=1';
-    }
+    (function init() {
+      var dateEl = document.getElementById('filterDate');
+      dateEl.min = range.from;
+      dateEl.max = range.to;
+      renderList();
+    })();
   </script>
 </body>
 </html>

@@ -3,9 +3,14 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>日班单据 · 单机作业量统计</title>
+  <title>工班作业 · 大表填报</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../assets/abnormal-fill.js"></script>
+  <script src="../assets/cargo-mgmt-demo.js"></script>
+  <script src="../assets/cargo-cascade.js"></script>
+  <script src="../assets/work-stat-sheet-store.js"></script>
+  <script src="../assets/pc-sidebar.js"></script>
   <style>
     :root { --brand: #0f766e; --brand-hover: #0d9488; }
     body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
@@ -17,12 +22,39 @@
     .btn-brand:hover { background: var(--brand-hover); }
     .badge { border-radius: 999px; font-size: 12px; padding: 2px 10px; }
     .badge-draft { background: #e2e8f0; color: #475569; }
+    .badge-pending { background: #fef3c7; color: #b45309; }
+    .badge-reject { background: #fee2e2; color: #b91c1c; }
+    .badge-ok { background: #d1fae5; color: #047857; }
     .toast { position: fixed; top: 24px; right: 24px; z-index: 80; min-width: 240px; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
     .fade-in { animation: fadeIn .2s ease; }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-    .slot-chip { display: inline-flex; align-items: center; gap: 4px; border-radius: 999px; padding: 2px 10px; font-size: 11px; background: #f1f5f9; color: #64748b; }
-    .slot-chip.done { background: #ccfbf1; color: #0f766e; }
-    .slot-chip.current { background: #0f766e; color: #fff; }
+    .matrix-wrap { overflow: auto; max-height: calc(100vh - 360px); }
+    .matrix { border-collapse: collapse; width: 100%; min-width: 1180px; }
+    .badge-sent { background: #ccfbf1; color: #0f766e; }
+    .op-link { color: #0f766e; font-size: 12px; margin-right: 8px; cursor: pointer; background: none; border: none; padding: 0; }
+    .op-link:disabled { color: #94a3b8; cursor: not-allowed; }
+    .op-link.danger { color: #0d9488; }
+    .matrix th, .matrix td { border: 1px solid #e2e8f0; padding: 8px 10px; font-size: 13px; vertical-align: middle; }
+    .matrix th { background: #f1f5f9; position: sticky; top: 0; z-index: 2; font-weight: 500; color: #475569; white-space: nowrap; }
+    .matrix .sticky-col { position: sticky; left: 0; background: #fff; z-index: 1; font-variant-numeric: tabular-nums; }
+    .matrix th.sticky-col { z-index: 3; background: #f1f5f9; }
+    .matrix input, .matrix select { width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 8px; font-size: 13px; background: #fff; }
+    .matrix input:disabled, .matrix select:disabled { background: #f8fafc; color: #334155; }
+    .unit-tab { border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px 12px; font-size: 12px; background: #fff; cursor: pointer; text-align: left; min-width: 160px; }
+    .unit-tab.active { border-color: #0f766e; background: #f0fdfa; color: #0f766e; }
+    .unit-tab-actions { margin-top: 6px; padding-top: 6px; border-top: 1px solid #e2e8f0; display: flex; gap: 8px; }
+    .unit-tab.active .unit-tab-actions { border-top-color: #99f6e4; }
+    .op-del { color: #dc2626; }
+    .field label { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
+    .field select, .field input {
+      width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px 10px; font-size: 14px; background: #fff; box-sizing: border-box;
+    }
+    .row-err { background: #fff7ed !important; }
+    .modal-mask {
+      position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 70;
+      display: none; align-items: center; justify-content: center; padding: 24px;
+    }
+    .modal-mask.open { display: flex; }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen">
@@ -42,217 +74,748 @@
     <div class="flex-1 min-w-0 flex flex-col">
       <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
         <div>
-          <h1 class="text-lg font-semibold">日班单据</h1>
-          <p class="text-xs text-slate-500">与企微同构 · 按 12 时段顺序逐条录入 · 矩阵仅只读</p>
+          <h1 class="text-lg font-semibold">工班作业</h1>
+          <p class="text-xs text-slate-500">进入即大表 · 白班/夜班各提交审批一次 · 早晚 8 点换班</p>
         </div>
         <div class="flex items-center gap-3 text-sm text-slate-600">
+          <a href="work-stat-records-pc.html" class="text-teal-700 hover:underline text-sm">作业记录</a>
           <span><i class="fa-solid fa-user text-slate-400 mr-1"></i>作业录入员</span>
         </div>
       </header>
 
       <main class="flex-1 p-6 overflow-auto">
-        <div class="max-w-5xl mx-auto space-y-5">
-          <div class="card p-5 flex flex-wrap gap-4 items-start justify-between">
-            <div>
-              <div class="flex flex-wrap items-center gap-2">
-                <div class="text-base font-semibold" id="sheetTitle">2026-07-21 · 白班</div>
-                <span class="badge badge-draft">草稿</span>
-              </div>
-              <div class="text-xs text-slate-500 mt-1">
-                已录 <span id="lineCount" class="font-medium text-slate-700">0</span> / 12 时段 ·
-                合计 <span id="lineTotal" class="font-medium text-teal-800">0.00</span> 吨
-              </div>
-              <div class="mt-3 text-xs text-teal-800 bg-teal-50 rounded-xl px-3 py-2 max-w-2xl">
-                每次只填<strong>一个时段</strong>；须按 08:00→19:00 顺序录入。保存后自动回显上一条的泊位/机械/司机/货种/备注；<strong>作业量默认 0</strong>；是否正常作业及异常字段不回显。
-                时段保存后按「企微推送配置」推送人员与群（修改后再保存会再推一条）。
-              </div>
-            </div>
-            <div class="flex flex-wrap gap-2">
-              <a href="work-stat-list-pc.html" class="btn border border-slate-200 bg-white px-4 py-2 text-sm">返回列表</a>
-              <a href="work-stat-matrix-view-pc.html" class="btn border border-slate-200 bg-white px-4 py-2 text-sm">查看矩阵只读</a>
-              <a href="work-stat-edit-submit-modal-pc.html" class="btn btn-brand px-4 py-2 text-sm" onclick="return beforeSubmit(event)">提交审核</a>
-            </div>
-          </div>
-
+        <div class="max-w-7xl mx-auto space-y-4">
           <div class="card p-5">
-            <div class="text-sm font-medium mb-3">时段进度（须顺序完成）</div>
-            <div id="slotProgress" class="flex flex-wrap gap-2"></div>
-            <div class="mt-3 text-xs text-slate-500" id="nextSlotHint">下一步：填写 08:00-09:00</div>
+            <div class="flex flex-wrap gap-3 items-end">
+              <div class="field">
+                <label>开班日</label>
+                <input id="hdrDate" type="date" onchange="onContextChange()" />
+              </div>
+              <div class="field">
+                <label>班次</label>
+                <select id="hdrShift" onchange="onContextChange()">
+                  <option value="白班">白班（08:00–20:00）</option>
+                  <option value="夜班">夜班（20:00–次日08:00）</option>
+                </select>
+              </div>
+              <div class="pb-1">
+                <span class="badge" id="sheetStatus">草稿</span>
+                <span class="text-xs text-slate-500 ml-2">本班合计 <span id="sheetTotal" class="font-medium text-teal-800">0.00</span> 吨</span>
+              </div>
+              <div class="flex-1"></div>
+              <button type="button" class="btn border border-teal-200 bg-white text-teal-800 px-4 py-2 text-sm" id="btnShowCreate" onclick="toggleCreate(true)">
+                <i class="fa-solid fa-plus mr-1"></i>新增机台表
+              </button>
+              <button type="button" id="btnSubmit" class="btn btn-brand px-4 py-2 text-sm" onclick="submitCurrent()">提交本班审批</button>
+            </div>
+            <p class="text-xs text-slate-500 mt-3">日期默认当天（近 7 天可选）。机台表可「编辑 / 删除」；大表每一行可「编辑 / 发送」企微。泊位、机械创建后不可改；含已推送行的机台表不可删。</p>
           </div>
 
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="text-sm font-medium">已录明细</div>
-            <button type="button" id="btnAddLine" class="btn btn-brand px-5 py-2 text-sm" onclick="goAddLine()">
-              <i class="fa-solid fa-plus mr-1"></i>填写下一时段
-            </button>
+          <div class="card p-4">
+            <div class="text-sm font-medium mb-2">本班机台表</div>
+            <div id="unitTabs" class="flex flex-wrap gap-2"></div>
+            <div id="unitEmpty" class="text-sm text-slate-400 py-8 text-center">
+              本班尚无大表。请点击「新增机台表」选择泊位/机械/司机/货种后生成。
+            </div>
           </div>
 
-          <div id="lineList" class="space-y-3"></div>
+          <div id="tableCard" class="card overflow-hidden hidden">
+            <div class="px-5 py-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+              <div class="text-sm font-medium" id="tableTitle">—</div>
+              <div class="text-xs text-slate-500">当前表合计 <span id="unitTotal" class="font-medium text-teal-800">0.00</span> 吨</div>
+            </div>
+            <div class="matrix-wrap p-3">
+              <table class="matrix">
+                <thead>
+                  <tr>
+                    <th class="sticky-col">时段</th>
+                    <th>机械</th>
+                    <th>司机</th>
+                    <th>货种</th>
+                    <th style="min-width:100px">作业量（吨）</th>
+                    <th style="min-width:100px">是否正常</th>
+                    <th style="min-width:120px">非正常原因</th>
+                    <th style="min-width:100px">非正常时长</th>
+                    <th style="min-width:120px">备注</th>
+                    <th style="min-width:88px">推送</th>
+                    <th style="min-width:140px">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="matrixBody"></tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </main>
     </div>
   </div>
 
+  <div id="createModal" class="modal-mask" onclick="if(event.target===this)toggleCreate(false)">
+    <div class="card fade-in w-full max-w-lg p-6" style="box-shadow:0 12px 40px rgba(0,0,0,0.12)" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-lg font-semibold">新增机台表</h2>
+          <p class="text-xs text-slate-500 mt-0.5">选齐后生成时段大表 · 归属当前开班日与班次</p>
+        </div>
+        <button type="button" class="text-slate-400 hover:text-slate-600" onclick="toggleCreate(false)"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <div class="space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field">
+            <label>泊位</label>
+            <select id="fBerth" onchange="syncMachine()"></select>
+          </div>
+          <div class="field">
+            <label>机械</label>
+            <select id="fMachine"></select>
+          </div>
+        </div>
+        <div class="field">
+          <label>司机</label>
+          <select id="fDriver"></select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field">
+            <label>货种一级</label>
+            <select id="fCargoL1"></select>
+          </div>
+          <div class="field">
+            <label>货种二级</label>
+            <select id="fCargoL2"></select>
+          </div>
+        </div>
+        <p class="text-xs text-slate-500 bg-slate-50 rounded-xl px-3 py-2">
+          唯一约束：同一开班日 + 班次 + 泊位 + 机械 + 司机 + 货种 <strong>不可重复</strong>
+        </p>
+        <div class="flex justify-end gap-2 pt-1">
+          <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="toggleCreate(false)">取消</button>
+          <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="createUnit()">生成大表</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="unitEditModal" class="modal-mask" onclick="if(event.target===this)closeUnitEdit()">
+    <div class="card fade-in w-full max-w-lg p-6" style="box-shadow:0 12px 40px rgba(0,0,0,0.12)" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-lg font-semibold">编辑机台表</h2>
+          <p class="text-xs text-slate-500 mt-0.5">可改司机、货种；泊位/机械不可改；未推送行同步更新</p>
+        </div>
+        <button type="button" class="text-slate-400 hover:text-slate-600" onclick="closeUnitEdit()"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <input type="hidden" id="unitEditId" />
+      <div class="space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field">
+            <label>泊位（不可改）</label>
+            <input id="unitEditBerth" type="text" disabled class="bg-slate-50 text-slate-500" />
+          </div>
+          <div class="field">
+            <label>机械（不可改）</label>
+            <input id="unitEditMachine" type="text" disabled class="bg-slate-50 text-slate-500" />
+          </div>
+        </div>
+        <div class="field">
+          <label>司机</label>
+          <select id="unitEditDriver"></select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field">
+            <label>货种一级</label>
+            <select id="unitEditCargoL1"></select>
+          </div>
+          <div class="field">
+            <label>货种二级</label>
+            <select id="unitEditCargoL2"></select>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 pt-1">
+          <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="closeUnitEdit()">取消</button>
+          <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="saveUnitEdit()">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="rowEditModal" class="modal-mask" onclick="if(event.target===this)closeRowEdit()">
+    <div class="card fade-in w-full max-w-lg p-6" style="box-shadow:0 12px 40px rgba(0,0,0,0.12)" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-lg font-semibold">编辑时段数据</h2>
+          <p class="text-xs text-slate-500 mt-0.5" id="rowEditSub">—</p>
+        </div>
+        <button type="button" class="text-slate-400 hover:text-slate-600" onclick="closeRowEdit()"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <input type="hidden" id="editSlot" />
+      <div class="space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field">
+            <label>泊位（不可改）</label>
+            <input id="editBerth" type="text" disabled class="bg-slate-50 text-slate-500" />
+          </div>
+          <div class="field">
+            <label>机械（不可改）</label>
+            <input id="editMachine" type="text" disabled class="bg-slate-50 text-slate-500" />
+          </div>
+        </div>
+        <div class="field">
+          <label>司机</label>
+          <select id="editDriver"></select>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field">
+            <label>货种一级</label>
+            <select id="editCargoL1"></select>
+          </div>
+          <div class="field">
+            <label>货种二级</label>
+            <select id="editCargoL2"></select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field">
+            <label>作业量（吨）</label>
+            <input id="editQty" type="number" step="0.01" min="0" />
+          </div>
+          <div class="field">
+            <label>是否正常作业</label>
+            <select id="editNormal" onchange="onEditNormalChange()">
+              <option value="yes">正常作业</option>
+              <option value="no">非正常</option>
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field">
+            <label>非正常原因</label>
+            <select id="editReason"></select>
+          </div>
+          <div class="field">
+            <label>非正常时长（分钟）</label>
+            <input id="editAbMins" type="number" min="1" max="60" step="1" placeholder="如 30" />
+          </div>
+        </div>
+        <div class="field">
+          <label>备注</label>
+          <input id="editRemark" type="text" placeholder="选「其他」时必填" />
+        </div>
+        <div class="flex justify-end gap-2 pt-1">
+          <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="closeRowEdit()">取消</button>
+          <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="saveRowEdit()">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
-    var DAY_SLOTS = [
-      '08:00-09:00','09:00-10:00','10:00-11:00','11:00-12:00',
-      '12:00-13:00','13:00-14:00','14:00-15:00','15:00-16:00',
-      '16:00-17:00','17:00-18:00','18:00-19:00','19:00-20:00'
-    ];
-    var STORAGE_KEY = 'pcSheetLines_v1';
+    var S = WorkStatSheetStore;
+    var activeUnitId = '';
+    var readonly = false;
+    var cargoCtl = null;
+    var editCargoCtl = null;
+    var unitEditCargoCtl = null;
 
     function showToast(msg, type) {
       type = type || 'ok';
       var el = document.createElement('div');
-      el.className = 'toast fade-in px-4 py-3 text-sm text-white ' + (type === 'err' ? 'bg-red-500' : 'bg-emerald-500');
+      el.className = 'toast fade-in px-4 py-3 text-sm text-white ' + (type === 'err' ? 'bg-red-500' : type === 'warn' ? 'bg-amber-500' : 'bg-emerald-500');
       el.textContent = msg;
       document.body.appendChild(el);
-      setTimeout(function () { el.remove(); }, 2400);
+      setTimeout(function () { el.remove(); }, 2600);
     }
 
-    function loadLines() {
-      try {
-        var raw = sessionStorage.getItem(STORAGE_KEY);
-        if (raw) return JSON.parse(raw);
-      } catch (e) {}
-      return [];
+    function statusClass(st) {
+      if (st === '审批中') return 'badge-pending';
+      if (st === '已驳回') return 'badge-reject';
+      if (st === '已通过') return 'badge-ok';
+      return 'badge-draft';
     }
 
-    function saveLines(lines) {
-      try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(lines)); } catch (e) {}
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/"/g, '&quot;');
     }
 
-    function ingestNewLine() {
-      try {
-        var raw = sessionStorage.getItem('pcNewLine');
-        if (!raw) return;
-        var line = JSON.parse(raw);
-        sessionStorage.removeItem('pcNewLine');
-        var lines = loadLines();
-        var expected = DAY_SLOTS[lines.length];
-        if (expected && line.slot !== expected) {
-          showToast('须按顺序填写时段：' + expected, 'err');
-          return;
-        }
-        if (lines.length >= DAY_SLOTS.length) {
-          showToast('本班 12 时段已全部录完', 'err');
-          return;
-        }
-        lines.push(line);
-        saveLines(lines);
-        showToast('已保存「' + line.slot + '」');
-      } catch (e) {}
+    function syncMachine() {
+      var berth = document.getElementById('fBerth').value;
+      var mSel = document.getElementById('fMachine');
+      var list = S.BERTH_MACHINES[berth] || [];
+      mSel.innerHTML = list.map(function (m) { return '<option value="' + m + '">' + m + '</option>'; }).join('') || '<option value="">无</option>';
     }
 
-    function nextSlot() {
-      var lines = loadLines();
-      if (lines.length >= DAY_SLOTS.length) return null;
-      return DAY_SLOTS[lines.length];
+    function initCreateFields() {
+      var berthSel = document.getElementById('fBerth');
+      berthSel.innerHTML = Object.keys(S.BERTH_MACHINES).map(function (b) {
+        return '<option value="' + b + '">' + b + '</option>';
+      }).join('');
+      syncMachine();
+      document.getElementById('fDriver').innerHTML = S.DRIVERS.map(function (d) {
+        return '<option value="' + d + '">' + d + '</option>';
+      }).join('');
+      cargoCtl = CargoCascade.bindPair(
+        document.getElementById('fCargoL1'),
+        document.getElementById('fCargoL2'),
+        { entryMode: true, defaultL1: '散货', defaultL2: '氧化钙' }
+      );
+      document.getElementById('editDriver').innerHTML = S.DRIVERS.map(function (d) {
+        return '<option value="' + d + '">' + d + '</option>';
+      }).join('');
+      var reasonSel = document.getElementById('editReason');
+      reasonSel.innerHTML = '<option value="">请选择原因</option>' + AbnormalFill.REASONS.map(function (x) {
+        return '<option value="' + x + '">' + x + '</option>';
+      }).join('');
+      editCargoCtl = CargoCascade.bindPair(
+        document.getElementById('editCargoL1'),
+        document.getElementById('editCargoL2'),
+        { entryMode: true }
+      );
+      document.getElementById('unitEditDriver').innerHTML = S.DRIVERS.map(function (d) {
+        return '<option value="' + d + '">' + d + '</option>';
+      }).join('');
+      unitEditCargoCtl = CargoCascade.bindPair(
+        document.getElementById('unitEditCargoL1'),
+        document.getElementById('unitEditCargoL2'),
+        { entryMode: true }
+      );
     }
 
-    function goAddLine() {
-      var slot = nextSlot();
-      if (!slot) {
-        showToast('12 时段已全部完成，可提交审核', 'err');
+    function toggleCreate(on) {
+      if (on && readonly) {
+        showToast('当前班次不可新增', 'err');
         return;
       }
-      var lines = loadLines();
-      var last = lines.length ? lines[lines.length - 1] : null;
-      try {
-        sessionStorage.setItem('pcNextSlot', slot);
-        sessionStorage.setItem('pcLastLine', last ? JSON.stringify(last) : '');
-      } catch (e) {}
-      location.href = 'work-stat-line-pc.html';
+      document.getElementById('createModal').classList.toggle('open', !!on);
     }
 
-    function beforeSubmit(e) {
-      var lines = loadLines();
-      if (!lines.length) {
-        e.preventDefault();
-        showToast('请至少填写一个时段后再提交', 'err');
-        return false;
-      }
-      if (lines.length < DAY_SLOTS.length) {
-        var ok = confirm('尚有 ' + (DAY_SLOTS.length - lines.length) + ' 个时段未填，确认仍要提交？');
-        if (!ok) {
-          e.preventDefault();
-          return false;
+    function getDate() { return document.getElementById('hdrDate').value; }
+    function getShift() { return document.getElementById('hdrShift').value; }
+
+    function bootContext() {
+      var range = S.dateRange();
+      var dateEl = document.getElementById('hdrDate');
+      dateEl.min = range.from;
+      dateEl.max = range.to;
+
+      var a = S.getActive();
+      if (a && a.date && a.date >= range.from && a.date <= range.to) {
+        dateEl.value = a.date;
+        document.getElementById('hdrShift').value = a.shift || '白班';
+        activeUnitId = a.unitId || '';
+      } else {
+        var pick = S.pickLatestEditable();
+        if (pick) {
+          dateEl.value = pick.date;
+          document.getElementById('hdrShift').value = pick.shift;
+          activeUnitId = (pick.units && pick.units[0]) ? pick.units[0].id : '';
+        } else {
+          dateEl.value = S.todayStr();
+          document.getElementById('hdrShift').value = '白班';
+          S.ensureSheet(S.todayStr(), '白班');
         }
       }
+      S.setActive({ date: getDate(), shift: getShift(), unitId: activeUnitId });
+    }
+
+    function onContextChange() {
+      activeUnitId = '';
+      S.setActive({ date: getDate(), shift: getShift(), unitId: '' });
+      S.ensureSheet(getDate(), getShift());
+      render();
+    }
+
+    function createUnit() {
+      var cargo = cargoCtl ? cargoCtl.getValue() : {};
+      if (!cargo.l1 || !cargo.l2) {
+        showToast('请选择货种', 'err');
+        return;
+      }
+      var res = S.createUnit({
+        date: getDate(),
+        shift: getShift(),
+        berth: document.getElementById('fBerth').value,
+        machine: document.getElementById('fMachine').value,
+        driver: document.getElementById('fDriver').value,
+        cargoL1: cargo.l1,
+        cargoL2: cargo.l2
+      });
+      if (!res.ok) {
+        showToast(res.msg, 'err');
+        if (res.existing) render();
+        return;
+      }
+      activeUnitId = res.unit.id;
+      toggleCreate(false);
+      showToast('已生成大表');
+      render();
+    }
+
+    function selectUnit(id) {
+      activeUnitId = id;
+      S.setActive({ date: getDate(), shift: getShift(), unitId: activeUnitId });
+      render();
+    }
+
+    function closeUnitEdit() {
+      document.getElementById('unitEditModal').classList.remove('open');
+    }
+
+    function openUnitEdit(unitId) {
+      if (readonly) {
+        showToast('当前班次状态不可编辑机台表', 'err');
+        return;
+      }
+      var sheet = S.getSheet(getDate(), getShift());
+      var unit = S.findUnit(sheet, unitId);
+      if (!unit) return;
+      document.getElementById('unitEditId').value = unitId;
+      document.getElementById('unitEditBerth').value = unit.berth;
+      document.getElementById('unitEditMachine').value = unit.machine;
+      document.getElementById('unitEditDriver').value = unit.driver;
+      if (unitEditCargoCtl && unitEditCargoCtl.setValue) {
+        unitEditCargoCtl.setValue(unit.cargoL1 || '', unit.cargoL2 || '');
+      } else {
+        document.getElementById('unitEditCargoL1').value = unit.cargoL1 || '';
+        document.getElementById('unitEditCargoL2').value = unit.cargoL2 || '';
+      }
+      document.getElementById('unitEditModal').classList.add('open');
+    }
+
+    function saveUnitEdit() {
+      var unitId = document.getElementById('unitEditId').value;
+      var cargo = unitEditCargoCtl ? unitEditCargoCtl.getValue() : {
+        l1: document.getElementById('unitEditCargoL1').value,
+        l2: document.getElementById('unitEditCargoL2').value
+      };
+      if (!cargo.l1 || !cargo.l2) {
+        showToast('请选择货种', 'err');
+        return;
+      }
+      var res = S.updateUnit(getDate(), getShift(), unitId, {
+        driver: document.getElementById('unitEditDriver').value,
+        cargoL1: cargo.l1,
+        cargoL2: cargo.l2
+      });
+      if (!res.ok) {
+        showToast(res.msg, 'err');
+        return;
+      }
+      closeUnitEdit();
+      activeUnitId = unitId;
+      showToast('机台表已更新');
+      render();
+    }
+
+    function deleteUnitConfirm(unitId) {
+      if (readonly) {
+        showToast('当前班次状态不可删除机台表', 'err');
+        return;
+      }
+      var sheet = S.getSheet(getDate(), getShift());
+      var unit = S.findUnit(sheet, unitId);
+      if (!unit) return;
+      if (S.unitHasSentRows(unit)) {
+        showToast('该机台表含已推送企微的行，不可删除', 'err');
+        return;
+      }
+      var ok = confirm('确认删除该机台表？\n' + unit.berth + ' · ' + unit.machine + '\n' + unit.driver + ' / ' + unit.cargoL2 + '\n删除后不可恢复。');
+      if (!ok) return;
+      var res = S.deleteUnit(getDate(), getShift(), unitId);
+      if (!res.ok) {
+        showToast(res.msg, 'err');
+        return;
+      }
+      if (activeUnitId === unitId) activeUnitId = '';
+      showToast('已删除机台表');
+      render();
+    }
+
+    function validateRows(rows) {
+      var errors = [];
+      rows.forEach(function (r, i) {
+        if (!r.normal) {
+          if (!r.reason) errors.push('第 ' + (i + 1) + ' 行（' + r.slot + '）非正常须选择原因');
+          if (r.abMins == null || isNaN(r.abMins) || r.abMins <= 0) {
+            errors.push('第 ' + (i + 1) + ' 行（' + r.slot + '）请填写非正常时长（分钟）');
+          } else if (r.abMins > 60) {
+            errors.push('第 ' + (i + 1) + ' 行（' + r.slot + '）非正常时长不宜超过 60 分钟');
+          }
+          if (r.reason === '其他' && !r.remark) errors.push('第 ' + (i + 1) + ' 行选「其他」须填备注');
+        }
+        if (r.qty < 0) errors.push('第 ' + (i + 1) + ' 行作业量不能为负');
+      });
+      return errors;
+    }
+
+    function saveCurrent(silent) {
+      if (readonly || !activeUnitId) return true;
+      var sheet = S.getSheet(getDate(), getShift());
+      var unit = S.findUnit(sheet, activeUnitId);
+      if (!unit) return true;
+      var errs = validateRows(unit.rows || []);
+      if (errs.length && !silent) {
+        showToast(errs[0], 'err');
+        return false;
+      }
+      if (!silent) showToast('数据已按行保存（编辑弹窗内保存）');
       return true;
     }
 
-    function render() {
-      var lines = loadLines();
-      document.getElementById('lineCount').textContent = String(lines.length);
-      var total = lines.reduce(function (s, r) { return s + (Number(r.qty) || 0); }, 0);
-      document.getElementById('lineTotal').textContent = total.toFixed(2);
-
-      var prog = document.getElementById('slotProgress');
-      prog.innerHTML = DAY_SLOTS.map(function (slot, i) {
-        var cls = 'slot-chip';
-        if (i < lines.length) cls += ' done';
-        else if (i === lines.length) cls += ' current';
-        var icon = i < lines.length ? '<i class="fa-solid fa-check text-[10px]"></i>' : (i + 1);
-        return '<span class="' + cls + '">' + icon + ' ' + slot + '</span>';
-      }).join('');
-
-      var next = nextSlot();
-      var hint = document.getElementById('nextSlotHint');
-      var btn = document.getElementById('btnAddLine');
-      if (!next) {
-        hint.textContent = '全部时段已完成，可提交审核或查看矩阵只读';
-        btn.innerHTML = '<i class="fa-solid fa-check mr-1"></i>时段已全部完成';
-        btn.disabled = true;
-        btn.classList.add('opacity-60', 'cursor-not-allowed');
-      } else {
-        hint.textContent = '下一步：填写 ' + next + (lines.length ? '（将回显上一条泊位/机械/司机/货种/备注）' : '（首条：作业量默认 0，其余为空）');
-        btn.disabled = false;
-        btn.classList.remove('opacity-60', 'cursor-not-allowed');
-        btn.innerHTML = '<i class="fa-solid fa-plus mr-1"></i>填写下一时段 · ' + next;
-      }
-
-      var box = document.getElementById('lineList');
-      if (!lines.length) {
-        box.innerHTML = '<div class="card p-10 text-center text-slate-400 text-sm">暂无明细<br/><span class="text-xs">请点击「填写下一时段」从 08:00-09:00 开始</span></div>';
+    function submitCurrent() {
+      if (readonly) {
+        showToast('当前状态不可提交', 'err');
         return;
       }
-      box.innerHTML = lines.map(function (r, idx) {
-        var status = r.normal
-          ? '<span class="text-emerald-700 text-xs">正常作业</span>'
-          : ('<span class="text-amber-700 text-xs">非正常 · ' + (r.reason || '') + '</span>');
-        return '<div class="card p-4">' +
-          '<div class="flex flex-wrap items-start justify-between gap-2">' +
-            '<div class="min-w-0">' +
-              '<div class="font-medium text-sm">' + (idx + 1) + '. ' + r.slot +
-                ' <span class="text-slate-400 font-normal">· ' + r.berth + ' / ' + r.machine + '</span></div>' +
-              '<div class="text-xs text-slate-500 mt-1">司机 ' + r.driver + ' · 货种 ' + (r.cargo || (r.cargoL1 + ' / ' + r.cargoL2)) + '</div>' +
-              '<div class="mt-1">' + status + (r.remark ? (' · 备注 ' + r.remark) : '') + '</div>' +
-            '</div>' +
-            '<div class="text-right">' +
-              '<div class="text-lg font-semibold tabular-nums text-teal-800">' + Number(r.qty).toFixed(2) + '</div>' +
-              '<div class="text-[11px] text-slate-400">吨</div>' +
-              '<button type="button" class="mt-2 text-xs text-teal-700 hover:underline" onclick="editLine(' + idx + ')">修改（再推送）</button>' +
-            '</div>' +
-          '</div>' +
-        '</div>';
+      var sheet = S.getSheet(getDate(), getShift());
+      if (!sheet || !sheet.units.length) {
+        showToast('请先新增至少一张机台大表', 'err');
+        toggleCreate(true);
+        return;
+      }
+      var allRows = [];
+      sheet.units.forEach(function (u) {
+        (u.rows || []).forEach(function (r) { allRows.push(r); });
+      });
+      var errs = validateRows(allRows);
+      if (errs.length) {
+        showToast(errs[0], 'err');
+        return;
+      }
+      var ok = confirm('确认提交本班审批？\n' + getDate() + ' · ' + getShift() + '\n（白班/夜班各审批一次，本班下全部机台表一并提交）\n推送企微与审批无关，已推送行仍随本班一起审批。');
+      if (!ok) return;
+      var res = S.submitSheet(getDate(), getShift());
+      if (!res.ok) {
+        showToast(res.msg, 'err');
+        return;
+      }
+      showToast('已提交本班，请到「作业记录」审批');
+      setTimeout(function () { location.href = 'work-stat-records-pc.html'; }, 700);
+    }
+
+    function onEditNormalChange() {
+      var no = document.getElementById('editNormal').value === 'no';
+      document.getElementById('editReason').disabled = !no;
+      document.getElementById('editAbMins').disabled = !no;
+      if (!no) {
+        document.getElementById('editReason').value = '';
+        document.getElementById('editAbMins').value = '';
+      }
+    }
+
+    function closeRowEdit() {
+      document.getElementById('rowEditModal').classList.remove('open');
+    }
+
+    function openRowEdit(slot) {
+      if (readonly) {
+        showToast('当前班次状态不可编辑', 'err');
+        return;
+      }
+      var sheet = S.getSheet(getDate(), getShift());
+      var unit = S.findUnit(sheet, activeUnitId);
+      if (!unit) return;
+      var row = null;
+      for (var i = 0; i < (unit.rows || []).length; i++) {
+        if (unit.rows[i].slot === slot) { row = unit.rows[i]; break; }
+      }
+      if (!row) return;
+      if (row.wecomSent) {
+        showToast('已推送企微，不可再修改', 'err');
+        return;
+      }
+      document.getElementById('editSlot').value = slot;
+      document.getElementById('rowEditSub').textContent =
+        getDate() + ' · ' + getShift() + ' · ' + slot + ' · ' + unit.berth + ' / ' + unit.machine;
+      document.getElementById('editBerth').value = unit.berth;
+      document.getElementById('editMachine').value = unit.machine;
+      document.getElementById('editDriver').value = row.driver || unit.driver;
+      if (editCargoCtl && editCargoCtl.setValue) {
+        editCargoCtl.setValue(row.cargoL1 || unit.cargoL1 || '', row.cargoL2 || unit.cargoL2 || '');
+      } else {
+        document.getElementById('editCargoL1').value = row.cargoL1 || unit.cargoL1 || '';
+        document.getElementById('editCargoL2').value = row.cargoL2 || unit.cargoL2 || '';
+      }
+      document.getElementById('editQty').value = Number(row.qty) || 0;
+      document.getElementById('editNormal').value = row.normal === false ? 'no' : 'yes';
+      document.getElementById('editReason').value = row.reason || '';
+      document.getElementById('editAbMins').value = row.abMins != null && row.abMins !== '' ? row.abMins : '';
+      document.getElementById('editRemark').value = row.remark || '';
+      onEditNormalChange();
+      document.getElementById('rowEditModal').classList.add('open');
+    }
+
+    function saveRowEdit() {
+      var slot = document.getElementById('editSlot').value;
+      var cargo = editCargoCtl ? editCargoCtl.getValue() : {
+        l1: document.getElementById('editCargoL1').value,
+        l2: document.getElementById('editCargoL2').value
+      };
+      if (!cargo.l1 || !cargo.l2) {
+        showToast('请选择货种', 'err');
+        return;
+      }
+      var normal = document.getElementById('editNormal').value === 'yes';
+      var abRaw = String(document.getElementById('editAbMins').value || '').trim();
+      var patch = {
+        driver: document.getElementById('editDriver').value,
+        cargoL1: cargo.l1,
+        cargoL2: cargo.l2,
+        qty: Number(document.getElementById('editQty').value) || 0,
+        normal: normal,
+        reason: normal ? '' : (document.getElementById('editReason').value || ''),
+        abMins: normal || abRaw === '' ? null : Number(abRaw),
+        remark: (document.getElementById('editRemark').value || '').trim()
+      };
+      var errs = validateRows([{ slot: slot, qty: patch.qty, normal: patch.normal, reason: patch.reason, abMins: patch.abMins, remark: patch.remark }]);
+      if (errs.length) {
+        showToast(errs[0], 'err');
+        return;
+      }
+      var res = S.updateRow(getDate(), getShift(), activeUnitId, slot, patch);
+      if (!res.ok) {
+        showToast(res.msg, 'err');
+        return;
+      }
+      closeRowEdit();
+      showToast('已保存该行');
+      render();
+    }
+
+    function sendRow(slot) {
+      var sheet = S.getSheet(getDate(), getShift());
+      var unit = S.findUnit(sheet, activeUnitId);
+      if (!unit) return;
+      var row = null;
+      for (var i = 0; i < (unit.rows || []).length; i++) {
+        if (unit.rows[i].slot === slot) { row = unit.rows[i]; break; }
+      }
+      if (!row) return;
+      if (row.wecomSent) {
+        showToast('该行已推送企微', 'warn');
+        return;
+      }
+      var ok = confirm('确认将此时段数据推送到企微？\n' + slot + '\n推送后该行不可再修改（与本班审批无关）。');
+      if (!ok) return;
+      var res = S.sendRowWecom(getDate(), getShift(), activeUnitId, slot);
+      if (!res.ok) {
+        showToast(res.msg, 'err');
+        return;
+      }
+      showToast(res.msg || '已推送企微并保存');
+      render();
+    }
+
+    function renderHeaderOnly() {
+      var sheet = S.getSheet(getDate(), getShift()) || S.ensureSheet(getDate(), getShift());
+      var st = sheet.status || '草稿';
+      var stEl = document.getElementById('sheetStatus');
+      stEl.textContent = st;
+      stEl.className = 'badge ' + statusClass(st);
+      document.getElementById('sheetTotal').textContent = S.sheetTotal(sheet).toFixed(2);
+      readonly = st === '审批中' || st === '已通过';
+      document.getElementById('btnSubmit').classList.toggle('hidden', readonly);
+      document.getElementById('btnShowCreate').classList.toggle('opacity-50', readonly);
+    }
+
+    function render() {
+      var sheet = S.getSheet(getDate(), getShift()) || S.ensureSheet(getDate(), getShift());
+      renderHeaderOnly();
+
+      var tabs = document.getElementById('unitTabs');
+      var empty = document.getElementById('unitEmpty');
+      if (!sheet.units.length) {
+        tabs.innerHTML = '';
+        empty.classList.remove('hidden');
+        document.getElementById('tableCard').classList.add('hidden');
+        toggleCreate(true);
+        return;
+      }
+      empty.classList.add('hidden');
+      if (!activeUnitId || !S.findUnit(sheet, activeUnitId)) {
+        activeUnitId = sheet.units[0].id;
+      }
+      tabs.innerHTML = sheet.units.map(function (u) {
+        var active = u.id === activeUnitId ? ' active' : '';
+        var hasSent = S.unitHasSentRows(u);
+        var canUnitOps = !readonly;
+        var ops = '';
+        if (canUnitOps) {
+          ops = '<div class="unit-tab-actions">' +
+            '<button type="button" class="op-link" onclick="event.stopPropagation();openUnitEdit(\'' + u.id + '\')">编辑</button>' +
+            '<button type="button" class="op-link op-del" onclick="event.stopPropagation();deleteUnitConfirm(\'' + u.id + '\')"' +
+              (hasSent ? ' disabled title="含已推送行不可删"' : '') + '>删除</button>' +
+            '</div>';
+        }
+        return '<div class="unit-tab' + active + '" onclick="selectUnit(\'' + u.id + '\')">' +
+          '<div class="font-medium">' + esc(u.berth) + ' · ' + esc(u.machine) + '</div>' +
+          '<div class="text-slate-500 mt-0.5">' + esc(u.driver) + ' / ' + esc(u.cargoL2) + '</div>' +
+          ops +
+          '</div>';
+      }).join('');
+
+      var unit = S.findUnit(sheet, activeUnitId);
+      activeUnitId = unit.id;
+      S.setActive({ date: getDate(), shift: getShift(), unitId: activeUnitId });
+      renderTable(unit);
+    }
+
+    function renderTable(unit) {
+      var card = document.getElementById('tableCard');
+      card.classList.remove('hidden');
+      document.getElementById('tableTitle').innerHTML =
+        esc(unit.berth) + ' · ' + esc(unit.machine) + '（泊位/机械固定）' +
+        (!readonly ? ' <button type="button" class="op-link ml-2" onclick="openUnitEdit(\'' + unit.id + '\')">编辑机台表</button>' +
+          '<button type="button" class="op-link op-del ml-1"' +
+          (S.unitHasSentRows(unit) ? ' disabled title="含已推送行不可删"' : ' onclick="deleteUnitConfirm(\'' + unit.id + '\')"') +
+          '>删除</button>' : '');
+      document.getElementById('unitTotal').textContent = S.unitTotal(unit).toFixed(2);
+      document.getElementById('matrixBody').innerHTML = (unit.rows || []).map(function (r) {
+        var sent = !!r.wecomSent;
+        var driver = r.driver || unit.driver || '—';
+        var cargo = r.cargoL2 || unit.cargoL2 || '—';
+        var normalTxt = r.normal === false ? '非正常' : '正常';
+        var reasonTxt = r.normal === false ? (r.reason || '—') : '—';
+        var minsTxt = r.normal === false && r.abMins != null ? (r.abMins + ' 分钟') : '—';
+        var sentHtml = sent
+          ? '<span class="badge badge-sent">已推送</span>'
+          : '<span class="text-slate-400 text-xs">未推送</span>';
+        var canEdit = !readonly && !sent;
+        var canSend = !sent;
+        var ops = '';
+        if (canEdit) {
+          ops += '<button type="button" class="op-link" onclick="openRowEdit(\'' + r.slot + '\')">编辑</button>';
+        } else if (sent) {
+          ops += '<span class="text-slate-400 text-xs mr-2">已锁定</span>';
+        } else {
+          ops += '<span class="text-slate-400 text-xs mr-2">不可编</span>';
+        }
+        if (canSend) {
+          ops += '<button type="button" class="op-link danger" onclick="sendRow(\'' + r.slot + '\')">发送</button>';
+        }
+        return '<tr data-slot="' + esc(r.slot) + '"' + (sent ? ' class="bg-slate-50/80"' : '') + '>' +
+          '<td class="sticky-col whitespace-nowrap font-medium">' + esc(r.slot) + '</td>' +
+          '<td class="text-slate-500">' + esc(unit.machine) + '</td>' +
+          '<td>' + esc(driver) + '</td>' +
+          '<td>' + esc(cargo) + '</td>' +
+          '<td class="tabular-nums">' + (Number(r.qty) || 0).toFixed(2) + '</td>' +
+          '<td>' + normalTxt + '</td>' +
+          '<td class="text-slate-600">' + esc(reasonTxt) + '</td>' +
+          '<td class="text-slate-600">' + esc(minsTxt) + '</td>' +
+          '<td class="text-slate-600">' + esc(r.remark || '—') + '</td>' +
+          '<td>' + sentHtml + '</td>' +
+          '<td class="whitespace-nowrap">' + ops + '</td>' +
+        '</tr>';
       }).join('');
     }
 
-    function editLine(idx) {
-      var lines = loadLines();
-      if (idx < 0 || idx >= lines.length) return;
-      try {
-        sessionStorage.setItem('pcEditIndex', String(idx));
-        sessionStorage.setItem('pcEditLine', JSON.stringify(lines[idx]));
-        sessionStorage.removeItem('pcNewLine');
-      } catch (e) {}
-      location.href = 'work-stat-line-pc.html';
-    }
-
-    ingestNewLine();
+    initCreateFields();
+    bootContext();
     render();
+    window.addEventListener('storage', function (e) {
+      if (e.key === 'tosWorkStatSheets_v6') render();
+    });
   </script>
-  <script src="../assets/pc-sidebar.js"></script>
 </body>
 </html>

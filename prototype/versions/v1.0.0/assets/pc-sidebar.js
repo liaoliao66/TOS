@@ -5,7 +5,7 @@
  *
  * data-active:
  *   efficiency-master | efficiency-volume | efficiency-daily | efficiency-ship
- *   fill-shift
+ *   fill-shift | fill-records
  *   ship-archive | ship-schedule | ship-dispatch | ship-screen | ship-command
  *   cfg-device | cfg-berth | cfg-cargo | cfg-job | cfg-dict | cfg-wecom
  */
@@ -35,7 +35,8 @@
     html += link('work-stat-ship-eff-pc.html', 'fa-solid fa-ship', '船舶效率', active === 'efficiency-ship', true);
 
     html += group('作业管理');
-    html += link('work-stat-list-pc.html', 'fa-solid fa-clipboard-list', '工班作业', active === 'fill-shift', true);
+    html += link('work-stat-edit-pc.html', 'fa-solid fa-table', '工班作业', active === 'fill-shift', true);
+    html += link('work-stat-records-pc.html', 'fa-solid fa-clipboard-check', '作业记录', active === 'fill-records', true);
     html += link('ship-archive-pc.html', 'fa-solid fa-book-open', '船舶档案', active === 'ship-archive', true);
     html += link('ship-schedule-pc.html', 'fa-solid fa-calendar-days', '船期管理', active === 'ship-schedule', true);
     html += link('ship-dispatch-pc.html', 'fa-solid fa-ship', '船舶调度', active === 'ship-dispatch', true);
