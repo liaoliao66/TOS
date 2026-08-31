@@ -39,7 +39,12 @@
     .matrix .sticky-col { position: sticky; left: 0; background: #fff; z-index: 1; font-variant-numeric: tabular-nums; }
     .matrix th.sticky-col { z-index: 3; background: #f1f5f9; }
     .matrix input, .matrix select { width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 8px; font-size: 13px; background: #fff; }
-    .matrix input:disabled, .matrix select:disabled { background: #f8fafc; color: #334155; }
+    .matrix input:disabled, .matrix select:disabled { background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
+    .matrix input[data-field="qty"] { min-width: 88px; }
+    .matrix select[data-field="normal"] { min-width: 88px; }
+    .matrix select[data-field="reason"] { min-width: 110px; }
+    .matrix input[data-field="abMins"] { min-width: 72px; }
+    .matrix input[data-field="remark"] { min-width: 100px; }
     .unit-tab { border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px 12px; font-size: 12px; background: #fff; cursor: pointer; text-align: left; min-width: 160px; }
     .unit-tab.active { border-color: #0f766e; background: #f0fdfa; color: #0f766e; }
     .unit-tab-actions { margin-top: 6px; padding-top: 6px; border-top: 1px solid #e2e8f0; display: flex; gap: 8px; }
@@ -108,7 +113,7 @@
               </button>
               <button type="button" id="btnSubmit" class="btn btn-brand px-4 py-2 text-sm" onclick="submitCurrent()">提交本班审批</button>
             </div>
-            <p class="text-xs text-slate-500 mt-3">日期默认当天（近 7 天可选）。机台表可「编辑 / 删除」；大表每一行可「编辑 / 发送」企微。泊位、机械创建后不可改；含已推送行的机台表不可删。</p>
+            <p class="text-xs text-slate-500 mt-3">日期默认当天（近 7 天可选）。机台表可「编辑 / 删除」；大表可直接改作业量、是否正常、原因、时长、备注；行「编辑」改司机/货种，「发送」推企微。泊位、机械创建后不可改；含已推送行的机台表不可删。</p>
           </div>
 
           <div class="card p-4">
@@ -242,7 +247,7 @@
     <div class="card fade-in w-full max-w-lg p-6" style="box-shadow:0 12px 40px rgba(0,0,0,0.12)" onclick="event.stopPropagation()">
       <div class="flex items-center justify-between mb-4">
         <div>
-          <h2 class="text-lg font-semibold">编辑时段数据</h2>
+          <h2 class="text-lg font-semibold">编辑司机 / 货种</h2>
           <p class="text-xs text-slate-500 mt-0.5" id="rowEditSub">—</p>
         </div>
         <button type="button" class="text-slate-400 hover:text-slate-600" onclick="closeRowEdit()"><i class="fa-solid fa-xmark text-lg"></i></button>
@@ -273,33 +278,7 @@
             <select id="editCargoL2"></select>
           </div>
         </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div class="field">
-            <label>作业量（吨）</label>
-            <input id="editQty" type="number" step="0.01" min="0" />
-          </div>
-          <div class="field">
-            <label>是否正常作业</label>
-            <select id="editNormal" onchange="onEditNormalChange()">
-              <option value="yes">正常作业</option>
-              <option value="no">非正常</option>
-            </select>
-          </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <div class="field">
-            <label>非正常原因</label>
-            <select id="editReason"></select>
-          </div>
-          <div class="field">
-            <label>非正常时长（分钟）</label>
-            <input id="editAbMins" type="number" min="1" max="60" step="1" placeholder="如 30" />
-          </div>
-        </div>
-        <div class="field">
-          <label>备注</label>
-          <input id="editRemark" type="text" placeholder="选「其他」时必填" />
-        </div>
+        <p class="text-xs text-slate-500 bg-slate-50 rounded-xl px-3 py-2">作业量、是否正常、原因、时长、备注请在大表行内直接修改。</p>
         <div class="flex justify-end gap-2 pt-1">
           <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="closeRowEdit()">取消</button>
           <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="saveRowEdit()">保存</button>
@@ -362,10 +341,6 @@
       );
       document.getElementById('editDriver').innerHTML = S.DRIVERS.map(function (d) {
         return '<option value="' + d + '">' + d + '</option>';
-      }).join('');
-      var reasonSel = document.getElementById('editReason');
-      reasonSel.innerHTML = '<option value="">请选择原因</option>' + AbnormalFill.REASONS.map(function (x) {
-        return '<option value="' + x + '">' + x + '</option>';
       }).join('');
       editCargoCtl = CargoCascade.bindPair(
         document.getElementById('editCargoL1'),
@@ -559,7 +534,7 @@
         showToast(errs[0], 'err');
         return false;
       }
-      if (!silent) showToast('数据已按行保存（编辑弹窗内保存）');
+      if (!silent) showToast('已保存');
       return true;
     }
 
@@ -594,14 +569,86 @@
       setTimeout(function () { location.href = 'work-stat-records-pc.html'; }, 700);
     }
 
-    function onEditNormalChange() {
-      var no = document.getElementById('editNormal').value === 'no';
-      document.getElementById('editReason').disabled = !no;
-      document.getElementById('editAbMins').disabled = !no;
-      if (!no) {
-        document.getElementById('editReason').value = '';
-        document.getElementById('editAbMins').value = '';
+    function reasonOptionsHtml(selected) {
+      var opts = '<option value="">请选择原因</option>';
+      (AbnormalFill.REASONS || []).forEach(function (x) {
+        opts += '<option value="' + esc(x) + '"' + (selected === x ? ' selected' : '') + '>' + esc(x) + '</option>';
+      });
+      return opts;
+    }
+
+    function onInlineNormalChange(slot, el) {
+      var no = el.value === 'no';
+      var tr = el.closest('tr');
+      if (!tr) return;
+      var reasonEl = tr.querySelector('[data-field="reason"]');
+      var minsEl = tr.querySelector('[data-field="abMins"]');
+      if (reasonEl) {
+        reasonEl.disabled = !no;
+        if (!no) reasonEl.value = '';
       }
+      if (minsEl) {
+        minsEl.disabled = !no;
+        if (!no) minsEl.value = '';
+      }
+      saveInlineRow(slot, true);
+    }
+
+    function saveInlineRow(slot, fromNormal) {
+      if (readonly || !activeUnitId) return;
+      var sheet = S.getSheet(getDate(), getShift());
+      var unit = S.findUnit(sheet, activeUnitId);
+      if (!unit) return;
+      var row = null;
+      for (var i = 0; i < (unit.rows || []).length; i++) {
+        if (unit.rows[i].slot === slot) { row = unit.rows[i]; break; }
+      }
+      if (!row || row.wecomSent) return;
+
+      var tr = document.querySelector('#matrixBody tr[data-slot="' + slot + '"]');
+      if (!tr) return;
+      var qtyEl = tr.querySelector('[data-field="qty"]');
+      var normalEl = tr.querySelector('[data-field="normal"]');
+      var reasonEl = tr.querySelector('[data-field="reason"]');
+      var minsEl = tr.querySelector('[data-field="abMins"]');
+      var remarkEl = tr.querySelector('[data-field="remark"]');
+      var normal = normalEl && normalEl.value === 'yes';
+      var abRaw = minsEl ? String(minsEl.value || '').trim() : '';
+      var patch = {
+        qty: qtyEl ? (Number(qtyEl.value) || 0) : 0,
+        normal: normal,
+        reason: normal ? '' : (reasonEl ? reasonEl.value || '' : ''),
+        abMins: normal || abRaw === '' ? null : Number(abRaw),
+        remark: remarkEl ? String(remarkEl.value || '').trim() : ''
+      };
+      var errs = validateRows([{
+        slot: slot,
+        qty: patch.qty,
+        normal: patch.normal,
+        reason: patch.reason,
+        abMins: patch.abMins,
+        remark: patch.remark
+      }]);
+      // 行内编辑：负作业量立即拦截；非正常缺项留给发送/提交校验
+      if (patch.qty < 0) {
+        showToast('作业量不能为负', 'err');
+        return;
+      }
+      if (errs.length && !fromNormal && patch.normal === false) {
+        // 仍落库，便于边填边改；发送时再严校验
+      }
+      var res = S.updateRow(getDate(), getShift(), activeUnitId, slot, patch);
+      if (!res.ok) {
+        showToast(res.msg, 'err');
+        return;
+      }
+      document.getElementById('unitTotal').textContent = S.unitTotal(
+        S.findUnit(S.getSheet(getDate(), getShift()), activeUnitId)
+      ).toFixed(2);
+      document.getElementById('sheetTotal').textContent = S.sheetTotal(
+        S.getSheet(getDate(), getShift())
+      ).toFixed(2);
+      if (fromNormal) renderTable(S.findUnit(S.getSheet(getDate(), getShift()), activeUnitId));
     }
 
     function closeRowEdit() {
@@ -637,12 +684,6 @@
         document.getElementById('editCargoL1').value = row.cargoL1 || unit.cargoL1 || '';
         document.getElementById('editCargoL2').value = row.cargoL2 || unit.cargoL2 || '';
       }
-      document.getElementById('editQty').value = Number(row.qty) || 0;
-      document.getElementById('editNormal').value = row.normal === false ? 'no' : 'yes';
-      document.getElementById('editReason').value = row.reason || '';
-      document.getElementById('editAbMins').value = row.abMins != null && row.abMins !== '' ? row.abMins : '';
-      document.getElementById('editRemark').value = row.remark || '';
-      onEditNormalChange();
       document.getElementById('rowEditModal').classList.add('open');
     }
 
@@ -656,34 +697,23 @@
         showToast('请选择货种', 'err');
         return;
       }
-      var normal = document.getElementById('editNormal').value === 'yes';
-      var abRaw = String(document.getElementById('editAbMins').value || '').trim();
       var patch = {
         driver: document.getElementById('editDriver').value,
         cargoL1: cargo.l1,
-        cargoL2: cargo.l2,
-        qty: Number(document.getElementById('editQty').value) || 0,
-        normal: normal,
-        reason: normal ? '' : (document.getElementById('editReason').value || ''),
-        abMins: normal || abRaw === '' ? null : Number(abRaw),
-        remark: (document.getElementById('editRemark').value || '').trim()
+        cargoL2: cargo.l2
       };
-      var errs = validateRows([{ slot: slot, qty: patch.qty, normal: patch.normal, reason: patch.reason, abMins: patch.abMins, remark: patch.remark }]);
-      if (errs.length) {
-        showToast(errs[0], 'err');
-        return;
-      }
       var res = S.updateRow(getDate(), getShift(), activeUnitId, slot, patch);
       if (!res.ok) {
         showToast(res.msg, 'err');
         return;
       }
       closeRowEdit();
-      showToast('已保存该行');
+      showToast('已保存司机/货种');
       render();
     }
 
     function sendRow(slot) {
+      saveInlineRow(slot, false);
       var sheet = S.getSheet(getDate(), getShift());
       var unit = S.findUnit(sheet, activeUnitId);
       if (!unit) return;
@@ -694,6 +724,11 @@
       if (!row) return;
       if (row.wecomSent) {
         showToast('该行已推送企微', 'warn');
+        return;
+      }
+      var errs = validateRows([row]);
+      if (errs.length) {
+        showToast(errs[0], 'err');
         return;
       }
       var ok = confirm('确认将此时段数据推送到企微？\n' + slot + '\n推送后该行不可再修改（与本班审批无关）。');
@@ -773,37 +808,57 @@
       document.getElementById('unitTotal').textContent = S.unitTotal(unit).toFixed(2);
       document.getElementById('matrixBody').innerHTML = (unit.rows || []).map(function (r) {
         var sent = !!r.wecomSent;
+        var locked = readonly || sent;
         var driver = r.driver || unit.driver || '—';
         var cargo = r.cargoL2 || unit.cargoL2 || '—';
-        var normalTxt = r.normal === false ? '非正常' : '正常';
-        var reasonTxt = r.normal === false ? (r.reason || '—') : '—';
-        var minsTxt = r.normal === false && r.abMins != null ? (r.abMins + ' 分钟') : '—';
+        var isAbnormal = r.normal === false;
+        var slotJs = String(r.slot).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
         var sentHtml = sent
           ? '<span class="badge badge-sent">已推送</span>'
           : '<span class="text-slate-400 text-xs">未推送</span>';
         var canEdit = !readonly && !sent;
-        var canSend = !sent;
+        var canSend = !readonly && !sent;
         var ops = '';
         if (canEdit) {
-          ops += '<button type="button" class="op-link" onclick="openRowEdit(\'' + r.slot + '\')">编辑</button>';
+          ops += '<button type="button" class="op-link" onclick="openRowEdit(\'' + slotJs + '\')">编辑</button>';
         } else if (sent) {
           ops += '<span class="text-slate-400 text-xs mr-2">已锁定</span>';
         } else {
           ops += '<span class="text-slate-400 text-xs mr-2">不可编</span>';
         }
         if (canSend) {
-          ops += '<button type="button" class="op-link danger" onclick="sendRow(\'' + r.slot + '\')">发送</button>';
+          ops += '<button type="button" class="op-link danger" onclick="sendRow(\'' + slotJs + '\')">发送</button>';
         }
+
+        var qtyCell = locked
+          ? '<td class="tabular-nums">' + (Number(r.qty) || 0).toFixed(2) + '</td>'
+          : '<td><input data-field="qty" type="number" step="0.01" min="0" value="' + (Number(r.qty) || 0).toFixed(2) + '" onchange="saveInlineRow(\'' + slotJs + '\')" /></td>';
+        var normalCell = locked
+          ? '<td>' + (isAbnormal ? '非正常' : '正常') + '</td>'
+          : '<td><select data-field="normal" onchange="onInlineNormalChange(\'' + slotJs + '\', this)">' +
+            '<option value="yes"' + (!isAbnormal ? ' selected' : '') + '>正常</option>' +
+            '<option value="no"' + (isAbnormal ? ' selected' : '') + '>非正常</option></select></td>';
+        var reasonCell = locked
+          ? '<td class="text-slate-600">' + esc(isAbnormal ? (r.reason || '—') : '—') + '</td>'
+          : '<td><select data-field="reason"' + (!isAbnormal ? ' disabled' : '') +
+            ' onchange="saveInlineRow(\'' + slotJs + '\')">' + reasonOptionsHtml(isAbnormal ? (r.reason || '') : '') + '</select></td>';
+        var minsVal = isAbnormal && r.abMins != null ? r.abMins : '';
+        var minsCell = locked
+          ? '<td class="text-slate-600">' + esc(isAbnormal && r.abMins != null ? (r.abMins + ' 分钟') : '—') + '</td>'
+          : '<td><input data-field="abMins" type="number" min="1" max="60" step="1" placeholder="分钟"' +
+            (!isAbnormal ? ' disabled' : '') + ' value="' + esc(minsVal) +
+            '" onchange="saveInlineRow(\'' + slotJs + '\')" /></td>';
+        var remarkCell = locked
+          ? '<td class="text-slate-600">' + esc(r.remark || '—') + '</td>'
+          : '<td><input data-field="remark" type="text" placeholder="选「其他」时必填" value="' + esc(r.remark || '') +
+            '" onchange="saveInlineRow(\'' + slotJs + '\')" /></td>';
+
         return '<tr data-slot="' + esc(r.slot) + '"' + (sent ? ' class="bg-slate-50/80"' : '') + '>' +
           '<td class="sticky-col whitespace-nowrap font-medium">' + esc(r.slot) + '</td>' +
           '<td class="text-slate-500">' + esc(unit.machine) + '</td>' +
           '<td>' + esc(driver) + '</td>' +
           '<td>' + esc(cargo) + '</td>' +
-          '<td class="tabular-nums">' + (Number(r.qty) || 0).toFixed(2) + '</td>' +
-          '<td>' + normalTxt + '</td>' +
-          '<td class="text-slate-600">' + esc(reasonTxt) + '</td>' +
-          '<td class="text-slate-600">' + esc(minsTxt) + '</td>' +
-          '<td class="text-slate-600">' + esc(r.remark || '—') + '</td>' +
+          qtyCell + normalCell + reasonCell + minsCell + remarkCell +
           '<td>' + sentHtml + '</td>' +
           '<td class="whitespace-nowrap">' + ops + '</td>' +
         '</tr>';

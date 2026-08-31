@@ -4,7 +4,7 @@
  *      <script src="../assets/pc-sidebar.js"></script>
  *
  * data-active:
- *   efficiency-master | efficiency-volume | efficiency-daily | efficiency-ship
+ *   efficiency-master | efficiency-volume | efficiency-ship
  *   fill-shift | fill-records
  *   ship-archive | ship-schedule | ship-dispatch | ship-screen | ship-command
  *   cfg-device | cfg-berth | cfg-cargo | cfg-job | cfg-dict | cfg-wecom
@@ -31,7 +31,6 @@
     html += group('作业效率分析');
     html += link('work-stat-efficiency-pc.html?tab=master', 'fa-solid fa-user-gear', '司机效率', active === 'efficiency-master', true);
     html += link('work-stat-efficiency-pc.html?tab=volume', 'fa-solid fa-chart-column', '作业统计', active === 'efficiency-volume', true);
-    html += link('work-stat-efficiency-pc.html?tab=daily', 'fa-solid fa-calendar-day', '日报明细', active === 'efficiency-daily', true);
     html += link('work-stat-ship-eff-pc.html', 'fa-solid fa-ship', '船舶效率', active === 'efficiency-ship', true);
 
     html += group('作业管理');

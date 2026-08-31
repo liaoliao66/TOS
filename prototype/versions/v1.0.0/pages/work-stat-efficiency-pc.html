@@ -2584,6 +2584,7 @@
         tab = new URLSearchParams(location.search).get('tab') || 'master';
       } catch (e) {}
       if (['master', 'volume', 'daily'].indexOf(tab) < 0) tab = 'master';
+      if (tab === 'daily') tab = 'master';
       if (tab !== 'master') switchTab(tab);
       else {
         var nav = document.getElementById('pcSidebarNav');
