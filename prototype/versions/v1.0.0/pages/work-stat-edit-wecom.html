@@ -440,7 +440,6 @@
         var sentCount = (u.rows || []).filter(function (r) { return r.wecomSent; }).length;
         return '<button type="button" class="card p-4 w-full text-left active:bg-slate-50" onclick="openUnit(\'' + u.id + '\')">' +
           '<div class="font-medium text-sm">' + u.berth + ' · ' + u.machine + '</div>' +
-          '<div class="text-xs text-slate-500 mt-1">' + u.driver + ' / ' + u.cargoL2 + '</div>' +
           '<div class="mt-2 flex items-center justify-between text-xs">' +
             '<span class="text-teal-700">合计 ' + S.unitTotal(u).toFixed(2) + ' 吨</span>' +
             (sentCount ? '<span class="badge badge-sent">已推 ' + sentCount + ' 条</span>' : '<span class="text-slate-400">进入填时段</span>') +
