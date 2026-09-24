@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+
+<html lang="zh-CN">
+
+<head>
+
+  <meta charset="UTF-8" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+  <title>停工记录 · v1.1.0</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+
+  <script src="../assets/ship-ops-demo.js"></script>
+
+  <script src="../assets/stop-reason-demo.js"></script>
+
+  <script src="../assets/work-stat-sheet-store.js"></script>
+
+  <script src="../assets/work-stat-stoppage-store.js"></script>
+
+  <script src="../assets/pc-sidebar.js"></script>
+
+  <style>
+
+    :root { --brand: #0f766e; --brand-hover: #0d9488; }
+
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
+
+    .sidebar { background: #1e293b; }
+
+    .card { background: #fff; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+
+    .btn { border-radius: 20px; transition: all .15s ease; }
+
+    .btn:active { transform: scale(0.95); }
+
+    .btn-brand { background: var(--brand); color: #fff; }
+
+    .btn-brand:hover { background: var(--brand-hover); }
+
+    .table-row:hover { background: #f8fafc; }
+
+    .toast { position: fixed; top: 24px; right: 24px; z-index: 80; min-width: 240px; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
+
+    .fade-in { animation: fadeIn .2s ease; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+    .modal-mask { position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 70; display: none; align-items: center; justify-content: center; padding: 24px; }
+
+    .modal-mask.open { display: flex; }
+
+    .unit-pick { border: 1px solid #e2e8f0; border-radius: 16px; padding: 10px 12px; cursor: pointer; }
+
+    .unit-pick:hover { border-color: #99f6e4; background: #f0fdfa; }
+
+    .unit-pick.selected { border-color: #0f766e; background: #ecfdf5; }
+
+  </style>
+
+</head>
+
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+
+  <div class="flex min-h-screen">
+
+    <aside class="sidebar w-64 shrink-0 text-slate-100 flex flex-col">
+
+      <div class="px-5 py-6 border-b border-slate-700">
+
+        <div class="text-xs text-slate-400 mb-1">TOS 子模块</div>
+
+        <div class="text-lg font-semibold leading-snug">单机作业量统计</div>
+
+        <div class="mt-2 text-xs text-slate-400">v1.1.0 · 录入 · 效率分析 · 问数</div>
+
+      </div>
+
+      <nav id="pcSidebarNav" class="p-3 flex-1 overflow-y-auto" data-active="fill-stoppage"></nav>
+
+      <div class="p-4 text-xs text-slate-500 border-t border-slate-700">
+
+        <a href="../index.html" class="hover:text-slate-300">返回版本入口</a>
+
+      </div>
+
+    </aside>
+
+
+
+    <div class="flex-1 min-w-0 flex flex-col">
+
+      <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+
+        <div>
+
+          <h1 class="text-lg font-semibold">停工记录</h1>
+
+          <p class="text-xs text-slate-500">关联开工船舶调度 · 当日机台表（白班+夜班）· 独立停工台账</p>
+
+        </div>
+
+        <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="openCreate()">
+
+          <i class="fa-solid fa-plus mr-1"></i>登记停工
+
+        </button>
+
+      </header>
+
+
+
+      <main class="flex-1 p-6 overflow-auto">
+
+        <div class="max-w-7xl mx-auto space-y-5">
+
+          <div class="card p-5">
+
+            <div class="flex flex-wrap gap-3 items-end">
+
+              <div>
+
+                <label class="block text-xs text-slate-500 mb-1">登记日 / 作业日</label>
+
+                <input id="filterDate" type="date" class="border border-slate-200 rounded-xl px-3 py-2" />
+
+              </div>
+
+              <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="renderList()">查询</button>
+
+              <button type="button" class="btn border border-slate-200 bg-white px-5 py-2 text-sm" onclick="resetFilters()">重置</button>
+
+            </div>
+
+            <p class="text-xs text-slate-500 mt-3">停工类型来自字典「停工原因」（<code class="text-xs">tos_stop_reason_v1</code>）；机台表按船舶名匹配当日工班数据。</p>
+
+          </div>
+
+
+
+          <div class="card overflow-hidden">
+
+            <div class="px-5 py-4 border-b border-slate-100 text-sm font-medium">停工台账</div>
+
+            <div class="overflow-x-auto">
+
+              <table class="min-w-full text-sm">
+
+                <thead class="bg-slate-50 text-slate-500 text-left">
+
+                  <tr>
+
+                    <th class="px-4 py-3 font-medium">日期</th>
+
+                    <th class="px-4 py-3 font-medium">船舶</th>
+
+                    <th class="px-4 py-3 font-medium">班次</th>
+
+                    <th class="px-4 py-3 font-medium">泊位/机台</th>
+
+                    <th class="px-4 py-3 font-medium">开始时间</th>
+
+                    <th class="px-4 py-3 font-medium">结束时间</th>
+
+                    <th class="px-4 py-3 font-medium">停工类型</th>
+
+                    <th class="px-4 py-3 font-medium">备注</th>
+
+                    <th class="px-4 py-3 font-medium">操作</th>
+
+                  </tr>
+
+                </thead>
+
+                <tbody id="listBody"></tbody>
+
+              </table>
+
+            </div>
+
+            <div id="emptyState" class="hidden p-12 text-center text-slate-400">暂无停工记录</div>
+
+            <div class="px-5 py-4 border-t border-slate-100 text-sm text-slate-500" id="listCount">共 0 条</div>
+
+          </div>
+
+        </div>
+
+      </main>
+
+    </div>
+
+  </div>
+
+
+
+  <div id="createModal" class="modal-mask" onclick="if(event.target===this)closeCreate()">
+
+    <div class="card fade-in w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+
+      <div class="flex items-center justify-between mb-4">
+
+        <h3 class="font-semibold">登记停工</h3>
+
+        <button type="button" class="text-slate-400" onclick="closeCreate()"><i class="fa-solid fa-xmark"></i></button>
+
+      </div>
+
+
+
+      <div class="space-y-4 text-sm">
+
+        <div>
+
+          <label class="block text-xs text-slate-500 mb-1">登记日</label>
+
+          <input id="formDate" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2" />
+
+        </div>
+
+        <div>
+
+          <label class="block text-xs text-slate-500 mb-1">选择船舶 <span class="text-rose-500">*</span></label>
+
+          <select id="formDispatch" class="w-full border border-slate-200 rounded-xl px-3 py-2" onchange="onDispatchChange()">
+
+            <option value="">— 请选择开工中的船舶 —</option>
+
+          </select>
+
+          <p class="text-xs text-slate-400 mt-1">仅展示调度状态为「开工」且未完工的船舶。</p>
+
+        </div>
+
+
+
+        <div id="unitBlock" class="hidden">
+
+          <label class="block text-xs text-slate-500 mb-2">当日机台表 <span class="text-rose-500">*</span></label>
+
+          <div id="unitList" class="space-y-2"></div>
+
+        </div>
+
+        <p id="noUnitTip" class="hidden text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-xl px-3 py-2">
+
+          当日未找到该机台表（白班+夜班），保存时将仅关联船舶/调度。
+
+        </p>
+
+
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+
+          <div>
+
+            <label class="block text-xs text-slate-500 mb-1">开始时间 <span class="text-rose-500">*</span></label>
+
+            <input id="formFrom" type="datetime-local" class="w-full border border-slate-200 rounded-xl px-3 py-2" />
+
+          </div>
+
+          <div>
+
+            <label class="block text-xs text-slate-500 mb-1">结束时间 <span class="text-rose-500">*</span></label>
+
+            <input id="formTo" type="datetime-local" class="w-full border border-slate-200 rounded-xl px-3 py-2" />
+
+          </div>
+
+        </div>
+
+
+
+        <div>
+
+          <label class="block text-xs text-slate-500 mb-1">停工类型 <span class="text-rose-500">*</span></label>
+
+          <select id="formReason" class="w-full border border-slate-200 rounded-xl px-3 py-2"></select>
+
+          <a href="../v1.0.0/pages/work-stat-dict-pc.html?tab=stop" target="_blank" rel="noopener noreferrer" class="inline-block mt-2 text-xs text-teal-700 hover:underline">配置停工类型</a>
+
+        </div>
+
+
+
+        <div>
+
+          <label class="block text-xs text-slate-500 mb-1">备注</label>
+
+          <textarea id="formRemark" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="选填"></textarea>
+
+        </div>
+
+      </div>
+
+
+
+      <div class="flex justify-end gap-2 mt-6">
+
+        <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="closeCreate()">取消</button>
+
+        <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="saveCreate()">保存</button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+
+
+  <script>
+
+    var ST = WorkStatStoppageStore;
+
+    var selectedUnitId = '';
+
+
+
+    function showToast(msg, type) {
+
+      type = type || 'ok';
+
+      var el = document.createElement('div');
+
+      el.className = 'toast fade-in px-4 py-3 text-sm text-white ' +
+
+        (type === 'err' ? 'bg-red-500' : type === 'warn' ? 'bg-amber-500' : 'bg-emerald-500');
+
+      el.textContent = msg;
+
+      document.body.appendChild(el);
+
+      setTimeout(function () { el.remove(); }, 2600);
+
+    }
+
+
+
+    function esc(s) {
+
+      return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+
+    }
+
+
+
+    function fmtDt(iso) {
+
+      if (!iso) return '—';
+
+      return String(iso).replace('T', ' ');
+
+    }
+
+
+
+    function resetFilters() {
+
+      document.getElementById('filterDate').value = ST.todayStr();
+
+      renderList();
+
+    }
+
+
+
+    function renderList() {
+
+      var date = document.getElementById('filterDate').value || ST.todayStr();
+
+      var rows = ST.list(date);
+
+      var body = document.getElementById('listBody');
+
+      var empty = document.getElementById('emptyState');
+
+      document.getElementById('listCount').textContent = '共 ' + rows.length + ' 条 · ' + date;
+
+      if (!rows.length) {
+
+        body.innerHTML = '';
+
+        empty.classList.remove('hidden');
+
+        return;
+
+      }
+
+      empty.classList.add('hidden');
+
+      body.innerHTML = rows.map(function (r) {
+
+        var berthMachine = (r.berth && r.machine) ? (r.berth + ' · ' + r.machine) : (r.berth || r.machine || '—');
+
+        var ship = r.shipName + (r.voyage ? ' / ' + r.voyage : '');
+
+        return '<tr class="table-row border-t border-slate-100">' +
+
+          '<td class="px-4 py-3">' + esc(r.date) + '</td>' +
+
+          '<td class="px-4 py-3">' + esc(ship) + '</td>' +
+
+          '<td class="px-4 py-3">' + esc(r.shift || '—') + '</td>' +
+
+          '<td class="px-4 py-3 text-xs">' + esc(berthMachine) + '</td>' +
+
+          '<td class="px-4 py-3 whitespace-nowrap">' + esc(fmtDt(r.from)) + '</td>' +
+
+          '<td class="px-4 py-3 whitespace-nowrap">' + esc(fmtDt(r.to)) + '</td>' +
+
+          '<td class="px-4 py-3">' + esc(r.reason) + '</td>' +
+
+          '<td class="px-4 py-3 text-slate-500 max-w-[8rem] truncate" title="' + esc(r.remark) + '">' + esc(r.remark || '—') + '</td>' +
+
+          '<td class="px-4 py-3"><button type="button" class="text-red-600 hover:underline text-xs" onclick="doRemove(\'' + r.id + '\')">删除</button></td>' +
+
+        '</tr>';
+
+      }).join('');
+
+    }
+
+
+
+    function doRemove(id) {
+
+      if (!confirm('确认删除该停工记录？（原型示意）')) return;
+
+      var res = ST.remove(id);
+
+      if (!res.ok) { showToast(res.msg, 'err'); return; }
+
+      showToast('已删除', 'warn');
+
+      renderList();
+
+    }
+
+
+
+    function fillReasonSelect() {
+
+      var sel = document.getElementById('formReason');
+
+      var names = StopReasonDemo.namesEnabled();
+
+      sel.innerHTML = '<option value="">— 请选择 —</option>' +
+
+        names.map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('');
+
+    }
+
+
+
+    function fillDispatchSelect() {
+
+      var sel = document.getElementById('formDispatch');
+
+      var list = ST.listWorkingShips();
+
+      var opts = '<option value="">— 请选择开工中的船舶 —</option>';
+
+      list.forEach(function (d) {
+
+        var label = d.shipName + ' · ' + (d.voyage || '') + ' · ' + (d.instructionNo || d.id);
+
+        opts += '<option value="' + esc(d.id) + '">' + esc(label) + '</option>';
+
+      });
+
+      sel.innerHTML = opts;
+
+    }
+
+
+
+    function pickUnit(id) {
+
+      selectedUnitId = id;
+
+      document.querySelectorAll('.unit-pick').forEach(function (el) {
+
+        el.classList.toggle('selected', el.getAttribute('data-unit-id') === id);
+
+        var radio = el.querySelector('input[type=radio]');
+
+        if (radio) radio.checked = el.getAttribute('data-unit-id') === id;
+
+      });
+
+    }
+
+
+
+    function onDispatchChange() {
+
+      selectedUnitId = '';
+
+      var id = document.getElementById('formDispatch').value;
+
+      var unitBlock = document.getElementById('unitBlock');
+
+      var noTip = document.getElementById('noUnitTip');
+
+      var listEl = document.getElementById('unitList');
+
+      unitBlock.classList.add('hidden');
+
+      noTip.classList.add('hidden');
+
+      listEl.innerHTML = '';
+
+      if (!id) return;
+
+      var d = ShipOpsDemo.getDispatch(id);
+
+      if (!d) return;
+
+      var units = ST.unitsForShipToday(d.shipName);
+
+      if (!units.length) {
+
+        noTip.classList.remove('hidden');
+
+        return;
+
+      }
+
+      unitBlock.classList.remove('hidden');
+
+      selectedUnitId = units.length === 1 ? units[0].unitId : '';
+
+      listEl.innerHTML = units.map(function (u) {
+
+        var sel = selectedUnitId === u.unitId;
+
+        return '<label class="unit-pick flex gap-3 items-start ' + (sel ? 'selected' : '') + '" data-unit-id="' + esc(u.unitId) + '" onclick="pickUnit(\'' + u.unitId + '\')">' +
+
+          '<input type="radio" name="unitPick" class="mt-1" ' + (sel ? 'checked' : '') + ' value="' + esc(u.unitId) + '" />' +
+
+          '<div class="text-xs">' +
+
+            '<div class="font-medium text-teal-800">' + esc(u.shift) + ' · ' + esc(u.berth) + ' · ' + esc(u.machine) + '</div>' +
+
+            '<div class="text-slate-500 mt-1">' + esc(u.driver) + ' · ' + esc(u.cargo) + '</div>' +
+
+          '</div></label>';
+
+      }).join('');
+
+    }
+
+
+
+    function openCreate() {
+
+      fillDispatchSelect();
+
+      fillReasonSelect();
+
+      document.getElementById('formDate').value = ST.todayStr();
+
+      document.getElementById('formDispatch').value = '';
+
+      document.getElementById('formFrom').value = '';
+
+      document.getElementById('formTo').value = '';
+
+      document.getElementById('formRemark').value = '';
+
+      document.getElementById('unitBlock').classList.add('hidden');
+
+      document.getElementById('noUnitTip').classList.add('hidden');
+
+      document.getElementById('unitList').innerHTML = '';
+
+      selectedUnitId = '';
+
+      document.getElementById('createModal').classList.add('open');
+
+    }
+
+
+
+    function closeCreate() {
+
+      document.getElementById('createModal').classList.remove('open');
+
+    }
+
+
+
+    function saveCreate() {
+
+      var res = ST.create({
+
+        date: document.getElementById('formDate').value,
+
+        dispatchId: document.getElementById('formDispatch').value,
+
+        unitId: selectedUnitId,
+
+        from: document.getElementById('formFrom').value,
+
+        to: document.getElementById('formTo').value,
+
+        reason: document.getElementById('formReason').value,
+
+        remark: document.getElementById('formRemark').value.trim()
+
+      });
+
+      if (!res.ok) { showToast(res.msg, 'err'); return; }
+
+      closeCreate();
+
+      document.getElementById('filterDate').value = document.getElementById('formDate').value || ST.todayStr();
+
+      renderList();
+
+      if (res.warnNoUnits) showToast('已保存 · ' + res.warnNoUnits, 'warn');
+
+      else showToast('停工记录已保存');
+
+    }
+
+
+
+    (function init() {
+
+      document.getElementById('filterDate').value = ST.todayStr();
+
+      renderList();
+
+    })();
+
+  </script>
+
+</body>
+
+</html>
+

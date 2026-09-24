@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>停工登记 · 企微H5</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../assets/ship-ops-demo.js?v=20260924d"></script>
+  <script src="../assets/stop-reason-demo.js?v=20260924d"></script>
+  <script src="../assets/work-stat-sheet-store.js?v=20260924d"></script>
+  <script src="../assets/work-stat-stoppage-store.js?v=20260924d"></script>
+  <script src="../assets/wecom-push.js?v=20260924d"></script>
+  <style>
+    :root { --brand: #0f766e; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; font-size: 14px; background: #f1f5f9; }
+    .btn { border-radius: 20px; -webkit-transition: all .15s ease; transition: all .15s ease; border: 0; cursor: pointer; }
+    .btn:active { -webkit-transform: scale(0.95); transform: scale(0.95); }
+    .btn-stop { background: #dc2626; color: #fff; }
+    .btn-start { background: var(--brand); color: #fff; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .toast { position: absolute; top: 72px; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); z-index: 90; min-width: 220px; max-width: 90%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+    .page-bg { background: #e2e8f0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 12px; box-sizing: border-box; }
+    .phone-frame { width: 390px; height: 844px; border-radius: 48px; border: 3px solid #e5e7eb; background: #0f172a; box-shadow: 0 12px 40px rgba(15,23,42,0.18); padding: 12px; box-sizing: border-box; }
+    .phone-screen { width: 100%; height: 100%; border-radius: 36px; background: #f1f5f9; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+    .phone-status { height: 28px; background: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 11px; color: #334155; border-bottom: 1px solid #f1f5f9; flex-shrink: 0; }
+    .phone-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; }
+    .wecom-tag { font-size: 10px; color: #0f766e; background: #ccfbf1; border-radius: 999px; padding: 1px 8px; }
+    .field label { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
+    .field select { width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px; font-size: 14px; min-height: 40px; background: #fff; box-sizing: border-box; }
+    .mask { position: absolute; inset: 0; background: rgba(15,23,42,0.45); z-index: 60; display: none; align-items: flex-end; }
+    .mask.open { display: flex; }
+    .sheet { width: 100%; max-height: 70%; background: #fff; border-radius: 20px 20px 0 0; padding: 16px 16px 20px; overflow-y: auto; }
+    .badge-work { background: #d1fae5; color: #047857; font-size: 12px; border-radius: 999px; padding: 2px 8px; }
+    .badge-stop { background: #fee2e2; color: #b91c1c; font-size: 12px; border-radius: 999px; padding: 2px 8px; }
+    .meta-grid { display: grid; grid-template-columns: 4.5em 1fr; gap: 4px 8px; font-size: 12px; color: #475569; margin-top: 10px; background: #f8fafc; border-radius: 12px; padding: 10px 12px; }
+    .meta-grid .k { color: #94a3b8; }
+    .meta-grid .v { color: #334155; word-break: break-all; }
+    .timer { font-variant-numeric: tabular-nums; font-weight: 600; color: #b91c1c; }
+    .scene-btn { flex: 1; font-size: 12px; padding: 8px 6px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; color: #475569; }
+    .scene-btn.on { border-color: #0f766e; background: #ecfdf5; color: #0f766e; font-weight: 600; }
+    .fade-in { animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  </style>
+</head>
+<body class="page-bg text-slate-800">
+  <div class="phone-frame" aria-label="手机预览框">
+    <div class="phone-screen">
+      <div class="phone-status">
+        <span>9:41</span>
+        <span class="wecom-tag">企微 H5</span>
+        <span><i class="fa-solid fa-signal"></i> <i class="fa-solid fa-wifi"></i> <i class="fa-solid fa-battery-full"></i></span>
+      </div>
+
+      <div class="phone-scroll">
+        <header class="sticky top-0 z-30 bg-white border-b border-slate-200 px-3 h-12 flex items-center gap-2">
+          <a href="../index.html" class="text-xs text-teal-700 shrink-0 w-14">返回</a>
+          <div class="font-semibold text-base flex-1 text-center">停工登记</div>
+          <span class="w-14 shrink-0"></span>
+        </header>
+
+        <div class="px-4 pt-3 pb-2">
+          <div class="text-xs text-teal-800 bg-teal-50 rounded-xl px-3 py-2">
+            点「开始停工」必选原因并计时（分）；满 1 小时推送企微群。点「结束停工」结束本段计时。历史记录请到「停工记录」查看。
+          </div>
+        </div>
+
+        <div class="px-4 pb-2">
+          <div class="flex gap-2">
+            <button type="button" id="sceneClear" class="scene-btn" onclick="switchScene('allClear')">场景1 · 全无停工</button>
+            <button type="button" id="sceneMixed" class="scene-btn" onclick="switchScene('mixed')">场景2 · 有停工中</button>
+          </div>
+        </div>
+
+        <div class="px-4 pb-1 text-xs text-slate-500" id="listCount">开工船舶 0 艘</div>
+        <div id="renderError" class="hidden px-4 pb-2 text-xs text-red-600"></div>
+        <main class="px-4 space-y-3 pb-4" id="listBody"></main>
+        <div id="emptyState" class="hidden px-4 text-center text-sm text-slate-400 py-6">暂无开工中的船舶</div>
+
+        <div class="px-4 pt-1 pb-4 text-center text-xs text-slate-400 space-x-3">
+          <a href="work-stat-stoppage-list-wecom.html" class="text-teal-700">查看停工记录</a>
+          <a href="../index.html" class="text-teal-700">返回企微入口</a>
+        </div>
+      </div>
+
+      <div id="reasonMask" class="mask" onclick="closeIfMask(event,'reasonMask')">
+        <div class="sheet fade-in" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-between mb-3">
+            <div class="font-semibold">确认停工</div>
+            <button type="button" class="text-slate-400" onclick="closeReason()"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <p class="text-xs text-slate-500 mb-3" id="reasonShipHint">—</p>
+          <div class="field mb-0">
+            <label>停工原因 <span class="text-rose-500">*</span></label>
+            <select id="formReason"></select>
+          </div>
+          <div class="flex gap-2 mt-4">
+            <button type="button" class="btn flex-1 py-2.5 text-sm" style="background:#fff;border:1px solid #e2e8f0;color:#334155" onclick="closeReason()">取消</button>
+            <button type="button" class="btn btn-stop flex-1 py-2.5 text-sm" onclick="confirmStop()">确认开始停工</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var ST = window.WorkStatStoppageStore;
+    var pendingDispatchId = '';
+    var tickTimer = null;
+    var currentScene = 'allClear';
+
+    function showToast(msg, type) {
+      type = type || 'ok';
+      var host = document.querySelector('.phone-screen') || document.body;
+      var el = document.createElement('div');
+      el.className = 'toast fade-in px-4 py-3 text-sm text-white ' +
+        (type === 'err' ? 'bg-red-500' : type === 'warn' ? 'bg-amber-500' : 'bg-emerald-500');
+      el.textContent = msg;
+      host.appendChild(el);
+      setTimeout(function () { el.remove(); }, 2600);
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function closeIfMask(e, id) {
+      if (e.target && e.target.id === id) closeReason();
+    }
+
+    function fillReasonSelect() {
+      var sel = document.getElementById('formReason');
+      var names = (window.StopReasonDemo && StopReasonDemo.namesEnabled)
+        ? StopReasonDemo.namesEnabled()
+        : ['天气原因', '设备异常', '等货/等驳', '移泊', '其他'];
+      sel.innerHTML = '<option value="">— 请选择停工原因 —</option>' +
+        names.map(function (n) { return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('');
+    }
+
+    function fmtTimer(min) {
+      return '本段已停工 ' + min + ' 分';
+    }
+
+    function fmtCum(min) {
+      return '本次作业累计停工 ' + min + ' 分';
+    }
+
+    /** 船舶 / 泊位 / 货种 / 进出口 / 作业司机 */
+    function displayMeta(d) {
+      var units = [];
+      try { units = ST.unitsForShipToday(d.shipName) || []; } catch (e) { units = []; }
+      var echo = null;
+      try { echo = ST.dispatchMachineEcho(d); } catch (e2) { echo = null; }
+
+      var berth = (d.berth && d.berth.berthNo) || (d.start && d.start.berthNo) || '';
+      var cargo = (d.start && (d.start.cargoL2 || d.start.cargo)) || '';
+      var drivers = [];
+      var seen = {};
+
+      units.forEach(function (u) {
+        if (u.berth) berth = u.berth;
+        if (u.cargo) cargo = u.cargo;
+        if (u.driver && !seen[u.driver]) {
+          seen[u.driver] = true;
+          drivers.push(u.driver);
+        }
+      });
+
+      if (!berth && echo) berth = echo.berth || '';
+      if (!cargo && echo) cargo = echo.cargo || '';
+
+      return {
+        ship: (d.shipName || '未命名') + (d.voyage ? ' / ' + d.voyage : ''),
+        berth: berth || '—',
+        cargo: cargo || '—',
+        io: d.cargoInOut || '—',
+        driver: drivers.length ? drivers.join('、') : '—'
+      };
+    }
+
+    function metaHtml(d) {
+      var m = displayMeta(d);
+      return '<div class="meta-grid">' +
+        '<span class="k">船舶</span><span class="v">' + esc(m.ship) + '</span>' +
+        '<span class="k">泊位</span><span class="v">' + esc(m.berth) + '</span>' +
+        '<span class="k">货种</span><span class="v">' + esc(m.cargo) + '</span>' +
+        '<span class="k">进出口</span><span class="v">' + esc(m.io) + '</span>' +
+        '<span class="k">作业司机</span><span class="v">' + esc(m.driver) + '</span>' +
+      '</div>';
+    }
+
+    function shipCard(d) {
+      var active = null;
+      try { active = ST.getActiveByDispatch(d.id); } catch (e) { active = null; }
+      var m = displayMeta(d);
+      var cum = 0;
+      try { cum = ST.cumulativeMinutesForDispatch(d.id); } catch (e3) { cum = 0; }
+
+      if (active) {
+        var min = 0;
+        try { min = ST.elapsedMinutes(active); } catch (e2) { min = 0; }
+        return '<article class="card p-4">' +
+          '<div class="flex items-start justify-between gap-2">' +
+            '<div class="font-medium text-slate-900">' + esc(m.ship) + '</div>' +
+            '<span class="badge-stop shrink-0">停工中</span>' +
+          '</div>' +
+          '<div class="mt-2 text-sm timer" data-timer="' + esc(active.id) + '">' + fmtTimer(min) + '</div>' +
+          '<div class="text-xs text-slate-600 mt-1" data-cum="' + esc(d.id) + '">' + fmtCum(cum) + '</div>' +
+          '<div class="text-xs text-slate-500 mt-1">原因：' + esc(active.reason) +
+            ' · 起 ' + esc(String(active.startedAt || '').replace('T', ' ')) + '</div>' +
+          metaHtml(d) +
+          '<button type="button" class="btn btn-start w-full mt-3 py-2.5 text-sm" onclick="doStart(\'' + esc(d.id) + '\')">结束停工</button>' +
+        '</article>';
+      }
+
+      return '<article class="card p-4">' +
+        '<div class="flex items-start justify-between gap-2">' +
+          '<div class="font-medium text-slate-900">' + esc(m.ship) + '</div>' +
+          '<span class="badge-work shrink-0">作业中</span>' +
+        '</div>' +
+        '<div class="mt-2 text-xs text-slate-600" data-cum="' + esc(d.id) + '">' + fmtCum(cum) + '</div>' +
+        metaHtml(d) +
+        '<button type="button" class="btn btn-stop w-full mt-3 py-2.5 text-sm" onclick="openStop(\'' + esc(d.id) + '\')">开始停工</button>' +
+      '</article>';
+    }
+
+    function setSceneButtons() {
+      var a = document.getElementById('sceneClear');
+      var b = document.getElementById('sceneMixed');
+      if (a) a.className = 'scene-btn' + (currentScene === 'allClear' ? ' on' : '');
+      if (b) b.className = 'scene-btn' + (currentScene === 'mixed' ? ' on' : '');
+    }
+
+    function renderList() {
+      var errEl = document.getElementById('renderError');
+      errEl.classList.add('hidden');
+      errEl.textContent = '';
+      try {
+        if (!ST) throw new Error('停工数据模块未加载');
+        var ships = ST.listWorkingShips() || [];
+        var body = document.getElementById('listBody');
+        var empty = document.getElementById('emptyState');
+        document.getElementById('listCount').textContent = '开工船舶 ' + ships.length + ' 艘';
+
+        if (!ships.length) {
+          body.innerHTML = '';
+          empty.classList.remove('hidden');
+        } else {
+          empty.classList.add('hidden');
+          body.innerHTML = ships.map(shipCard).join('');
+        }
+        setSceneButtons();
+      } catch (e) {
+        errEl.textContent = '渲染失败：' + (e && e.message ? e.message : e);
+        errEl.classList.remove('hidden');
+        console.error(e);
+      }
+    }
+
+    function switchScene(scene) {
+      currentScene = scene === 'mixed' ? 'mixed' : 'allClear';
+      try {
+        ST.applyDemoScene(currentScene);
+        renderList();
+        showToast(currentScene === 'mixed' ? '已切换：有停工中' : '已切换：全无停工');
+      } catch (e) {
+        showToast('场景切换失败', 'err');
+        console.error(e);
+      }
+    }
+
+    function openStop(dispatchId) {
+      pendingDispatchId = dispatchId;
+      fillReasonSelect();
+      var d = window.ShipOpsDemo && ShipOpsDemo.getDispatch
+        ? ShipOpsDemo.getDispatch(dispatchId) : null;
+      document.getElementById('reasonShipHint').textContent =
+        d ? ('船舶：' + d.shipName + (d.voyage ? ' / ' + d.voyage : '')) : '—';
+      document.getElementById('formReason').value = '';
+      document.getElementById('reasonMask').classList.add('open');
+    }
+
+    function closeReason() {
+      pendingDispatchId = '';
+      document.getElementById('reasonMask').classList.remove('open');
+    }
+
+    function confirmStop() {
+      var reason = document.getElementById('formReason').value;
+      if (!reason) { showToast('请选择停工原因', 'err'); return; }
+      var res = ST.startLive({ dispatchId: pendingDispatchId, reason: reason });
+      if (!res.ok) { showToast(res.msg, 'err'); return; }
+      closeReason();
+      renderList();
+      showToast(res.warnNoUnits ? '已开始停工计时（无机台表）' : '已开始停工计时',
+        res.warnNoUnits ? 'warn' : 'ok');
+    }
+
+    function doStart(dispatchId) {
+      if (!confirm('确认结束停工？将结束本段计时并恢复作业。')) return;
+      var res = ST.endLive(dispatchId);
+      if (!res.ok) { showToast(res.msg, 'err'); return; }
+      renderList();
+      showToast('已结束停工 · 本段 ' + (res.item.durationMin || 0) + ' 分');
+    }
+
+    function tick() {
+      if (!ST || !ST.listActive) return;
+      var actives = ST.listActive() || [];
+      actives.forEach(function (a) {
+        var el = document.querySelector('[data-timer="' + a.id + '"]');
+        if (el) el.textContent = fmtTimer(ST.elapsedMinutes(a));
+        var cumEl = document.querySelector('[data-cum="' + a.dispatchId + '"]');
+        if (cumEl && ST.cumulativeMinutesForDispatch) {
+          cumEl.textContent = fmtCum(ST.cumulativeMinutesForDispatch(a.dispatchId));
+        }
+        var due = ST.completedHours(a);
+        var pushed = Number(a.pushHourCount || 0);
+        if (due > pushed) {
+          for (var h = pushed + 1; h <= due; h++) {
+            if (window.WecomPush && WecomPush.notifyStoppageHour) {
+              WecomPush.notifyStoppageHour({
+                hours: h,
+                minutes: ST.elapsedMinutes(a),
+                shipName: a.shipName,
+                voyage: a.voyage,
+                reason: a.reason,
+                startedAt: String(a.startedAt || '').replace('T', ' '),
+                berth: a.berth,
+                machine: a.machine
+              });
+            }
+          }
+          ST.markPushHours(a.id, due);
+        }
+      });
+    }
+
+    (function init() {
+      try {
+        var act = ST.listActive() || [];
+        if (!act.length) {
+          ST.applyDemoScene('allClear');
+          currentScene = 'allClear';
+        } else {
+          currentScene = 'mixed';
+        }
+      } catch (e) {
+        console.error(e);
+      }
+      renderList();
+      tickTimer = setInterval(tick, 1000);
+    })();
+  </script>
+</body>
+</html>

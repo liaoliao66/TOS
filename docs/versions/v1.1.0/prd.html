@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <title>武港联投 · 企微 H5 · v1.1.0 PRD</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+  <style>
+    :root { --toc-w: 240px; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", sans-serif; background: #f8fafc; color: #0f172a; line-height: 1.6; }
+    .prd-toc { position: fixed; left: 12px; top: 72px; width: var(--toc-w); max-height: calc(100vh - 88px); overflow-y: auto; z-index: 40; background: rgba(255,255,255,0.96); border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); font-size: 13px; }
+    .prd-toc strong { display:block; margin-bottom:8px; color:#0f172a; font-size:13px; }
+    .prd-toc a { display:block; color:#475569; text-decoration:none; margin:3px 0; padding:3px 6px; border-radius:6px; }
+    .prd-toc a:hover { color:#0f766e; background:#f0fdfa; }
+    .prd-toc .l2 { padding-left:12px; font-size:12px; color:#64748b; }
+    .prd-main { max-width: 960px; width: 100%; margin: 0 auto; padding: 24px 20px 80px; box-sizing: border-box; }
+    @media (min-width: 1100px) { body { padding-left: calc(var(--toc-w) + 36px); } }
+    @media (max-width: 1099px) { .prd-toc { display:none; } }
+    #content h1 { font-size:1.875rem; font-weight:700; margin:0.5rem 0 1rem; }
+    #content h2 { font-size:1.375rem; font-weight:700; margin:2rem 0 0.75rem; padding-bottom:0.4rem; border-bottom:1px solid #e2e8f0; scroll-margin-top:80px; }
+    #content h3 { font-size:1.125rem; font-weight:650; margin:1.5rem 0 0.5rem; scroll-margin-top:80px; }
+    #content table { width:100%; border-collapse:collapse; margin:0.75rem 0 1.25rem; font-size:0.875rem; background:#fff; border:1px solid #e2e8f0; border-radius:10px; overflow:hidden; }
+    #content th, #content td { border:1px solid #e2e8f0; padding:0.55rem 0.7rem; text-align:left; vertical-align:top; }
+    #content th { background:#f1f5f9; font-weight:600; }
+    .meta-bar { position:sticky; top:0; z-index:50; backdrop-filter: blur(12px); background:rgba(248,250,252,0.9); border-bottom:1px solid #e2e8f0; }
+  </style>
+</head>
+<body>
+  <header class="meta-bar">
+    <div class="prd-main" style="padding-top:12px;padding-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+      <div>
+        <div class="text-sm font-semibold text-slate-900">武港联投 · 企业微信 H5 · 产品 PRD</div>
+        <div class="text-xs text-slate-500 mt-0.5">版本 v1.1.0 · 更新日期 2026-09-22</div>
+      </div>
+      <div class="flex items-center gap-2">
+        <a href="../../../prototype/index.html" class="text-xs px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 no-underline">返回总入口</a>
+        <a href="../v1.0.0/prd.html" class="text-xs px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 no-underline">PC v1.0.0 PRD</a>
+        <a href="./prd.md" class="text-xs px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 no-underline">源码 MD</a>
+      </div>
+    </div>
+  </header>
+  <nav class="prd-toc" id="toc" aria-label="文档目录"><strong>目录</strong><div id="toc-links"></div></nav>
+  <main class="prd-main">
+    <div id="loading" class="text-sm text-slate-500 py-10">正在加载 PRD…</div>
+    <article id="content" class="hidden"></article>
+    <div id="error" class="hidden text-sm text-rose-600 py-10"></div>
+  </main>
+  <script>
+    mermaid.initialize({ startOnLoad: false, theme: "neutral", securityLevel: "loose" });
+    function slugify(t) { return String(t).trim().toLowerCase().replace(/[^\w\u4e00-\u9fff\- ]+/g, "").replace(/\s+/g, "-"); }
+    function buildToc(root) {
+      var box = document.getElementById("toc-links"); box.innerHTML = "";
+      root.querySelectorAll("h2, h3").forEach(function (h) {
+        if (!h.id) h.id = slugify(h.textContent);
+        var a = document.createElement("a"); a.href = "#" + h.id; a.textContent = h.textContent;
+        if (h.tagName === "H3") a.className = "l2"; box.appendChild(a);
+      });
+    }
+    async function render() {
+      var loading = document.getElementById("loading"), content = document.getElementById("content"), error = document.getElementById("error");
+      try {
+        var res = await fetch("./prd.md"); if (!res.ok) throw new Error("HTTP " + res.status);
+        var md = await res.text();
+        md = md.replace(/\n## 目录\n[\s\S]*?\n---\n/, "\n---\n");
+        content.innerHTML = marked.parse(md, { gfm: true, breaks: false });
+        buildToc(content);
+        loading.classList.add("hidden"); content.classList.remove("hidden");
+      } catch (e) {
+        loading.classList.add("hidden"); error.classList.remove("hidden");
+        error.textContent = "PRD 渲染失败：" + (e && e.message ? e.message : e);
+      }
+    }
+    render();
+  </script>
+</body>
+</html>

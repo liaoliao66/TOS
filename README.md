@@ -4,15 +4,17 @@ PC 端产品 PRD 与 HTML 原型仓库（GitHub Pages 友好）。
 
 ## 快速入口
 
-- 原型总入口：`prototype/index.html`
-- 产品 PRD 阅读页（v1.0.0）：`docs/versions/v1.0.0/prd.html`
-- 产品 PRD 源码：`docs/versions/v1.0.0/prd.md`
-- PC 原型：`prototype/versions/v1.0.0/index.html`
+- 原型总入口（选版本）：`prototype/index.html`
+- v1.0.0 全量 PC：`prototype/versions/v1.0.0/index.html`
+- v1.1.0 企微 H5：`prototype/versions/v1.1.0/index.html`
+- v1.1.0 本版 PC：`prototype/versions/v1.1.0/index-pc.html`
+- 产品 PRD：`docs/versions/v1.0.0/prd.html` · `docs/versions/v1.1.0/prd.html`
 
 ## 在线演示（GitHub Pages）
 
-- 原型入口：https://liaoliao66.github.io/TOS/prototype/
-- 版本入口：https://liaoliao66.github.io/TOS/prototype/versions/v1.0.0/
+- 原型总入口：https://liaoliao66.github.io/TOS/prototype/
+- v1.0.0 PC：https://liaoliao66.github.io/TOS/prototype/versions/v1.0.0/
+- v1.1.0 企微 H5：https://liaoliao66.github.io/TOS/prototype/versions/v1.1.0/
 
 ### 每周更新真实演示数据
 
@@ -40,6 +42,6 @@ PC 端产品 PRD 与 HTML 原型仓库（GitHub Pages 友好）。
 
 ## 说明
 
-- 当前唯一工作版本：`v1.0.0`
+- 当前版本：`v1.0.0`（全量 PC）· `v1.1.0`（企微 H5 + 本版 PC）
 - 技术栈：HTML + Tailwind CDN + FontAwesome + 原生 JS
 - 不含消息中心 / 审批流 / 权限配置页面（由内部平台承接）

@@ -8,7 +8,10 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   <script src="../assets/cargo-mgmt-demo.js"></script>
   <script src="../assets/cargo-cascade.js"></script>
+  <script src="../assets/ship-ops-demo.js"></script>
+  <script src="../assets/vessel-search.js"></script>
   <script src="../assets/work-stat-sheet-store.js"></script>
+  <script src="../assets/wecom-push.js"></script>
   <style>
     :root { --brand: #0f766e; }
     body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; font-size: 14px; background: #f1f5f9; }
@@ -54,6 +57,7 @@
       display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-pack: end; -webkit-justify-content: flex-end; justify-content: flex-end; gap: 16px;
     }
     .slot-actions .op-link { font-size: 13px; padding: 4px 0; }
+    .vessel-search-item:hover { background: #f0fdfa !important; }
   </style>
 </head>
 <body class="page-bg text-slate-800">
@@ -66,7 +70,6 @@
       </div>
 
       <div class="phone-scroll">
-        <!-- 本班：机台表列表 -->
         <div id="viewShift" class="view-panel active">
           <header class="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 h-12 flex items-center gap-3">
             <a href="work-stat-list-wecom.html" class="text-teal-700 text-sm shrink-0"><i class="fa-solid fa-chevron-left mr-1"></i>作业记录</a>
@@ -104,7 +107,6 @@
           </main>
         </div>
 
-        <!-- 机台表：时段卡片 -->
         <div id="viewUnit" class="view-panel">
           <header class="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 h-12 flex items-center gap-3">
             <button type="button" class="text-teal-700 text-sm shrink-0" onclick="backToShift()"><i class="fa-solid fa-chevron-left mr-1"></i>本班</button>
@@ -128,7 +130,6 @@
         <button type="button" id="btnSubmit" class="btn btn-brand w-full py-3 text-sm" onclick="submitShift()">提交本班审批</button>
       </div>
 
-      <!-- 新增机台表 -->
       <div id="createMask" class="mask" onclick="closeIfMask(event,'createMask')">
         <div class="sheet" onclick="event.stopPropagation()">
           <div class="flex items-center justify-between mb-3">
@@ -136,6 +137,7 @@
             <button type="button" class="text-slate-400" onclick="closeCreateUnit()"><i class="fa-solid fa-xmark"></i></button>
           </div>
           <div class="space-y-3">
+            <div class="field"><label>船舶 <span class="text-red-500">*</span></label><div id="createVesselWrap"></div></div>
             <div class="grid grid-cols-2 gap-2">
               <div class="field"><label>泊位</label><select id="fBerth" onchange="syncMachine()"></select></div>
               <div class="field"><label>机械</label><select id="fMachine"></select></div>
@@ -150,7 +152,6 @@
         </div>
       </div>
 
-      <!-- 编辑机台表 -->
       <div id="editUnitMask" class="mask" onclick="closeIfMask(event,'editUnitMask')">
         <div class="sheet" onclick="event.stopPropagation()">
           <div class="flex items-center justify-between mb-3">
@@ -162,6 +163,7 @@
               <div class="field"><label>泊位（不可改）</label><input id="euBerth" disabled class="bg-slate-50 text-slate-500" /></div>
               <div class="field"><label>机械（不可改）</label><input id="euMachine" disabled class="bg-slate-50 text-slate-500" /></div>
             </div>
+            <div class="field"><label>船舶</label><div id="euVesselWrap"></div></div>
             <div class="field"><label>司机</label><select id="euDriver"></select></div>
             <div class="grid grid-cols-2 gap-2">
               <div class="field"><label>货种一级</label><select id="euCargoL1"></select></div>
@@ -180,6 +182,8 @@
     var readonly = false;
     var cargoCtl = null;
     var unitEditCargoCtl = null;
+    var createVesselCtl = null;
+    var euVesselCtl = null;
 
     function showToast(msg, type) {
       type = type || 'ok';
@@ -219,6 +223,8 @@
       document.getElementById('euDriver').innerHTML = driverHtml;
       cargoCtl = CargoCascade.bindPair(document.getElementById('fCargoL1'), document.getElementById('fCargoL2'), { entryMode: true, defaultL1: '散货', defaultL2: '氧化钙' });
       unitEditCargoCtl = CargoCascade.bindPair(document.getElementById('euCargoL1'), document.getElementById('euCargoL2'), { entryMode: true });
+      createVesselCtl = VesselSearch.bind(document.getElementById('createVesselWrap'), { placeholder: '搜索确报/靠泊/开工船舶' });
+      euVesselCtl = VesselSearch.bind(document.getElementById('euVesselWrap'), { placeholder: '搜索确报/靠泊/开工船舶' });
     }
 
     function bootContext() {
@@ -253,6 +259,7 @@
 
     function openCreateUnit() {
       if (readonly) { showToast('当前班次不可新增', 'err'); return; }
+      if (createVesselCtl) createVesselCtl.clear();
       document.getElementById('createMask').classList.add('open');
     }
     function closeCreateUnit() { document.getElementById('createMask').classList.remove('open'); }
@@ -260,12 +267,16 @@
     function createUnit() {
       var cargo = cargoCtl.getValue();
       if (!cargo.l1 || !cargo.l2) { showToast('请选择货种', 'err'); return; }
+      var vessel = createVesselCtl ? createVesselCtl.getValue() : {};
+      if (!createVesselCtl || !createVesselCtl.validateRequired()) { showToast('请选择船舶', 'err'); return; }
+      vessel = createVesselCtl.getValue();
       var res = S.createUnit({
         date: getDate(), shift: getShift(),
         berth: document.getElementById('fBerth').value,
         machine: document.getElementById('fMachine').value,
         driver: document.getElementById('fDriver').value,
-        cargoL1: cargo.l1, cargoL2: cargo.l2
+        cargoL1: cargo.l1, cargoL2: cargo.l2,
+        vesselId: vessel.vesselId, vesselName: vessel.vesselName
       });
       if (!res.ok) { showToast(res.msg, 'err'); return; }
       closeCreateUnit();
@@ -298,6 +309,7 @@
       document.getElementById('euMachine').value = unit.machine;
       document.getElementById('euDriver').value = unit.driver;
       unitEditCargoCtl.setValue(unit.cargoL1, unit.cargoL2);
+      if (euVesselCtl) euVesselCtl.setValue(unit.vesselId, unit.vesselName);
       document.getElementById('editUnitMask').classList.add('open');
     }
     function closeEditUnit() { document.getElementById('editUnitMask').classList.remove('open'); }
@@ -305,9 +317,13 @@
     function saveUnitEdit() {
       var cargo = unitEditCargoCtl.getValue();
       if (!cargo.l1 || !cargo.l2) { showToast('请选择货种', 'err'); return; }
+      var vessel = euVesselCtl ? euVesselCtl.getValue() : {};
+      if (!euVesselCtl || !euVesselCtl.validateRequired()) { showToast('请选择船舶', 'err'); return; }
+      vessel = euVesselCtl.getValue();
       var res = S.updateUnit(getDate(), getShift(), activeUnitId, {
         driver: document.getElementById('euDriver').value,
-        cargoL1: cargo.l1, cargoL2: cargo.l2
+        cargoL1: cargo.l1, cargoL2: cargo.l2,
+        vesselId: vessel.vesselId, vesselName: vessel.vesselName
       });
       if (!res.ok) { showToast(res.msg, 'err'); return; }
       closeEditUnit();
@@ -371,6 +387,18 @@
       if (!confirm('推送「' + row.slot + '」到企微？\n推送后不可再编辑，PC 端同步显示已推送。')) return;
       var res = S.sendRowWecom(getDate(), getShift(), activeUnitId, row.slot);
       if (!res.ok) { showToast(res.msg, 'err'); return; }
+      var unit = S.findUnit(S.getSheet(getDate(), getShift()), activeUnitId);
+      var vessel = S.resolveVessel(unit, row);
+      if (typeof WecomPush !== 'undefined' && WecomPush.isEnabled && WecomPush.isEnabled()) {
+        WecomPush.notifyAfterSave({
+          slot: row.slot,
+          berth: unit.berth,
+          machine: unit.machine,
+          driver: row.driver || unit.driver,
+          vesselName: vessel.name,
+          qty: row.qty
+        }, 'push');
+      }
       showToast(res.msg || '已推送企微并锁定');
       renderUnit();
       renderShiftHeader();
@@ -440,6 +468,7 @@
         var sentCount = (u.rows || []).filter(function (r) { return r.wecomSent; }).length;
         return '<button type="button" class="card p-4 w-full text-left active:bg-slate-50" onclick="openUnit(\'' + u.id + '\')">' +
           '<div class="font-medium text-sm">' + u.berth + ' · ' + u.machine + '</div>' +
+          '<div class="text-xs text-teal-800 mt-1">' + (u.vesselName || '—') + '</div>' +
           '<div class="mt-2 flex items-center justify-between text-xs">' +
             '<span class="text-teal-700">合计 ' + S.unitTotal(u).toFixed(2) + ' 吨</span>' +
             (sentCount ? '<span class="badge badge-sent">已推 ' + sentCount + ' 条</span>' : '<span class="text-slate-400">进入填时段</span>') +
@@ -452,7 +481,7 @@
       var unit = S.findUnit(sheet, activeUnitId);
       if (!unit) { backToShift(); return; }
       document.getElementById('unitHdrTitle').textContent = '作业填报';
-      document.getElementById('unitMeta').textContent = unit.berth + ' · ' + unit.machine + ' · ' + unit.driver + ' · ' + unit.cargoL2;
+      document.getElementById('unitMeta').textContent = unit.berth + ' · ' + unit.machine + ' · ' + unit.driver + ' · ' + unit.cargoL2 + ' · ' + (unit.vesselName || '—');
       document.getElementById('unitTotal').textContent = S.unitTotal(unit).toFixed(2);
       var ops = document.getElementById('unitOps');
       if (readonly) {

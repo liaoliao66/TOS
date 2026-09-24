@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>停工记录 · 企微H5</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../assets/ship-ops-demo.js?v=20260924e"></script>
+  <script src="../assets/stop-reason-demo.js?v=20260924e"></script>
+  <script src="../assets/work-stat-sheet-store.js?v=20260924e"></script>
+  <script src="../assets/work-stat-stoppage-store.js?v=20260924e"></script>
+  <style>
+    :root { --brand: #0f766e; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.5; font-size: 15px; background: #f1f5f9; -webkit-tap-highlight-color: transparent; }
+    .page-bg { background: #e2e8f0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 12px; box-sizing: border-box; }
+    .phone-frame { width: 390px; height: 844px; border-radius: 48px; border: 3px solid #e5e7eb; background: #0f172a; box-shadow: 0 12px 40px rgba(15,23,42,0.18); padding: 12px; box-sizing: border-box; }
+    .phone-screen { width: 100%; height: 100%; border-radius: 36px; background: #f5f6f8; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+    .phone-status { height: 28px; background: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 11px; color: #334155; border-bottom: 1px solid #f1f5f9; flex-shrink: 0; }
+    .phone-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 72px; }
+    .wecom-tag { font-size: 10px; color: #0f766e; background: #ccfbf1; border-radius: 999px; padding: 1px 8px; }
+    .nav-back { display: inline-flex; align-items: center; gap: 2px; color: #0f766e; font-size: 15px; text-decoration: none; min-width: 56px; }
+    .nav-back i { font-size: 14px; }
+    .cell-bar { background: #fff; border-radius: 12px; overflow: hidden; }
+    .cell { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; min-height: 52px; }
+    .cell + .cell { border-top: 1px solid #f1f5f9; }
+    .cell-label { color: #64748b; font-size: 15px; }
+    .cell-value { color: #0f172a; font-size: 15px; display: flex; align-items: center; gap: 6px; }
+    .cell-value input[type="date"] { border: 0; background: transparent; color: #0f172a; font-size: 15px; text-align: right; outline: none; max-width: 140px; }
+    .chip { display: inline-block; font-size: 12px; line-height: 1.4; padding: 2px 8px; border-radius: 6px; background: #f1f5f9; color: #475569; }
+    .chip-reason { background: #fef3c7; color: #b45309; }
+    .record { background: #fff; border-radius: 12px; padding: 14px 16px; }
+    .record:active { background: #f8fafc; }
+    .duration { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 22px; color: #0f172a; letter-spacing: -0.02em; }
+    .duration small { font-size: 13px; font-weight: 500; color: #64748b; margin-left: 2px; }
+    .meta-line { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+    .time-row { margin-top: 10px; font-size: 13px; color: #64748b; display: flex; align-items: flex-start; gap: 6px; }
+    .time-row i { margin-top: 2px; color: #94a3b8; }
+    .bottom-bar { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.96); backdrop-filter: blur(8px); border-top: 1px solid #e2e8f0; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); }
+    .btn-main { display: block; width: 100%; text-align: center; background: var(--brand); color: #fff; border: 0; border-radius: 12px; padding: 13px 16px; font-size: 16px; font-weight: 600; text-decoration: none; }
+    .btn-main:active { opacity: 0.88; transform: scale(0.98); }
+    .hint { font-size: 12px; color: #64748b; padding: 10px 4px 2px; }
+    .empty { text-align: center; padding: 48px 16px; color: #94a3b8; font-size: 14px; }
+    .empty i { font-size: 36px; color: #cbd5e1; display: block; margin-bottom: 12px; }
+  </style>
+</head>
+<body class="page-bg text-slate-800">
+  <div class="phone-frame" aria-label="手机预览框">
+    <div class="phone-screen">
+      <div class="phone-status">
+        <span>9:41</span>
+        <span class="wecom-tag">企微 H5</span>
+        <span><i class="fa-solid fa-signal"></i> <i class="fa-solid fa-wifi"></i> <i class="fa-solid fa-battery-full"></i></span>
+      </div>
+
+      <header class="sticky top-0 z-30 bg-white border-b border-slate-100 px-3 h-11 flex items-center shrink-0">
+        <a href="../index.html" class="nav-back"><i class="fa-solid fa-chevron-left"></i>返回</a>
+        <div class="font-semibold text-[17px] flex-1 text-center -ml-14">停工记录</div>
+      </header>
+
+      <div class="phone-scroll">
+        <div class="px-3 pt-3">
+          <div class="cell-bar">
+            <div class="cell">
+              <span class="cell-label">登记日</span>
+              <label class="cell-value">
+                <input id="filterDate" type="date" onchange="renderList()" />
+                <i class="fa-solid fa-chevron-right text-slate-300 text-xs"></i>
+              </label>
+            </div>
+          </div>
+          <p class="hint">仅展示已结束台账 · 现场操作请用「停工登记」</p>
+        </div>
+
+        <div class="px-3 pt-1 pb-1 text-xs text-slate-400" id="listCount">共 0 条</div>
+        <main class="px-3 space-y-2.5 pb-4" id="listBody"></main>
+        <div id="emptyState" class="hidden empty">
+          <i class="fa-regular fa-clipboard"></i>
+          暂无停工记录
+        </div>
+      </div>
+
+      <div class="bottom-bar">
+        <a href="work-stat-stoppage-wecom.html" class="btn-main">去停工登记</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var ST = window.WorkStatStoppageStore;
+
+    function esc(s) {
+      return String(s == null ? '' : s)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    function driverOf(r) {
+      if (r.driver) return r.driver;
+      try {
+        var units = ST.unitsForShipToday(r.shipName) || [];
+        var names = [], seen = {};
+        units.forEach(function (u) {
+          if (u.driver && !seen[u.driver]) { seen[u.driver] = true; names.push(u.driver); }
+        });
+        if (names.length) return names.join('、');
+      } catch (e) {}
+      return '—';
+    }
+
+    function ioOf(r) {
+      if (r.cargoInOut) return r.cargoInOut;
+      try {
+        if (window.ShipOpsDemo && ShipOpsDemo.getDispatch && r.dispatchId) {
+          var d = ShipOpsDemo.getDispatch(r.dispatchId);
+          if (d && d.cargoInOut) return d.cargoInOut;
+        }
+      } catch (e) {}
+      return '—';
+    }
+
+    function shortTime(s) {
+      var t = String(s || '').replace('T', ' ');
+      if (t.length >= 16) return t.slice(5, 16);
+      return t || '—';
+    }
+
+    function renderList() {
+      var date = document.getElementById('filterDate').value || ST.todayStr();
+      var rows = ST.list(date) || [];
+      var body = document.getElementById('listBody');
+      var empty = document.getElementById('emptyState');
+      document.getElementById('listCount').textContent = '共 ' + rows.length + ' 条';
+
+      if (!rows.length) {
+        body.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+      body.innerHTML = rows.map(function (r) {
+        var title = (r.shipName || '—') + (r.voyage ? ' · ' + r.voyage : '');
+        var mins = r.durationMin != null ? r.durationMin : '—';
+        var chips = [
+          r.berth || '',
+          r.cargo || '',
+          ioOf(r) !== '—' ? ioOf(r) : '',
+          driverOf(r) !== '—' ? driverOf(r) : ''
+        ].filter(Boolean);
+        return '<article class="record">' +
+          '<div class="flex items-start justify-between gap-3">' +
+            '<div class="min-w-0 flex-1">' +
+              '<div class="font-medium text-[15px] text-slate-900 truncate">' + esc(title) + '</div>' +
+              (r.reason ? '<span class="chip chip-reason mt-1.5 inline-block">' + esc(r.reason) + '</span>' : '') +
+            '</div>' +
+            '<div class="text-right shrink-0">' +
+              '<div class="duration">' + esc(mins) + '<small>分</small></div>' +
+              '<div class="text-[11px] text-slate-400 mt-0.5">已结束</div>' +
+            '</div>' +
+          '</div>' +
+          (chips.length ? '<div class="meta-line">' + chips.map(function (c) {
+            return '<span class="chip">' + esc(c) + '</span>';
+          }).join('') + '</div>' : '') +
+          '<div class="time-row"><i class="fa-regular fa-clock"></i><span>' +
+            esc(shortTime(r.from)) + ' — ' + esc(shortTime(r.to)) +
+          '</span></div>' +
+        '</article>';
+      }).join('');
+    }
+
+    (function init() {
+      document.getElementById('filterDate').value = ST.todayStr();
+      var rows = ST.list(ST.todayStr()) || [];
+      if (!rows.length) {
+        try { ST.applyDemoScene('mixed'); } catch (e) {}
+      }
+      renderList();
+    })();
+  </script>
+</body>
+</html>

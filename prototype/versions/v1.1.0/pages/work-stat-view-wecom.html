@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>本班详情 · 企微H5</title>
+  <title>本班详情 · 企微H5 · v1.1.0</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   <script src="../assets/work-stat-sheet-store.js"></script>
@@ -28,7 +28,7 @@
     <div class="phone-screen">
       <div class="phone-status">
         <span>9:41</span>
-        <span class="wecom-tag">企微 H5</span>
+        <span class="wecom-tag">企微 H5 · v1.1.0</span>
         <span><i class="fa-solid fa-signal"></i> <i class="fa-solid fa-wifi"></i> <i class="fa-solid fa-battery-full"></i></span>
       </div>
 
@@ -76,18 +76,22 @@
       '</div>';
 
       sheet.units.forEach(function (unit) {
-        html += '<div class="px-1 pt-2 text-sm font-medium text-slate-600">' + unit.berth + ' · ' + unit.machine + ' · ' + unit.driver + '</div>';
-        (unit.rows || []).forEach(function (r, i) {
+        var uv = S.resolveVessel(unit, null);
+        html += '<div class="px-1 pt-2 text-sm font-medium text-slate-600">' + unit.berth + ' · ' + unit.machine + ' · ' + unit.driver +
+          ' · <span class="text-teal-800">' + (uv.name || '—') + '</span></div>';
+        (unit.rows || []).forEach(function (r) {
           var filled = (Number(r.qty) || 0) > 0 || r.normal === false;
           if (!filled && !r.wecomSent) return;
           var driver = r.driver || unit.driver;
           var cargo = r.cargoL2 || unit.cargoL2;
+          var rv = S.resolveVessel(unit, r);
           html += '<div class="card p-4">' +
             '<div class="flex items-start justify-between gap-2">' +
               '<div class="font-medium text-sm text-teal-800">' + r.slot + '</div>' +
               (r.wecomSent ? '<span class="badge badge-sent">已推送</span>' : '') +
             '</div>' +
-            '<div class="mt-1 text-xs text-slate-500">' + driver + ' · ' + cargo + '</div>' +
+            '<div class="mt-1 text-xs text-slate-500">' + driver + ' · ' + cargo + ' · ' + (rv.name || '—') +
+            (S.rowHasVesselOverride(r) ? ' <span class="text-teal-700">(覆盖)</span>' : '') + '</div>' +
             '<div class="mt-2 flex items-center justify-between">' +
               '<div class="font-semibold">' + (Number(r.qty) || 0).toFixed(2) + ' <span class="text-xs font-normal text-slate-400">吨</span></div>' +
               (r.normal === false

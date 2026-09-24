@@ -5,37 +5,110 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>武港联投 · 单机作业量统计 · 原型总入口</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif;
+    }
+    .ver-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+    }
+    .ver-card:hover {
+      border-color: #99f6e4;
+      box-shadow: 0 8px 24px rgba(15, 118, 110, 0.08);
+    }
+    .btn-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: #0f766e;
+      font-weight: 500;
+    }
+    .btn-link:hover { text-decoration: underline; }
+    .btn-muted { color: #64748b; font-weight: 400; }
+  </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen">
   <main class="max-w-5xl mx-auto px-6 py-10">
     <header class="mb-8">
-      <h1 class="text-2xl font-semibold tracking-tight">武港联投 · 每日每班单机作业量统计</h1>
-      <p class="mt-2 text-sm text-slate-600">原型仓库总入口（适配 GitHub Pages）。当前仅维护唯一版本 v1.0.0（未经准许不另建版本）。</p>
+      <p class="text-xs font-medium tracking-wide text-teal-700 uppercase">原型总入口 · 请先选择版本</p>
+      <h1 class="mt-2 text-2xl font-semibold tracking-tight">武港联投 · 每日每班单机作业量统计</h1>
+      <p class="mt-2 text-sm text-slate-600">两个版本并排列出。进入后分别浏览对应原型与 PRD，互不混用。</p>
     </header>
-    <div class="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm">
-      <table class="min-w-full text-sm">
-        <thead class="bg-slate-100 text-left">
-          <tr>
-            <th class="px-4 py-3 font-medium">版本号</th>
-            <th class="px-4 py-3 font-medium">版本迭代说明</th>
-            <th class="px-4 py-3 font-medium">PC端原型入口</th>
-            <th class="px-4 py-3 font-medium">独立App原型入口</th>
-            <th class="px-4 py-3 font-medium">企微H5原型入口</th>
-            <th class="px-4 py-3 font-medium">对应版本PRD文档</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr class="border-t border-slate-200">
-            <td class="px-4 py-3 font-medium">v1.0.0</td>
-            <td class="px-4 py-3">唯一工作版本：日班录入（正常/非正常作业）+ 作业效率分析 + 智能问数 + 企微H5轻量填报</td>
-            <td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="versions/v1.0.0/index.html">进入 PC 原型</a></td>
-            <td class="px-4 py-3 text-slate-400">—</td>
-            <td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="versions/v1.0.0/wecom-index.html">进入企微H5</a></td>
-            <td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="../docs/versions/v1.0.0/prd.html">查看 PRD</a></td>
-          </tr>
-        </tbody>
-      </table>
+
+    <div class="grid md:grid-cols-2 gap-6">
+      <!-- v1.0.0 -->
+      <section class="ver-card p-6 flex flex-col">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="text-xs text-slate-500">版本</div>
+            <h2 class="text-xl font-semibold text-slate-900 mt-0.5">v1.0.0</h2>
+          </div>
+          <span class="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-600">全量 PC</span>
+        </div>
+        <p class="mt-4 text-sm text-slate-600 leading-relaxed flex-1">
+          PC 端全量能力：工班作业、作业效率分析、船舶与调度、系统配置（含企微推送配置）。
+        </p>
+        <ul class="mt-5 space-y-3 text-sm">
+          <li>
+            <a class="btn-link" href="versions/v1.0.0/index.html">
+              <i class="fa-solid fa-desktop"></i>进入全量 PC 原型
+            </a>
+          </li>
+          <li class="text-slate-400 text-xs">独立 App：—</li>
+          <li class="text-slate-400 text-xs">企微 H5：本版无（见 v1.1.0）</li>
+          <li>
+            <a class="btn-link btn-muted" href="../docs/versions/v1.0.0/prd.html">
+              <i class="fa-regular fa-file-lines"></i>查看 v1.0.0 PRD
+            </a>
+          </li>
+        </ul>
+      </section>
+
+      <!-- v1.1.0 -->
+      <section class="ver-card p-6 flex flex-col">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="text-xs text-slate-500">版本</div>
+            <h2 class="text-xl font-semibold text-slate-900 mt-0.5">v1.1.0</h2>
+          </div>
+          <span class="text-xs px-2.5 py-1 rounded-full bg-teal-50 text-teal-800">企微 H5 + 本版 PC</span>
+        </div>
+        <p class="mt-4 text-sm text-slate-600 leading-relaxed flex-1">
+          企微 H5 轻量填报；本版 PC 含工班 / 作业记录 / 停工。机台表船舶档案搜索、时段可覆盖、推送含船名。
+        </p>
+        <ul class="mt-5 space-y-3 text-sm">
+          <li>
+            <a class="btn-link" href="versions/v1.1.0/index.html">
+              <i class="fa-solid fa-mobile-screen"></i>进入企微 H5
+            </a>
+          </li>
+          <li>
+            <a class="btn-link" href="versions/v1.1.0/index-pc.html">
+              <i class="fa-solid fa-desktop"></i>进入本版 PC
+            </a>
+          </li>
+          <li class="text-slate-400 text-xs">独立 App：—</li>
+          <li>
+            <a class="btn-link btn-muted" href="../docs/versions/v1.1.0/prd.html">
+              <i class="fa-regular fa-file-lines"></i>查看 v1.1.0 PRD
+            </a>
+          </li>
+        </ul>
+      </section>
     </div>
+
+    <p class="mt-8 text-xs text-slate-500">
+      本地预览建议使用静态服务打开本页。单版本入口：
+      <a class="text-teal-700 hover:underline" href="versions/v1.0.0/index.html">v1.0.0</a>
+      ·
+      <a class="text-teal-700 hover:underline" href="versions/v1.1.0/index.html">v1.1.0 企微</a>
+      ·
+      <a class="text-teal-700 hover:underline" href="versions/v1.1.0/index-pc.html">v1.1.0 PC</a>
+    </p>
   </main>
 </body>
 </html>

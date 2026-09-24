@@ -9,6 +9,8 @@
   <script src="../assets/abnormal-fill.js"></script>
   <script src="../assets/cargo-mgmt-demo.js"></script>
   <script src="../assets/cargo-cascade.js"></script>
+  <script src="../assets/ship-ops-demo.js"></script>
+  <script src="../assets/vessel-search.js"></script>
   <script src="../assets/work-stat-sheet-store.js"></script>
   <script src="../assets/wecom-push.js"></script>
   <style>
@@ -31,6 +33,7 @@
     .phone-status { height: 28px; background: #fff; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; padding: 0 16px; font-size: 11px; color: #334155; border-bottom: 1px solid #f1f5f9; -webkit-flex-shrink: 0; flex-shrink: 0; }
     .phone-scroll { -webkit-box-flex: 1; -webkit-flex: 1; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; }
     .wecom-tag { font-size: 10px; color: #0f766e; background: #ccfbf1; border-radius: 999px; padding: 1px 8px; }
+    .vessel-search-item:hover { background: #f0fdfa !important; }
   </style>
 </head>
 <body class="page-bg text-slate-800">
@@ -59,6 +62,11 @@
             <div class="field">
               <label>时段（不可改）</label>
               <input id="fSlot" disabled />
+            </div>
+            <div class="field">
+              <label>船舶（可覆盖机台表）</label>
+              <div id="vesselWrap"></div>
+              <p class="text-xs text-slate-400 mt-1">机台默认：<span id="unitVesselHint" class="text-teal-700">—</span></p>
             </div>
             <div class="field">
               <label>司机</label>
@@ -104,7 +112,10 @@
     var S = WorkStatSheetStore;
     var ctx = { date: '', shift: '', unitId: '', slot: '' };
     var cargoCtl = null;
+    var vesselCtl = null;
     var readonly = false;
+    var bootUnit = null;
+    var bootRow = null;
 
     function showToast(msg, type) {
       type = type || 'ok';
@@ -165,9 +176,15 @@
       document.getElementById('belongHint').textContent =
         ctx.date + ' · ' + ctx.shift + ' · ' + unit.berth + ' · ' + unit.machine + '（单条表单，非大表）';
 
+      bootUnit = unit;
+      bootRow = row;
       document.getElementById('fBerth').value = unit.berth;
       document.getElementById('fMachine').value = unit.machine;
       document.getElementById('fSlot').value = ctx.slot;
+      document.getElementById('unitVesselHint').textContent = unit.vesselName || '—';
+      vesselCtl = VesselSearch.bind(document.getElementById('vesselWrap'), { placeholder: '搜索确报/靠泊/开工船舶' });
+      if (S.rowHasVesselOverride(row)) vesselCtl.setValue(row.vesselId, row.vesselName);
+      else vesselCtl.clear();
       document.getElementById('fDriver').innerHTML = S.DRIVERS.map(function (d) {
         return '<option value="' + d + '">' + d + '</option>';
       }).join('');
@@ -208,6 +225,7 @@
       }
       var cargo = cargoCtl.getValue();
       if (!cargo.l1 || !cargo.l2) { showToast('请选择货种', 'err'); return null; }
+      var vessel = vesselCtl ? vesselCtl.getValue() : {};
       return {
         driver: document.getElementById('fDriver').value,
         cargoL1: cargo.l1,
@@ -216,7 +234,9 @@
         normal: normal,
         reason: normal ? '' : reason,
         abMins: normal || abRaw === '' ? null : Number(abRaw),
-        remark: remark
+        remark: remark,
+        vesselId: vessel.vesselId || '',
+        vesselName: vessel.vesselName || ''
       };
     }
 
@@ -230,14 +250,14 @@
         var sendRes = S.sendRowWecom(ctx.date, ctx.shift, ctx.unitId, ctx.slot);
         if (!sendRes.ok) { showToast(sendRes.msg, 'err'); return; }
         if (typeof WecomPush !== 'undefined' && WecomPush.isEnabled && WecomPush.isEnabled()) {
+          var v = S.resolveVessel(bootUnit, Object.assign({}, bootRow, patch));
           WecomPush.notifyAfterSave({
             slot: ctx.slot,
             berth: document.getElementById('fBerth').value,
             machine: document.getElementById('fMachine').value,
             driver: patch.driver,
-            cargoL2: patch.cargoL2,
-            qty: patch.qty,
-            normal: patch.normal
+            vesselName: v.name,
+            qty: patch.qty
           }, 'push');
         }
         showToast('已保存并推送企微');

@@ -332,7 +332,14 @@ function removeStop(id) {
   showToast('已删除', 'warn');
 }
 
-switchDictTab('driver');
+(function bootDictTab() {
+  var tab = 'driver';
+  try {
+    var q = new URLSearchParams(location.search).get('tab');
+    if (q === 'stop' || q === 'abnormal' || q === 'driver') tab = q;
+  } catch (e) {}
+  switchDictTab(tab);
+})();
 </script>
 
 <div id="stopMask" class="fixed inset-0 modal-mask hidden items-center justify-content-center justify-center z-50 p-4" onclick="if(event.target===this)closeStopEdit()">

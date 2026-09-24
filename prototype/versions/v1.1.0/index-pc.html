@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>PC 原型 · v1.1.0</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; font-size: 14px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <main class="max-w-3xl mx-auto px-6 py-10">
+    <div class="mb-2 text-xs text-slate-500">版本 v1.1.0 · PC 端</div>
+    <h1 class="text-xl font-semibold">单机作业量统计 · 本版 PC 原型</h1>
+    <p class="mt-2 text-sm text-slate-600">本入口仅展示 v1.1.0 本版 PC 页面（工班 / 作业记录 / 停工）。全量 PC 能力见 v1.0.0。</p>
+
+    <div class="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+      <table class="min-w-full text-sm">
+        <thead class="bg-slate-100 text-left">
+          <tr>
+            <th class="px-4 py-3 font-medium">页面</th>
+            <th class="px-4 py-3 font-medium">说明</th>
+            <th class="px-4 py-3 font-medium">入口</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="border-t border-slate-200">
+            <td class="px-4 py-3 font-medium">工班作业</td>
+            <td class="px-4 py-3 text-slate-600">大表填报 · 船舶搜索 · 行级企微推送</td>
+            <td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="pages/work-stat-edit-pc.html">进入</a></td>
+          </tr>
+          <tr class="border-t border-slate-200">
+            <td class="px-4 py-3 font-medium">作业记录</td>
+            <td class="px-4 py-3 text-slate-600">班次审批 · 详情查看船舶/覆盖</td>
+            <td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="pages/work-stat-records-pc.html">进入</a></td>
+          </tr>
+          <tr class="border-t border-slate-200">
+            <td class="px-4 py-3 font-medium">停工记录</td>
+            <td class="px-4 py-3 text-slate-600">关联开工船舶 · 当日机台表 · 停工类型字典</td>
+            <td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="pages/work-stat-stoppage-pc.html">进入</a></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="mt-8 flex flex-col gap-2 text-sm">
+      <a class="text-teal-700 hover:underline" href="index.html"><i class="fa-solid fa-mobile-screen mr-1"></i>本版企微 H5 入口</a>
+      <a class="text-teal-700 hover:underline" href="../v1.0.0/index.html"><i class="fa-solid fa-desktop mr-1"></i>v1.0.0 全量 PC 原型</a>
+      <a class="text-teal-700 hover:underline" href="../../index.html"><i class="fa-solid fa-house mr-1"></i>返回全局原型总入口</a>
+    </div>
+
+    <div class="mt-6 text-xs text-slate-500">对应 PRD：<a class="text-teal-700 hover:underline" href="../../../docs/versions/v1.1.0/prd.html">docs/versions/v1.1.0/prd.html</a></div>
+  </main>
+</body>
+</html>

@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>工班作业 · 大表填报 · v1.1.0</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../assets/abnormal-fill.js"></script>
+  <script src="../assets/cargo-mgmt-demo.js"></script>
+  <script src="../assets/cargo-cascade.js"></script>
+  <script src="../assets/ship-ops-demo.js"></script>
+  <script src="../assets/vessel-search.js"></script>
+  <script src="../assets/work-stat-sheet-store.js"></script>
+  <script src="../assets/wecom-push.js"></script>
+  <script src="../assets/pc-sidebar.js"></script>
+  <style>
+    :root { --brand: #0f766e; --brand-hover: #0d9488; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
+    .sidebar { background: #1e293b; }
+    .card { background: #fff; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .btn { border-radius: 20px; transition: all .15s ease; }
+    .btn:active { transform: scale(0.95); }
+    .btn-brand { background: var(--brand); color: #fff; }
+    .btn-brand:hover { background: var(--brand-hover); }
+    .badge { border-radius: 999px; font-size: 12px; padding: 2px 10px; }
+    .badge-draft { background: #e2e8f0; color: #475569; }
+    .badge-pending { background: #fef3c7; color: #b45309; }
+    .badge-reject { background: #fee2e2; color: #b91c1c; }
+    .badge-ok { background: #d1fae5; color: #047857; }
+    .toast { position: fixed; top: 24px; right: 24px; z-index: 80; min-width: 240px; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
+    .fade-in { animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .matrix-wrap { overflow: auto; max-height: calc(100vh - 360px); }
+    .matrix { border-collapse: collapse; width: 100%; min-width: 1280px; }
+    .badge-sent { background: #ccfbf1; color: #0f766e; }
+    .op-link { color: #0f766e; font-size: 12px; margin-right: 8px; cursor: pointer; background: none; border: none; padding: 0; }
+    .op-link:disabled { color: #94a3b8; cursor: not-allowed; }
+    .op-link.danger { color: #0d9488; }
+    .matrix th, .matrix td { border: 1px solid #e2e8f0; padding: 8px 10px; font-size: 13px; vertical-align: middle; }
+    .matrix th { background: #f1f5f9; position: sticky; top: 0; z-index: 2; font-weight: 500; color: #475569; white-space: nowrap; }
+    .matrix .sticky-col { position: sticky; left: 0; background: #fff; z-index: 1; font-variant-numeric: tabular-nums; }
+    .matrix th.sticky-col { z-index: 3; background: #f1f5f9; }
+    .matrix input, .matrix select { width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 8px; font-size: 13px; background: #fff; }
+    .matrix input:disabled, .matrix select:disabled { background: #f8fafc; color: #94a3b8; cursor: not-allowed; }
+    .unit-tab { border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px 12px; font-size: 12px; background: #fff; cursor: pointer; text-align: left; min-width: 180px; }
+    .unit-tab.active { border-color: #0f766e; background: #f0fdfa; color: #0f766e; }
+    .unit-tab-actions { margin-top: 6px; padding-top: 6px; border-top: 1px solid #e2e8f0; display: flex; gap: 8px; }
+    .unit-tab.active .unit-tab-actions { border-top-color: #99f6e4; }
+    .op-del { color: #dc2626; }
+    .field label { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
+    .field select, .field input { width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px 10px; font-size: 14px; background: #fff; box-sizing: border-box; }
+    .modal-mask { position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 70; display: none; align-items: center; justify-content: center; padding: 24px; }
+    .modal-mask.open { display: flex; }
+    .vessel-search-item:hover { background: #f0fdfa !important; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="flex min-h-screen">
+    <aside class="sidebar w-64 shrink-0 text-slate-100 flex flex-col">
+      <div class="px-5 py-6 border-b border-slate-700">
+        <div class="text-xs text-slate-400 mb-1">TOS 子模块</div>
+        <div class="text-lg font-semibold leading-snug">单机作业量统计</div>
+        <div class="mt-2 text-xs text-slate-400">v1.1.0 · 录入 · 效率分析 · 问数</div>
+      </div>
+      <nav id="pcSidebarNav" class="p-3 flex-1 overflow-y-auto" data-active="fill-shift"></nav>
+      <div class="p-4 text-xs text-slate-500 border-t border-slate-700">
+        <a href="../index.html" class="hover:text-slate-300">返回版本入口</a>
+      </div>
+    </aside>
+
+    <div class="flex-1 min-w-0 flex flex-col">
+      <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+        <div>
+          <h1 class="text-lg font-semibold">工班作业</h1>
+          <p class="text-xs text-slate-500">机台表必选船舶 · 时段可覆盖船舶 · 推送含船名</p>
+        </div>
+        <div class="flex items-center gap-3 text-sm text-slate-600">
+          <a href="work-stat-records-pc.html" class="text-teal-700 hover:underline text-sm">作业记录</a>
+          <span><i class="fa-solid fa-user text-slate-400 mr-1"></i>作业录入员</span>
+        </div>
+      </header>
+
+      <main class="flex-1 p-6 overflow-auto">
+        <div class="max-w-7xl mx-auto space-y-4">
+          <div class="card p-5">
+            <div class="flex flex-wrap gap-3 items-end">
+              <div class="field">
+                <label>开班日</label>
+                <input id="hdrDate" type="date" onchange="onContextChange()" />
+              </div>
+              <div class="field">
+                <label>班次</label>
+                <select id="hdrShift" onchange="onContextChange()">
+                  <option value="白班">白班（08:00–20:00）</option>
+                  <option value="夜班">夜班（20:00–次日08:00）</option>
+                </select>
+              </div>
+              <div class="pb-1">
+                <span class="badge" id="sheetStatus">草稿</span>
+                <span class="text-xs text-slate-500 ml-2">本班合计 <span id="sheetTotal" class="font-medium text-teal-800">0.00</span> 吨</span>
+              </div>
+              <div class="flex-1"></div>
+              <button type="button" class="btn border border-teal-200 bg-white text-teal-800 px-4 py-2 text-sm" id="btnShowCreate" onclick="toggleCreate(true)">
+                <i class="fa-solid fa-plus mr-1"></i>新增机台表
+              </button>
+              <button type="button" id="btnSubmit" class="btn btn-brand px-4 py-2 text-sm" onclick="submitCurrent()">提交本班审批</button>
+            </div>
+            <p class="text-xs text-slate-500 mt-3">创建机台表时从船期/调度（确报、靠泊、开工）搜索选船（必填）。行「编辑」可改司机/货种/作业数据/船舶覆盖；泊位、机械、时段只读。大表仍支持行内改作业量等。</p>
+          </div>
+
+          <div class="card p-4">
+            <div class="text-sm font-medium mb-2">本班机台表</div>
+            <div id="unitTabs" class="flex flex-wrap gap-2"></div>
+            <div id="unitEmpty" class="text-sm text-slate-400 py-8 text-center">本班尚无大表。请点击「新增机台表」。</div>
+          </div>
+
+          <div id="tableCard" class="card overflow-hidden hidden">
+            <div class="px-5 py-3 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2">
+              <div class="text-sm font-medium" id="tableTitle">—</div>
+              <div class="text-xs text-slate-500">当前表合计 <span id="unitTotal" class="font-medium text-teal-800">0.00</span> 吨</div>
+            </div>
+            <div class="matrix-wrap p-3">
+              <table class="matrix">
+                <thead>
+                  <tr>
+                    <th class="sticky-col">时段</th>
+                    <th>机械</th>
+                    <th>船舶</th>
+                    <th>司机</th>
+                    <th>货种</th>
+                    <th style="min-width:100px">作业量（吨）</th>
+                    <th style="min-width:100px">是否正常</th>
+                    <th style="min-width:120px">非正常原因</th>
+                    <th style="min-width:100px">非正常时长</th>
+                    <th style="min-width:120px">备注</th>
+                    <th style="min-width:88px">推送</th>
+                    <th style="min-width:140px">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="matrixBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div id="createModal" class="modal-mask" onclick="if(event.target===this)toggleCreate(false)">
+    <div class="card fade-in w-full max-w-lg p-6" style="box-shadow:0 12px 40px rgba(0,0,0,0.12)" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-lg font-semibold">新增机台表</h2>
+          <p class="text-xs text-slate-500 mt-0.5">从船期/调度（确报、靠泊、开工）选择 · 必填</p>
+        </div>
+        <button type="button" class="text-slate-400 hover:text-slate-600" onclick="toggleCreate(false)"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <div class="space-y-3">
+        <div class="field">
+          <label>船舶 <span class="text-red-500">*</span></label>
+          <div id="createVesselWrap"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field"><label>泊位</label><select id="fBerth" onchange="syncMachine()"></select></div>
+          <div class="field"><label>机械</label><select id="fMachine"></select></div>
+        </div>
+        <div class="field"><label>司机</label><select id="fDriver"></select></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field"><label>货种一级</label><select id="fCargoL1"></select></div>
+          <div class="field"><label>货种二级</label><select id="fCargoL2"></select></div>
+        </div>
+        <p class="text-xs text-slate-500 bg-slate-50 rounded-xl px-3 py-2">唯一：开班日+班次+泊位+机械+司机+货种+<strong>船舶</strong> 不可重复</p>
+        <div class="flex justify-end gap-2 pt-1">
+          <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="toggleCreate(false)">取消</button>
+          <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="createUnit()">生成大表</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="unitEditModal" class="modal-mask" onclick="if(event.target===this)closeUnitEdit()">
+    <div class="card fade-in w-full max-w-lg p-6" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold">编辑机台表</h2>
+        <button type="button" class="text-slate-400" onclick="closeUnitEdit()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <input type="hidden" id="unitEditId" />
+      <div class="space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field"><label>泊位（不可改）</label><input id="unitEditBerth" disabled class="bg-slate-50 text-slate-500" /></div>
+          <div class="field"><label>机械（不可改）</label><input id="unitEditMachine" disabled class="bg-slate-50 text-slate-500" /></div>
+        </div>
+        <div class="field"><label>船舶</label><div id="unitEditVesselWrap"></div></div>
+        <div class="field"><label>司机</label><select id="unitEditDriver"></select></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field"><label>货种一级</label><select id="unitEditCargoL1"></select></div>
+          <div class="field"><label>货种二级</label><select id="unitEditCargoL2"></select></div>
+        </div>
+        <div class="flex justify-end gap-2 pt-1">
+          <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="closeUnitEdit()">取消</button>
+          <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="saveUnitEdit()">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="rowEditModal" class="modal-mask" onclick="if(event.target===this)closeRowEdit()">
+    <div class="card fade-in w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <h2 class="text-lg font-semibold">编辑时段行</h2>
+          <p class="text-xs text-slate-500 mt-0.5" id="rowEditSub">—</p>
+        </div>
+        <button type="button" class="text-slate-400" onclick="closeRowEdit()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <input type="hidden" id="editSlot" />
+      <div class="space-y-3">
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field"><label>泊位（不可改）</label><input id="editBerth" disabled class="bg-slate-50 text-slate-500" /></div>
+          <div class="field"><label>机械（不可改）</label><input id="editMachine" disabled class="bg-slate-50 text-slate-500" /></div>
+        </div>
+        <div class="field"><label>时段（不可改）</label><input id="editSlotDisplay" disabled class="bg-slate-50 text-slate-500" /></div>
+        <div class="field">
+          <label>船舶（可覆盖机台表）</label>
+          <div id="rowEditVesselWrap"></div>
+          <p class="text-xs text-slate-400 mt-1">留空则继承机台表船舶：<span id="rowEditUnitVessel" class="text-teal-700">—</span></p>
+          <button type="button" class="text-xs text-slate-500 mt-1 underline" onclick="clearRowVesselOverride()">清除覆盖，继承机台表</button>
+        </div>
+        <div class="field"><label>司机</label><select id="editDriver"></select></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="field"><label>货种一级</label><select id="editCargoL1"></select></div>
+          <div class="field"><label>货种二级</label><select id="editCargoL2"></select></div>
+        </div>
+        <div class="field"><label>作业量（吨）</label><input id="editQty" type="number" step="0.01" min="0" /></div>
+        <div class="field">
+          <label>是否正常</label>
+          <select id="editNormal" onchange="toggleRowEditAbnormal()">
+            <option value="yes">正常</option>
+            <option value="no">非正常</option>
+          </select>
+        </div>
+        <div class="field"><label>非正常原因</label><select id="editReason"></select></div>
+        <div class="field"><label>非正常时长（分钟）</label><input id="editAbMins" type="number" min="1" max="60" /></div>
+        <div class="field"><label>备注</label><input id="editRemark" type="text" placeholder="选「其他」时必填" /></div>
+        <div class="flex justify-end gap-2 pt-1">
+          <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="closeRowEdit()">取消</button>
+          <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="saveRowEdit()">保存</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="../assets/work-stat-edit-pc-v110.js"></script>
+</body>
+</html>

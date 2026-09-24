@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>作业记录 · 班次审批 · v1.1.0</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../assets/work-stat-sheet-store.js"></script>
+  <script src="../assets/pc-sidebar.js"></script>
+  <style>
+    :root { --brand: #0f766e; --brand-hover: #0d9488; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
+    .sidebar { background: #1e293b; }
+    .card { background: #fff; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .btn { border-radius: 20px; transition: all .15s ease; }
+    .btn:active { transform: scale(0.95); }
+    .btn-brand { background: var(--brand); color: #fff; }
+    .btn-brand:hover { background: var(--brand-hover); }
+    .table-row:hover { background: #f8fafc; }
+    .badge { border-radius: 999px; font-size: 12px; padding: 2px 10px; }
+    .badge-draft { background: #e2e8f0; color: #475569; }
+    .badge-pending { background: #fef3c7; color: #b45309; }
+    .badge-reject { background: #fee2e2; color: #b91c1c; }
+    .badge-ok { background: #d1fae5; color: #047857; }
+    .toast { position: fixed; top: 24px; right: 24px; z-index: 80; min-width: 240px; border-radius: 16px; box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
+    .fade-in { animation: fadeIn .2s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    .modal-mask { position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 70; display: none; align-items: center; justify-content: center; padding: 24px; }
+    .modal-mask.open { display: flex; }
+    .detail-unit { border: 1px solid #e2e8f0; border-radius: 16px; padding: 12px 14px; margin-bottom: 10px; }
+    .detail-row { font-size: 12px; color: #64748b; padding: 4px 0; border-top: 1px dashed #f1f5f9; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="flex min-h-screen">
+    <aside class="sidebar w-64 shrink-0 text-slate-100 flex flex-col">
+      <div class="px-5 py-6 border-b border-slate-700">
+        <div class="text-xs text-slate-400 mb-1">TOS 子模块</div>
+        <div class="text-lg font-semibold leading-snug">单机作业量统计</div>
+        <div class="mt-2 text-xs text-slate-400">v1.1.0 · 录入 · 效率分析 · 问数</div>
+      </div>
+      <nav id="pcSidebarNav" class="p-3 flex-1 overflow-y-auto" data-active="fill-records"></nav>
+      <div class="p-4 text-xs text-slate-500 border-t border-slate-700">
+        <a href="../index.html" class="hover:text-slate-300">返回版本入口</a>
+      </div>
+    </aside>
+
+    <div class="flex-1 min-w-0 flex flex-col">
+      <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+        <div>
+          <h1 class="text-lg font-semibold">作业记录</h1>
+          <p class="text-xs text-slate-500">按开班日+班次展示 · <strong>白班审批一次、夜班审批一次</strong></p>
+        </div>
+        <div class="flex items-center gap-3 text-sm text-slate-600">
+          <a href="work-stat-edit-pc.html" class="text-teal-700 hover:underline">去填报</a>
+          <span><i class="fa-solid fa-user text-slate-400 mr-1"></i>审批演示</span>
+        </div>
+      </header>
+
+      <main class="flex-1 p-6 overflow-auto">
+        <div class="max-w-7xl mx-auto space-y-5">
+          <div class="card p-5">
+            <div class="flex flex-wrap gap-3 items-end">
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">开班日</label>
+                <input id="filterDate" type="date" class="border border-slate-200 rounded-xl px-3 py-2" />
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">班次</label>
+                <select id="filterShift" class="border border-slate-200 rounded-xl px-3 py-2">
+                  <option value="">全部</option>
+                  <option value="白班">白班</option>
+                  <option value="夜班">夜班</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">状态</label>
+                <select id="filterStatus" class="border border-slate-200 rounded-xl px-3 py-2">
+                  <option value="">全部</option>
+                  <option>草稿</option>
+                  <option>审批中</option>
+                  <option>已驳回</option>
+                  <option>已通过</option>
+                </select>
+              </div>
+              <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="renderList()">查询</button>
+              <button type="button" class="btn border border-slate-200 bg-white px-5 py-2 text-sm" onclick="resetFilters()">重置</button>
+            </div>
+            <p class="text-xs text-slate-500 mt-3">列表不含船舶筛选项；点「详情」查看各机台表船舶及时段覆盖船舶（E2）。</p>
+          </div>
+
+          <div class="card overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100 text-sm font-medium">班次作业记录</div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-sm">
+                <thead class="bg-slate-50 text-slate-500 text-left">
+                  <tr>
+                    <th class="px-4 py-3 font-medium">开班日</th>
+                    <th class="px-4 py-3 font-medium">班次</th>
+                    <th class="px-4 py-3 font-medium">状态</th>
+                    <th class="px-4 py-3 font-medium">机台表数</th>
+                    <th class="px-4 py-3 font-medium">本班合计(吨)</th>
+                    <th class="px-4 py-3 font-medium">机台明细</th>
+                    <th class="px-4 py-3 font-medium">更新时间</th>
+                    <th class="px-4 py-3 font-medium">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="listBody"></tbody>
+              </table>
+            </div>
+            <div id="emptyState" class="hidden p-12 text-center text-slate-400">暂无作业记录</div>
+            <div class="px-5 py-4 border-t border-slate-100 text-sm text-slate-500" id="listCount">共 0 条</div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <div id="rejectModal" class="modal-mask">
+    <div class="card fade-in w-full max-w-md p-6 m-4">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold">驳回本班</h3>
+        <button type="button" class="text-slate-400" onclick="closeReject()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <p class="text-xs text-slate-500 mb-2" id="rejectHint">—</p>
+      <textarea id="rejectReason" rows="3" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="驳回原因（选填）"></textarea>
+      <div class="flex justify-end gap-2 mt-4">
+        <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="closeReject()">取消</button>
+        <button type="button" class="btn bg-red-600 text-white px-5 py-2 text-sm" onclick="confirmReject()">确认驳回</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="detailModal" class="modal-mask" onclick="if(event.target===this)closeDetail()">
+    <div class="card fade-in w-full max-w-2xl p-6 max-h-[85vh] overflow-y-auto" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold" id="detailTitle">班次详情</h3>
+        <button type="button" class="text-slate-400" onclick="closeDetail()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div id="detailBody" class="text-sm"></div>
+      <div class="flex justify-end mt-4">
+        <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="closeDetail()">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    var S = WorkStatSheetStore;
+    var rejectTarget = null;
+    var range = S.dateRange();
+
+    function showToast(msg, type) {
+      type = type || 'ok';
+      var el = document.createElement('div');
+      el.className = 'toast fade-in px-4 py-3 text-sm text-white ' + (type === 'err' ? 'bg-red-500' : type === 'warn' ? 'bg-amber-500' : 'bg-emerald-500');
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function () { el.remove(); }, 2600);
+    }
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    }
+
+    function statusBadge(st) {
+      var cls = 'badge-draft';
+      if (st === '审批中') cls = 'badge-pending';
+      else if (st === '已驳回') cls = 'badge-reject';
+      else if (st === '已通过') cls = 'badge-ok';
+      return '<span class="badge ' + cls + '">' + st + '</span>';
+    }
+
+    function resetFilters() {
+      document.getElementById('filterDate').value = '';
+      document.getElementById('filterShift').value = '';
+      document.getElementById('filterStatus').value = '';
+      renderList();
+    }
+
+    function openFill(date, shift) {
+      S.setActive({ date: date, shift: shift });
+      location.href = 'work-stat-edit-pc.html';
+    }
+
+    function closeDetail() {
+      document.getElementById('detailModal').classList.remove('open');
+    }
+
+    function openDetail(date, shift) {
+      var sheet = S.getSheet(date, shift);
+      if (!sheet) return;
+      document.getElementById('detailTitle').textContent = date + ' · ' + shift + ' · 船舶明细';
+      var html = '<p class="text-xs text-slate-500 mb-3">机台表默认船舶；时段行若单独指定则显示「覆盖」。</p>';
+      (sheet.units || []).forEach(function (unit) {
+        var unitV = S.resolveVessel(unit, null);
+        html += '<div class="detail-unit">' +
+          '<div class="font-medium text-teal-800">' + esc(unit.berth) + ' · ' + esc(unit.machine) + '</div>' +
+          '<div class="text-xs text-slate-500 mt-1">' + esc(unit.driver) + ' · ' + esc(unit.cargoL2) + '</div>' +
+          '<div class="text-xs mt-2"><span class="text-slate-400">机台船舶：</span><strong>' + esc(unitV.name || '—') + '</strong></div>';
+        var rowsWithData = (unit.rows || []).filter(function (r) {
+          return (Number(r.qty) || 0) > 0 || r.wecomSent || S.rowHasVesselOverride(r);
+        });
+        if (rowsWithData.length) {
+          html += '<div class="mt-2 text-xs text-slate-400">时段推送/覆盖</div>';
+          rowsWithData.forEach(function (r) {
+            var rv = S.resolveVessel(unit, r);
+            var override = S.rowHasVesselOverride(r);
+            html += '<div class="detail-row">' + esc(r.slot) + ' · ' + esc(rv.name || '—') +
+              (override ? ' <span class="text-teal-700">（覆盖）</span>' : '') +
+              (r.wecomSent ? ' · 已推送' : '') + '</div>';
+          });
+        }
+        html += '</div>';
+      });
+      document.getElementById('detailBody').innerHTML = html || '<p class="text-slate-400">无机台表</p>';
+      document.getElementById('detailModal').classList.add('open');
+    }
+
+    function doApprove(date, shift) {
+      if (!confirm('确认通过本班？\n' + date + ' · ' + shift + '\n（该班次下全部机台表一并通过）')) return;
+      var res = S.approveSheet(date, shift);
+      if (!res.ok) { showToast(res.msg, 'err'); return; }
+      showToast('已通过 ' + date + ' ' + shift);
+      renderList();
+    }
+
+    function openReject(date, shift) {
+      rejectTarget = { date: date, shift: shift };
+      document.getElementById('rejectHint').textContent = date + ' · ' + shift + ' · 整班驳回';
+      document.getElementById('rejectReason').value = '';
+      document.getElementById('rejectModal').classList.add('open');
+    }
+
+    function closeReject() {
+      rejectTarget = null;
+      document.getElementById('rejectModal').classList.remove('open');
+    }
+
+    function confirmReject() {
+      if (!rejectTarget) return;
+      var res = S.rejectSheet(rejectTarget.date, rejectTarget.shift, document.getElementById('rejectReason').value.trim());
+      if (!res.ok) { showToast(res.msg, 'err'); return; }
+      showToast('已驳回 ' + rejectTarget.date + ' ' + rejectTarget.shift, 'warn');
+      closeReject();
+      renderList();
+    }
+
+    function renderList() {
+      var date = document.getElementById('filterDate').value;
+      var shift = document.getElementById('filterShift').value;
+      var status = document.getElementById('filterStatus').value;
+      var rows = S.listSheets().filter(function (s) {
+        if (s.date < range.from || s.date > range.to) return false;
+        if (date && s.date !== date) return false;
+        if (shift && s.shift !== shift) return false;
+        if (status && s.status !== status) return false;
+        return true;
+      });
+
+      var body = document.getElementById('listBody');
+      var empty = document.getElementById('emptyState');
+      document.getElementById('listCount').textContent = '共 ' + rows.length + ' 条（近 7 天）';
+      if (!rows.length) {
+        body.innerHTML = '';
+        empty.classList.remove('hidden');
+        return;
+      }
+      empty.classList.add('hidden');
+      body.innerHTML = rows.map(function (s) {
+        var units = (s.units || []).map(function (u) {
+          var v = S.resolveVessel(u, null);
+          return u.berth + '/' + u.machine + '/' + (v.name || '—');
+        }).join('；') || '—';
+        var ops = '<button type="button" class="text-teal-700 hover:underline mr-2" onclick="openDetail(\'' + s.date + '\',\'' + s.shift + '\')">详情</button>';
+        if (s.status === '审批中') {
+          ops += '<button type="button" class="text-emerald-700 hover:underline mr-2" onclick="doApprove(\'' + s.date + '\',\'' + s.shift + '\')">通过</button>';
+          ops += '<button type="button" class="text-red-600 hover:underline mr-2" onclick="openReject(\'' + s.date + '\',\'' + s.shift + '\')">驳回</button>';
+        }
+        if (s.status === '草稿' || s.status === '已驳回') {
+          ops += '<button type="button" class="text-teal-700 hover:underline" onclick="openFill(\'' + s.date + '\',\'' + s.shift + '\')">继续填报</button>';
+        } else {
+          ops += '<button type="button" class="text-slate-500 hover:underline" onclick="openFill(\'' + s.date + '\',\'' + s.shift + '\')">查看大表</button>';
+        }
+        return '<tr class="table-row border-t border-slate-100">' +
+          '<td class="px-4 py-3">' + s.date + '</td>' +
+          '<td class="px-4 py-3">' + s.shift + '</td>' +
+          '<td class="px-4 py-3">' + statusBadge(s.status) + '</td>' +
+          '<td class="px-4 py-3">' + (s.units ? s.units.length : 0) + '</td>' +
+          '<td class="px-4 py-3 font-medium">' + S.sheetTotal(s).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '</td>' +
+          '<td class="px-4 py-3 text-xs text-slate-500 max-w-xs truncate" title="' + units.replace(/"/g, '&quot;') + '">' + units + '</td>' +
+          '<td class="px-4 py-3 text-slate-500">' + (s.updatedAt || '—') + '</td>' +
+          '<td class="px-4 py-3 whitespace-nowrap">' + ops + '</td>' +
+        '</tr>';
+      }).join('');
+    }
+
+    (function init() {
+      var dateEl = document.getElementById('filterDate');
+      dateEl.min = range.from;
+      dateEl.max = range.to;
+      renderList();
+    })();
+  </script>
+</body>
+</html>
