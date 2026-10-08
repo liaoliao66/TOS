@@ -562,7 +562,17 @@
     var state = load();
     var d = findD(state, id);
     if (!d) return { ok: false, msg: '调度单不存在' };
-    var active = findActiveStoppage(d);
+    var active = null;
+    if (row.stoppageId) {
+      var list = d.stoppages || [];
+      for (var i = 0; i < list.length; i++) {
+        if (list[i].id === row.stoppageId && (list[i].status === 'active' || !list[i].to)) {
+          active = list[i];
+          break;
+        }
+      }
+    }
+    if (!active) active = findActiveStoppage(d);
     if (!active) return { ok: false, msg: '该船当前未在停工' };
     var to = String(row.to || '').trim() || nowLocal();
     if (to <= active.from) {
@@ -571,9 +581,10 @@
       to = t2.getFullYear() + '-' + pad(t2.getMonth() + 1) + '-' + pad(t2.getDate()) + 'T' +
         pad(t2.getHours()) + ':' + pad(t2.getMinutes());
     }
+    if (row.reason) active.reason = String(row.reason).trim();
     active.to = to;
     active.status = 'ended';
-    if (row.remark) active.remark = row.remark;
+    if (row.remark != null) active.remark = String(row.remark);
     d.stopping = !!findActiveStoppage(d);
     d.workLogs.push({
       type: '停工结束', time: to,
@@ -586,6 +597,41 @@
     });
     save(state);
     return { ok: true, stop: active, dispatch: d };
+  }
+
+  function updateStoppage(dispatchId, stoppageId, row) {
+    row = row || {};
+    var state = load();
+    var d = findD(state, dispatchId);
+    if (!d) return { ok: false, msg: '调度单不存在' };
+    var stop = null;
+    for (var i = 0; i < (d.stoppages || []).length; i++) {
+      if (d.stoppages[i].id === stoppageId) { stop = d.stoppages[i]; break; }
+    }
+    if (!stop) return { ok: false, msg: '停工记录不存在' };
+    if (stop.status === 'active' || !stop.to) {
+      return { ok: false, msg: '进行中停工请先「结束停工」' };
+    }
+    var from = String(row.from != null ? row.from : stop.from).trim();
+    var to = String(row.to != null ? row.to : stop.to).trim();
+    var reason = String(row.reason != null ? row.reason : stop.reason).trim();
+    var remark = row.remark != null ? String(row.remark) : (stop.remark || '');
+    if (!from || !to) return { ok: false, msg: '请填写开始与结束时间' };
+    if (!reason) return { ok: false, msg: '请选择停工类型' };
+    if (new Date(to) <= new Date(from)) return { ok: false, msg: '结束时间须晚于开始时间' };
+    stop.from = from;
+    stop.to = to;
+    stop.reason = reason;
+    stop.remark = remark;
+    stop.status = 'ended';
+    d.workLogs.push({
+      type: '停工修订', time: nowLocal(),
+      note: logNote(reason + ' · ' + from + ' ~ ' + to + (remark ? ' · ' + remark : ''), FIELD_OP),
+      deptName: FIELD_OP.deptName,
+      userName: FIELD_OP.userName
+    });
+    save(state);
+    return { ok: true, stop: stop, dispatch: d };
   }
 
   function listStoppages(filter) {
@@ -693,6 +739,126 @@
     save(seedState());
   }
 
+  function todayDate() {
+    return String(nowLocal() || '').slice(0, 10);
+  }
+
+  function isDemoStoppageId(id) {
+    return String(id || '').indexOf('stp-demo-') === 0;
+  }
+
+  function stripDemoStoppages(state) {
+    (state.dispatches || []).forEach(function (d) {
+      d.stoppages = (d.stoppages || []).filter(function (s) { return !isDemoStoppageId(s.id); });
+      d.stopping = !!findActiveStoppage(d);
+    });
+  }
+
+  function pickDemoDispatch(state, preferId, fallbackIdx) {
+    var hit = preferId ? findD(state, preferId) : null;
+    if (hit) return hit;
+    var working = (state.dispatches || []).filter(function (d) { return d.status === 'working'; });
+    if (working[fallbackIdx]) return working[fallbackIdx];
+    if (working[0]) return working[0];
+    return (state.dispatches || [])[fallbackIdx] || (state.dispatches || [])[0] || null;
+  }
+
+  /**
+   * PC 停工台账案例：写入今日「进行中 + 已结束」样例
+   * opts.force=true 时先清掉旧案例 id 再写入（不删用户真实停工）
+   */
+  function ensurePcStoppageDemo(opts) {
+    opts = opts || {};
+    var state = load();
+    var t = todayDate();
+    if (!t) return { ok: false, msg: '日期无效' };
+
+    if (opts.force) {
+      stripDemoStoppages(state);
+    } else {
+      var hasToday = false;
+      state.dispatches.forEach(function (d) {
+        (d.stoppages || []).forEach(function (s) {
+          if (String(s.from || '').slice(0, 10) === t) hasToday = true;
+        });
+      });
+      if (hasToday) return { ok: true, seeded: false, date: t };
+    }
+
+    if (!(state.dispatches && state.dispatches.length)) {
+      state = seedState();
+    }
+
+    var w1 = pickDemoDispatch(state, 'dsp-w1', 0);
+    var w2 = pickDemoDispatch(state, 'dsp-w2', 1);
+    if (!w1) {
+      state = seedState();
+      save(state);
+      state = load();
+      w1 = pickDemoDispatch(state, 'dsp-w1', 0);
+      w2 = pickDemoDispatch(state, 'dsp-w2', 1);
+    }
+    if (!w1) return { ok: false, msg: '无可用调度单', seeded: false };
+    if (w2 && w2.id === w1.id) w2 = null;
+    var activeTarget = w2 || w1;
+
+    // 先清两船案例，再一次性写入，避免同船二次 filter 把已结束样例删掉
+    [w1, activeTarget].forEach(function (d) {
+      d.stoppages = (d.stoppages || []).filter(function (s) { return !isDemoStoppageId(s.id); });
+      d.stopping = !!findActiveStoppage(d);
+    });
+
+    w1.stoppages.push({
+      id: 'stp-demo-ended-1',
+      from: t + 'T08:10',
+      to: t + 'T08:45',
+      status: 'ended',
+      reason: '设备异常',
+      remark: '案例：白班已结束 · 35 分',
+      source: 'dispatch',
+      deptName: FIELD_OP.deptName,
+      userName: FIELD_OP.userName
+    });
+    w1.stoppages.push({
+      id: 'stp-demo-ended-2',
+      from: t + 'T10:00',
+      to: t + 'T10:25',
+      status: 'ended',
+      reason: '等货/等驳',
+      remark: '案例：H5 计时结束 · 25 分',
+      source: 'h5_live',
+      deptName: '现场作业',
+      userName: '李现场'
+    });
+
+    if (!findActiveStoppage(activeTarget)) {
+      var liveMs = Date.now() - 22 * 60000;
+      var liveFrom = (function (ms) {
+        var d = new Date(ms);
+        var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+        return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' +
+          pad(d.getHours()) + ':' + pad(d.getMinutes());
+      })(liveMs);
+      activeTarget.stoppages.push({
+        id: 'stp-demo-active',
+        from: liveFrom,
+        to: '',
+        status: 'active',
+        reason: '避让大船',
+        remark: '案例：H5 现场计时中',
+        source: 'h5_live',
+        startedAtMs: liveMs,
+        deptName: '现场作业',
+        userName: '李现场'
+      });
+    }
+    activeTarget.stopping = !!findActiveStoppage(activeTarget);
+    w1.stopping = !!findActiveStoppage(w1);
+
+    save(state);
+    return { ok: true, seeded: true, date: t, ships: [w1.shipName, activeTarget.shipName] };
+  }
+
   global.ShipOpsDemo = {
     STOP_REASONS: STOP_REASONS,
     CARGO_OPTS: CARGO_OPTS,
@@ -716,11 +882,13 @@
     addStoppage: addStoppage,
     startStoppageLive: startStoppageLive,
     endStoppageLive: endStoppageLive,
+    updateStoppage: updateStoppage,
     listStoppages: listStoppages,
     getActiveStoppageByDispatch: getActiveStoppageByDispatch,
     findActiveStoppage: findActiveStoppage,
     doUnberth: doUnberth,
     voidDispatch: voidDispatch,
-    resetDemo: resetDemo
+    resetDemo: resetDemo,
+    ensurePcStoppageDemo: ensurePcStoppageDemo
   };
 })(window);

@@ -6,11 +6,11 @@
   <title>停工登记 · 企微H5</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
-  <script src="../assets/ship-ops-demo.js?v=20260924d"></script>
-  <script src="../assets/stop-reason-demo.js?v=20260924d"></script>
-  <script src="../assets/work-stat-sheet-store.js?v=20260924d"></script>
-  <script src="../assets/work-stat-stoppage-store.js?v=20260924d"></script>
-  <script src="../assets/wecom-push.js?v=20260924d"></script>
+  <script src="../assets/ship-ops-demo.js?v=20261008a"></script>
+  <script src="../assets/stop-reason-demo.js?v=20261008a"></script>
+  <script src="../assets/work-stat-sheet-store.js?v=20261008a"></script>
+  <script src="../assets/work-stat-stoppage-store.js?v=20261008a"></script>
+  <script src="../assets/wecom-push.js?v=20261008a"></script>
   <style>
     :root { --brand: #0f766e; }
     body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; font-size: 14px; background: #f1f5f9; }
@@ -28,9 +28,9 @@
     .wecom-tag { font-size: 10px; color: #0f766e; background: #ccfbf1; border-radius: 999px; padding: 1px 8px; }
     .field label { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
     .field select { width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px; font-size: 14px; min-height: 40px; background: #fff; box-sizing: border-box; }
-    .mask { position: absolute; inset: 0; background: rgba(15,23,42,0.45); z-index: 60; display: none; align-items: flex-end; }
-    .mask.open { display: flex; }
-    .sheet { width: 100%; max-height: 70%; background: #fff; border-radius: 20px 20px 0 0; padding: 16px 16px 20px; overflow-y: auto; }
+    .mask { position: absolute; inset: 0; background: rgba(15,23,42,0.45); z-index: 60; display: none; align-items: center; justify-content: center; padding: 20px 16px; pointer-events: none; }
+    .mask.open { display: flex; pointer-events: auto; }
+    .sheet { width: 100%; max-width: 320px; background: #fff; border-radius: 20px; padding: 16px 16px 20px; overflow-y: auto; max-height: 80%; }
     .badge-work { background: #d1fae5; color: #047857; font-size: 12px; border-radius: 999px; padding: 2px 8px; }
     .badge-stop { background: #fee2e2; color: #b91c1c; font-size: 12px; border-radius: 999px; padding: 2px 8px; }
     .meta-grid { display: grid; grid-template-columns: 4.5em 1fr; gap: 4px 8px; font-size: 12px; color: #475569; margin-top: 10px; background: #f8fafc; border-radius: 12px; padding: 10px 12px; }
@@ -61,7 +61,7 @@
 
         <div class="px-4 pt-3 pb-2">
           <div class="text-xs text-teal-800 bg-teal-50 rounded-xl px-3 py-2">
-            点「开始停工」必选原因并计时（分）；满 1 小时推送企微群。点「结束停工」结束本段计时。历史记录请到「停工记录」查看。
+            点「开始停工」必选原因并计时（分）；选「其他」须填具体原因。满 1 小时推送企微群。点「结束停工」结束本段计时。
           </div>
         </div>
 
@@ -92,7 +92,11 @@
           <p class="text-xs text-slate-500 mb-3" id="reasonShipHint">—</p>
           <div class="field mb-0">
             <label>停工原因 <span class="text-rose-500">*</span></label>
-            <select id="formReason"></select>
+            <select id="formReason" onchange="toggleOtherRemark()"></select>
+          </div>
+          <div class="field mt-3 hidden" id="remarkWrap">
+            <label>具体原因 <span class="text-rose-500">*</span></label>
+            <input id="formRemark" type="text" placeholder="选「其他」时必填" style="width:100%;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;font-size:14px;min-height:40px;box-sizing:border-box" />
           </div>
           <div class="flex gap-2 mt-4">
             <button type="button" class="btn flex-1 py-2.5 text-sm" style="background:#fff;border:1px solid #e2e8f0;color:#334155" onclick="closeReason()">取消</button>
@@ -273,6 +277,12 @@
       }
     }
 
+    function toggleOtherRemark() {
+      var need = document.getElementById('formReason').value === '其他';
+      document.getElementById('remarkWrap').classList.toggle('hidden', !need);
+      if (!need) document.getElementById('formRemark').value = '';
+    }
+
     function openStop(dispatchId) {
       pendingDispatchId = dispatchId;
       fillReasonSelect();
@@ -281,6 +291,8 @@
       document.getElementById('reasonShipHint').textContent =
         d ? ('船舶：' + d.shipName + (d.voyage ? ' / ' + d.voyage : '')) : '—';
       document.getElementById('formReason').value = '';
+      document.getElementById('formRemark').value = '';
+      toggleOtherRemark();
       document.getElementById('reasonMask').classList.add('open');
     }
 
@@ -292,7 +304,9 @@
     function confirmStop() {
       var reason = document.getElementById('formReason').value;
       if (!reason) { showToast('请选择停工原因', 'err'); return; }
-      var res = ST.startLive({ dispatchId: pendingDispatchId, reason: reason });
+      var remark = String(document.getElementById('formRemark').value || '').trim();
+      if (reason === '其他' && !remark) { showToast('选「其他」须填写具体原因', 'err'); return; }
+      var res = ST.startLive({ dispatchId: pendingDispatchId, reason: reason, remark: remark });
       if (!res.ok) { showToast(res.msg, 'err'); return; }
       closeReason();
       renderList();
@@ -321,21 +335,20 @@
         var due = ST.completedHours(a);
         var pushed = Number(a.pushHourCount || 0);
         if (due > pushed) {
-          for (var h = pushed + 1; h <= due; h++) {
-            if (window.WecomPush && WecomPush.notifyStoppageHour) {
-              WecomPush.notifyStoppageHour({
-                hours: h,
-                minutes: ST.elapsedMinutes(a),
-                shipName: a.shipName,
-                voyage: a.voyage,
-                reason: a.reason,
-                startedAt: String(a.startedAt || '').replace('T', ' '),
-                berth: a.berth,
-                machine: a.machine
-              });
-            }
-          }
           ST.markPushHours(a.id, due);
+          /* 仅在刚跨过 1 小时时弹一次，避免进页补推叠多层遮罩 */
+          if (due === pushed + 1 && window.WecomPush && WecomPush.notifyStoppageHour) {
+            WecomPush.notifyStoppageHour({
+              hours: due,
+              minutes: ST.elapsedMinutes(a),
+              shipName: a.shipName,
+              voyage: a.voyage,
+              reason: a.reason,
+              startedAt: String(a.startedAt || '').replace('T', ' '),
+              berth: a.berth,
+              machine: a.machine
+            });
+          }
         }
       });
     }
@@ -353,6 +366,13 @@
         console.error(e);
       }
       renderList();
+      try {
+        (ST.listActive() || []).forEach(function (a) {
+          var due = ST.completedHours(a);
+          if (due > Number(a.pushHourCount || 0)) ST.markPushHours(a.id, due);
+        });
+      } catch (e2) {}
+      closeReason();
       tickTimer = setInterval(tick, 1000);
     })();
   </script>

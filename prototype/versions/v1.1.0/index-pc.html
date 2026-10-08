@@ -14,7 +14,7 @@
   <main class="max-w-3xl mx-auto px-6 py-10">
     <div class="mb-2 text-xs text-slate-500">版本 v1.1.0 · PC 端</div>
     <h1 class="text-xl font-semibold">单机作业量统计 · 本版 PC 原型</h1>
-    <p class="mt-2 text-sm text-slate-600">本入口仅展示 v1.1.0 本版 PC 页面（工班 / 作业记录 / 停工）。全量 PC 能力见 v1.0.0。</p>
+    <p class="mt-2 text-sm text-slate-600">本入口展示 v1.1.0 本版 PC 页（工班 / 记录 / 停工 / 船舶调度）。</p>
 
     <div class="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
       <table class="min-w-full text-sm">
@@ -38,8 +38,13 @@
           </tr>
           <tr class="border-t border-slate-200">
             <td class="px-4 py-3 font-medium">停工记录</td>
-            <td class="px-4 py-3 text-slate-600">调度停工只读回显 · H5 计时反写</td>
+            <td class="px-4 py-3 text-slate-600">调度停工只读回显 · 进行中/已结束筛选 · H5 反写</td>
             <td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="pages/work-stat-stoppage-pc.html">进入</a></td>
+          </tr>
+          <tr class="border-t border-slate-200 bg-slate-50/80">
+            <td class="px-4 py-3 font-medium">船舶调度</td>
+            <td class="px-4 py-3 text-slate-600">停工数据源 · 现场计时反写目标</td>
+            <td class="px-4 py-3"><a class="text-teal-700 hover:underline" href="pages/ship-dispatch-pc.html">进入</a></td>
           </tr>
         </tbody>
       </table>

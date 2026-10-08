@@ -26,14 +26,24 @@
     .phone-status { height: 28px; background: #fff; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; padding: 0 16px; font-size: 11px; color: #334155; border-bottom: 1px solid #f1f5f9; -webkit-flex-shrink: 0; flex-shrink: 0; }
     .phone-scroll { -webkit-box-flex: 1; -webkit-flex: 1; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; }
     .wecom-tag { font-size: 10px; color: #0f766e; background: #ccfbf1; border-radius: 999px; padding: 1px 8px; }
-    .field label { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
-    .field input, .field select { width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px; font-size: 14px; min-height: 40px; background: #fff; box-sizing: border-box; }
-    .op-link { color: #0f766e; font-size: 12px; background: none; border: none; padding: 0; margin-right: 12px; }
+    .nav-back { display: inline-flex; align-items: center; gap: 2px; color: #0f766e; font-size: 15px; text-decoration: none; min-width: 56px; }
+    .cell-bar { background: #fff; border-radius: 12px; overflow: hidden; }
+    .cell { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; min-height: 48px; }
+    .cell-label { color: #64748b; font-size: 15px; }
+    .cell-value { color: #0f172a; font-size: 15px; display: flex; align-items: center; gap: 6px; }
+    .cell-value input[type="date"] { border: 0; background: transparent; color: #0f172a; font-size: 15px; text-align: right; outline: none; max-width: 148px; }
+    .seg { display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; scrollbar-width: none; }
+    .seg::-webkit-scrollbar { display: none; }
+    .seg-btn { flex-shrink: 0; min-height: 32px; padding: 6px 14px; border-radius: 999px; border: 1px solid #e2e8f0; background: #fff; color: #475569; font-size: 13px; }
+    .seg-btn:active { transform: scale(0.95); }
+    .seg-btn.on { background: #0f766e; border-color: #0f766e; color: #fff; font-weight: 600; }
+    .sec-lab { font-size: 12px; color: #94a3b8; margin: 10px 2px 6px; }
+    .op-link { color: #0f766e; font-size: 13px; background: none; border: none; padding: 8px 0; min-height: 44px; margin-right: 16px; }
     .op-ok { color: #047857; }
     .op-reject { color: #dc2626; }
-    .mask { position: absolute; inset: 0; background: rgba(15,23,42,0.45); z-index: 60; display: none; -webkit-box-align: end; -webkit-align-items: flex-end; align-items: flex-end; }
-    .mask.open { display: -webkit-box; display: -webkit-flex; display: flex; }
-    .sheet { width: 100%; background: #fff; border-radius: 20px 20px 0 0; padding: 16px 16px 20px; }
+    .mask { position: absolute; inset: 0; background: rgba(15,23,42,0.45); z-index: 60; display: none; align-items: center; justify-content: center; padding: 24px 16px; }
+    .mask.open { display: flex; }
+    .sheet { width: 100%; max-width: 320px; background: #fff; border-radius: 20px; padding: 16px 16px 20px; }
   </style>
 </head>
 <body class="page-bg text-slate-800">
@@ -45,56 +55,35 @@
         <span><i class="fa-solid fa-signal"></i> <i class="fa-solid fa-wifi"></i> <i class="fa-solid fa-battery-full"></i></span>
       </div>
 
+      <header class="sticky top-0 z-30 bg-white border-b border-slate-100 px-3 h-11 flex items-center shrink-0">
+        <a href="../index.html" class="nav-back"><i class="fa-solid fa-chevron-left"></i>返回</a>
+        <div class="font-semibold text-[17px] flex-1 text-center">作业记录</div>
+        <span class="min-w-[56px] shrink-0" aria-hidden="true"></span>
+      </header>
+
       <div class="phone-scroll">
-        <header class="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 h-12 flex items-center gap-3">
-          <div class="font-semibold text-base flex-1 text-center">作业记录</div>
-          <a href="work-stat-edit-wecom.html" class="text-teal-700 text-xs shrink-0">去填报</a>
-        </header>
-
-        <div class="px-4 pt-3 pb-2">
-          <div class="text-xs text-teal-800 bg-teal-50 rounded-xl px-3 py-2">
-            按开班日+班次展示（今天往前共 8 天）· <strong>白班/夜班各审批一次</strong>。一条记录=一个班次，含其下全部机台表。
-          </div>
-        </div>
-
-        <div class="px-4 pb-2 card p-3 space-y-2">
-          <div class="grid grid-cols-2 gap-2">
-            <div class="field mb-0">
-              <label>开班日</label>
-              <input id="filterDate" type="date" />
-            </div>
-            <div class="field mb-0">
-              <label>班次</label>
-              <select id="filterShift">
-                <option value="">全部</option>
-                <option value="白班">白班</option>
-                <option value="夜班">夜班</option>
-              </select>
+        <div class="px-4 pt-3">
+          <div class="cell-bar">
+            <div class="cell">
+              <span class="cell-label">开班日</span>
+              <label class="cell-value">
+                <input id="filterDate" type="date" onchange="onFilterChange()" />
+                <i class="fa-solid fa-chevron-right text-slate-300 text-xs"></i>
+              </label>
             </div>
           </div>
-          <div class="field mb-0">
-            <label>状态</label>
-            <select id="filterStatus">
-              <option value="">全部</option>
-              <option>草稿</option>
-              <option>审批中</option>
-              <option>已驳回</option>
-              <option>已通过</option>
-            </select>
+          <div class="flex items-center justify-between mt-3 mb-1">
+            <div class="sec-lab mt-0 mb-0">班次</div>
+            <button type="button" id="btnClear" class="hidden text-[13px] text-teal-700 py-1" onclick="resetFilters()">清除条件</button>
           </div>
-          <div class="flex gap-2 pt-1">
-            <button type="button" class="btn btn-brand flex-1 py-2.5 text-sm" onclick="renderList()">查询</button>
-            <button type="button" class="btn border border-slate-200 bg-white flex-1 py-2.5 text-sm" onclick="resetFilters()">重置</button>
-          </div>
+          <div class="seg" id="shiftSeg"></div>
+          <div class="sec-lab">状态</div>
+          <div class="seg" id="statusSeg"></div>
         </div>
 
-        <div class="px-4 pb-1 text-xs text-slate-500" id="listCount">共 0 条</div>
-        <main class="px-4 space-y-3 pb-20" id="listBody"></main>
-        <div id="emptyState" class="hidden px-4 pb-20 text-center text-sm text-slate-400">暂无作业记录</div>
-
-        <div class="px-4 pt-2 pb-4 text-center text-xs text-slate-400">
-          <a href="../index.html" class="text-teal-700">返回企微入口</a>
-        </div>
+        <div class="px-4 pt-3 pb-1 text-xs text-slate-400" id="listCount">共 0 条</div>
+        <main class="px-4 space-y-2.5 pb-8" id="listBody"></main>
+        <div id="emptyState" class="hidden px-4 pb-16 text-center text-sm text-slate-400 pt-8">暂无符合条件的作业记录</div>
       </div>
 
       <div id="rejectMask" class="mask" onclick="closeIfMask(event,'rejectMask')">
@@ -118,6 +107,46 @@
     var S = WorkStatSheetStore;
     var rejectTarget = null;
     var range = S.dateRange();
+    var filterShift = '';
+    var filterStatus = '';
+    var SHIFT_OPTS = [
+      { value: '', label: '全部' },
+      { value: '白班', label: '白班' },
+      { value: '夜班', label: '夜班' }
+    ];
+    var STATUS_OPTS = [
+      { value: '', label: '全部' },
+      { value: '草稿', label: '草稿' },
+      { value: '审批中', label: '审批中' },
+      { value: '已驳回', label: '已驳回' },
+      { value: '已通过', label: '已通过' }
+    ];
+
+    function paintSeg(elId, opts, current, kind) {
+      document.getElementById(elId).innerHTML = opts.map(function (o) {
+        var on = o.value === current ? ' on' : '';
+        return '<button type="button" class="seg-btn' + on + '" data-kind="' + kind + '" data-value="' + o.value + '">' + o.label + '</button>';
+      }).join('');
+    }
+
+    function paintFilters() {
+      paintSeg('shiftSeg', SHIFT_OPTS, filterShift, 'shift');
+      paintSeg('statusSeg', STATUS_OPTS, filterStatus, 'status');
+      var dateVal = document.getElementById('filterDate').value;
+      var dirty = !!(dateVal || filterShift || filterStatus);
+      document.getElementById('btnClear').classList.toggle('hidden', !dirty);
+    }
+
+    function onFilterChange() {
+      paintFilters();
+      renderList();
+    }
+
+    function setFilter(kind, value) {
+      if (kind === 'shift') filterShift = value;
+      if (kind === 'status') filterStatus = value;
+      onFilterChange();
+    }
 
     function showToast(msg, type) {
       type = type || 'ok';
@@ -138,9 +167,9 @@
 
     function resetFilters() {
       document.getElementById('filterDate').value = '';
-      document.getElementById('filterShift').value = '';
-      document.getElementById('filterStatus').value = '';
-      renderList();
+      filterShift = '';
+      filterStatus = '';
+      onFilterChange();
     }
 
     function openFill(date, shift) {
@@ -183,8 +212,8 @@
 
     function renderList() {
       var date = document.getElementById('filterDate').value;
-      var shift = document.getElementById('filterShift').value;
-      var status = document.getElementById('filterStatus').value;
+      var shift = filterShift;
+      var status = filterStatus;
       var rows = S.listSheets().filter(function (s) {
         if (s.date < range.from || s.date > range.to) return false;
         if (date && s.date !== date) return false;
@@ -193,7 +222,7 @@
         return true;
       });
 
-      document.getElementById('listCount').textContent = '共 ' + rows.length + ' 条（今天往前共 8 天）';
+      document.getElementById('listCount').textContent = '共 ' + rows.length + ' 条 · 近 8 天';
       var box = document.getElementById('listBody');
       var empty = document.getElementById('emptyState');
       if (!rows.length) {
@@ -236,6 +265,12 @@
       var dateEl = document.getElementById('filterDate');
       dateEl.min = range.from;
       dateEl.max = range.to;
+      document.querySelector('.phone-scroll').addEventListener('click', function (ev) {
+        var btn = ev.target.closest ? ev.target.closest('.seg-btn') : null;
+        if (!btn) return;
+        setFilter(btn.getAttribute('data-kind'), btn.getAttribute('data-value') || '');
+      });
+      paintFilters();
       renderList();
     })();
   </script>

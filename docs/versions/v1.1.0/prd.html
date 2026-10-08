@@ -65,8 +65,16 @@
         var md = await res.text();
         md = md.replace(/\n## 目录\n[\s\S]*?\n---\n/, "\n---\n");
         content.innerHTML = marked.parse(md, { gfm: true, breaks: false });
+        content.querySelectorAll("pre > code.language-mermaid, pre > code.mermaid").forEach(function (code) {
+          var pre = code.parentNode;
+          var div = document.createElement("div");
+          div.className = "mermaid";
+          div.textContent = code.textContent;
+          pre.parentNode.replaceChild(div, pre);
+        });
         buildToc(content);
         loading.classList.add("hidden"); content.classList.remove("hidden");
+        if (window.mermaid && mermaid.run) mermaid.run({ querySelector: "#content .mermaid" });
       } catch (e) {
         loading.classList.add("hidden"); error.classList.remove("hidden");
         error.textContent = "PRD 渲染失败：" + (e && e.message ? e.message : e);

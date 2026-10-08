@@ -2,7 +2,7 @@
  * PC 侧栏菜单（v1.1.0）· 仅本版范围
  * 用法：<nav id="pcSidebarNav" data-active="fill-shift"></nav>
  *
- * data-active: fill-shift | fill-records | fill-stoppage
+ * data-active: fill-shift | fill-records | fill-stoppage | ship-dispatch
  */
 (function () {
   function link(href, icon, label, active, indent) {
@@ -26,6 +26,8 @@
     html += link('work-stat-edit-pc.html', 'fa-solid fa-table', '工班作业', active === 'fill-shift', true);
     html += link('work-stat-records-pc.html', 'fa-solid fa-clipboard-check', '作业记录', active === 'fill-records', true);
     html += link('work-stat-stoppage-pc.html', 'fa-solid fa-pause', '停工记录', active === 'fill-stoppage', true);
+    html += group('船舶作业');
+    html += link('ship-dispatch-pc.html', 'fa-solid fa-ship', '船舶调度', active === 'ship-dispatch', true);
     return html;
   }
 

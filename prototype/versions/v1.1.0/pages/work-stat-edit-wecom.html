@@ -72,7 +72,7 @@
       <div class="phone-scroll">
         <div id="viewShift" class="view-panel active">
           <header class="sticky top-0 z-30 bg-white border-b border-slate-200 px-4 h-12 flex items-center gap-3">
-            <a href="work-stat-list-wecom.html" class="text-teal-700 text-sm shrink-0"><i class="fa-solid fa-chevron-left mr-1"></i>作业记录</a>
+            <a href="../index.html" class="text-teal-700 text-sm shrink-0"><i class="fa-solid fa-chevron-left mr-1"></i>返回</a>
             <div class="font-semibold text-base flex-1 text-center">作业填报</div>
           </header>
 
@@ -120,7 +120,7 @@
               <div class="mt-3 flex gap-3 text-xs" id="unitOps"></div>
             </div>
             <div class="px-1 text-sm font-medium text-slate-700">时段明细（卡片）</div>
-            <p class="px-1 text-xs text-slate-400 mb-1">可直接改作业量；编辑/发送在卡片底部。已推送仍可改，改后须再发送；与 PC 共用数据。</p>
+            <p class="px-1 text-xs text-slate-400 mb-1">可直接改作业量；是否正常不可改。编辑/发送在卡片底部。已推送仍可改，改后须再发送。</p>
             <div id="slotList" class="space-y-2"></div>
           </main>
         </div>
@@ -240,13 +240,15 @@
       } else if (a && a.date) {
         dateEl.value = a.date;
         document.getElementById('hdrShift').value = a.shift || '白班';
-        activeUnitId = a.unitId || '';
       } else {
         dateEl.value = S.todayStr();
         document.getElementById('hdrShift').value = '白班';
       }
       S.ensureSheet(getDate(), getShift());
+      /* 仅带 unitId 的返回（如时段编辑）才进机台时段；从 H5 入口进入一律先看本班机台表 */
       if (params.get('unitId')) activeUnitId = params.get('unitId');
+      else activeUnitId = '';
+      S.setActive({ date: getDate(), shift: getShift(), unitId: activeUnitId });
     }
 
     function onContextChange() {

@@ -17,10 +17,12 @@
     .phone-frame { width: 390px; height: 844px; border-radius: 48px; border: 3px solid #e5e7eb; background: #0f172a; box-shadow: 0 12px 40px rgba(15,23,42,0.18); padding: 12px; box-sizing: border-box; }
     .phone-screen { width: 100%; height: 100%; border-radius: 36px; background: #f5f6f8; overflow: hidden; display: flex; flex-direction: column; position: relative; }
     .phone-status { height: 28px; background: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 11px; color: #334155; border-bottom: 1px solid #f1f5f9; flex-shrink: 0; }
-    .phone-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 72px; }
+    .phone-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 24px; }
     .wecom-tag { font-size: 10px; color: #0f766e; background: #ccfbf1; border-radius: 999px; padding: 1px 8px; }
-    .nav-back { display: inline-flex; align-items: center; gap: 2px; color: #0f766e; font-size: 15px; text-decoration: none; min-width: 56px; }
+    .nav-head { position: relative; display: flex; align-items: center; height: 44px; padding: 0 12px; background: #fff; border-bottom: 1px solid #f1f5f9; flex-shrink: 0; }
+    .nav-back { position: relative; z-index: 2; display: inline-flex; align-items: center; gap: 2px; color: #0f766e; font-size: 15px; text-decoration: none; min-width: 64px; min-height: 44px; }
     .nav-back i { font-size: 14px; }
+    .nav-title { position: absolute; left: 0; right: 0; text-align: center; font-size: 17px; font-weight: 600; pointer-events: none; }
     .cell-bar { background: #fff; border-radius: 12px; overflow: hidden; }
     .cell { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; min-height: 52px; }
     .cell + .cell { border-top: 1px solid #f1f5f9; }
@@ -36,9 +38,6 @@
     .meta-line { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
     .time-row { margin-top: 10px; font-size: 13px; color: #64748b; display: flex; align-items: flex-start; gap: 6px; }
     .time-row i { margin-top: 2px; color: #94a3b8; }
-    .bottom-bar { position: absolute; left: 0; right: 0; bottom: 0; background: rgba(255,255,255,0.96); backdrop-filter: blur(8px); border-top: 1px solid #e2e8f0; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); }
-    .btn-main { display: block; width: 100%; text-align: center; background: var(--brand); color: #fff; border: 0; border-radius: 12px; padding: 13px 16px; font-size: 16px; font-weight: 600; text-decoration: none; }
-    .btn-main:active { opacity: 0.88; transform: scale(0.98); }
     .hint { font-size: 12px; color: #64748b; padding: 10px 4px 2px; }
     .empty { text-align: center; padding: 48px 16px; color: #94a3b8; font-size: 14px; }
     .empty i { font-size: 36px; color: #cbd5e1; display: block; margin-bottom: 12px; }
@@ -53,9 +52,9 @@
         <span><i class="fa-solid fa-signal"></i> <i class="fa-solid fa-wifi"></i> <i class="fa-solid fa-battery-full"></i></span>
       </div>
 
-      <header class="sticky top-0 z-30 bg-white border-b border-slate-100 px-3 h-11 flex items-center shrink-0">
-        <a href="../index.html" class="nav-back"><i class="fa-solid fa-chevron-left"></i>返回</a>
-        <div class="font-semibold text-[17px] flex-1 text-center -ml-14">停工记录</div>
+      <header class="nav-head">
+        <a href="../index.html" class="nav-back" id="btnBack"><i class="fa-solid fa-chevron-left"></i>返回</a>
+        <div class="nav-title">停工记录</div>
       </header>
 
       <div class="phone-scroll">
@@ -69,7 +68,7 @@
               </label>
             </div>
           </div>
-          <p class="hint">仅展示已结束台账 · 现场操作请用「停工登记」</p>
+          <p class="hint">按日查看停工台账（含进行中 / 已结束）</p>
         </div>
 
         <div class="px-3 pt-1 pb-1 text-xs text-slate-400" id="listCount">共 0 条</div>
@@ -78,10 +77,6 @@
           <i class="fa-regular fa-clipboard"></i>
           暂无停工记录
         </div>
-      </div>
-
-      <div class="bottom-bar">
-        <a href="work-stat-stoppage-wecom.html" class="btn-main">去停工登记</a>
       </div>
     </div>
   </div>
@@ -156,7 +151,8 @@
             '</div>' +
             '<div class="text-right shrink-0">' +
               '<div class="duration">' + esc(mins) + '<small>分</small></div>' +
-              '<div class="text-[11px] text-slate-400 mt-0.5">已结束</div>' +
+              '<div class="text-[11px] mt-0.5 ' + (r.status === 'active' ? 'text-amber-700' : 'text-slate-400') + '">' +
+                (r.status === 'active' ? '进行中' : '已结束') + '</div>' +
             '</div>' +
           '</div>' +
           (chips.length ? '<div class="meta-line">' + chips.map(function (c) {
@@ -170,6 +166,13 @@
     }
 
     (function init() {
+      var back = document.getElementById('btnBack');
+      if (back) {
+        back.addEventListener('click', function (e) {
+          e.preventDefault();
+          window.location.href = '../index.html';
+        });
+      }
       document.getElementById('filterDate').value = ST.todayStr();
       var rows = ST.list(ST.todayStr()) || [];
       if (!rows.length) {

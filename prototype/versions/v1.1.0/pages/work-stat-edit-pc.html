@@ -12,7 +12,6 @@
   <script src="../assets/ship-ops-demo.js"></script>
   <script src="../assets/vessel-search.js"></script>
   <script src="../assets/work-stat-sheet-store.js"></script>
-  <script src="../assets/work-stat-stoppage-store.js"></script>
   <script src="../assets/wecom-push.js"></script>
   <script src="../assets/pc-sidebar.js"></script>
   <style>
@@ -185,7 +184,6 @@
                     <th style="min-width:120px">非正常原因</th>
                     <th style="min-width:100px">非正常时长</th>
                     <th style="min-width:120px">备注</th>
-                    <th style="min-width:140px">船舶停工（只读）</th>
                     <th style="min-width:88px">推送</th>
                     <th style="min-width:140px">操作</th>
                   </tr>
@@ -309,7 +307,7 @@
             </div>
             <div class="field">
               <label>是否正常</label>
-              <select id="editNormal" onchange="toggleRowEditAbnormal()">
+              <select id="editNormal" disabled class="opacity-70 cursor-not-allowed">
                 <option value="yes">正常</option>
                 <option value="no">非正常</option>
               </select>
@@ -326,11 +324,11 @@
           <div class="grid grid-cols-2 gap-3">
             <div class="field">
               <label>非正常原因</label>
-              <select id="editReason"></select>
+              <select id="editReason" disabled class="opacity-70 cursor-not-allowed"></select>
             </div>
             <div class="field">
               <label>非正常时长（分钟）</label>
-              <input id="editAbMins" type="number" min="1" max="60" placeholder="1～60" />
+              <input id="editAbMins" type="number" min="1" max="60" placeholder="—" disabled class="opacity-70 cursor-not-allowed" />
             </div>
           </div>
         </div>

@@ -115,76 +115,21 @@
   }
 
   /**
-   * 演示场景（覆盖写入，便于评审切换）
-   * allClear：两艘均作业中、无停工中、无今日已完结
-   * mixed：一艘停工中 + 一艘作业中 + 一条今日已停工
+   * 演示场景：写入调度侧今日案例停工（PC/H5 同源）
+   * mixed：进行中 + 已结束；allClear：不强制写入（若今日为空则仍补案例）
    */
   function applyDemoScene(scene) {
     scene = scene === 'mixed' ? 'mixed' : 'allClear';
-    var working = listWorkingShips();
-    var w1 = working[0] || null;
-    var w2 = working[1] || null;
-    var t = todayStr();
-    var data = { items: [], active: [] };
-
-    if (scene === 'mixed' && w1) {
-      var units1 = unitsForShipToday(w1.shipName);
-      var u1 = units1[0] || null;
-      var echo1 = dispatchMachineEcho(w1);
-      var startMs = Date.now() - 18 * 60000;
-      data.active.push({
-        id: 'stp_active_demo',
-        dispatchId: w1.id,
-        shipName: w1.shipName,
-        voyage: w1.voyage || '',
-        instructionNo: w1.instructionNo || '',
-        reason: '等货/等驳',
-        startedAtMs: startMs,
-        startedAt: toLocalInput(new Date(startMs)),
-        pushHourCount: 0,
-        units: units1,
-        unitId: u1 ? u1.unitId : '',
-        sheetId: u1 ? u1.sheetId : '',
-        shift: u1 ? u1.shift : '',
-        berth: u1 ? u1.berth : (echo1 ? echo1.berth : ''),
-        machine: u1 ? u1.machine : (echo1 ? echo1.machine : ''),
-        vesselName: u1 ? u1.vesselName : normName(w1.shipName),
-        cargo: u1 ? u1.cargo : (echo1 ? echo1.cargo : ''),
-        driver: u1 ? u1.driver : ''
-      });
-
-      var shipDone = w2 || w1;
-      var unitsDone = unitsForShipToday(shipDone.shipName);
-      var uDone = unitsDone[0] || null;
-      var echoDone = dispatchMachineEcho(shipDone);
-      data.items.push({
-        id: 'stp_done_demo',
-        date: t,
-        dispatchId: shipDone.id,
-        shipName: shipDone.shipName,
-        voyage: shipDone.voyage || '',
-        cargoInOut: shipDone.cargoInOut || '',
-        unitId: uDone ? uDone.unitId : '',
-        sheetId: uDone ? uDone.sheetId : '',
-        shift: uDone ? uDone.shift : '白班',
-        berth: uDone ? uDone.berth : (echoDone ? echoDone.berth : ''),
-        machine: uDone ? uDone.machine : (echoDone ? echoDone.machine : ''),
-        vesselId: '',
-        vesselName: uDone ? uDone.vesselName : normName(shipDone.shipName),
-        cargo: uDone ? uDone.cargo : (echoDone ? echoDone.cargo : ''),
-        driver: uDone ? (uDone.driver || '') : '',
-        from: t + 'T08:10',
-        to: t + 'T08:45',
-        reason: '设备异常',
-        remark: '演示：今日已结束的停工 · 共 35 分',
-        createdAt: nowStamp(),
-        updater: '张录入',
-        durationMin: 35
-      });
+    if (global.ShipOpsDemo && ShipOpsDemo.ensurePcStoppageDemo) {
+      var res = ShipOpsDemo.ensurePcStoppageDemo();
+      return {
+        ok: !!(res && res.ok !== false),
+        scene: scene,
+        seeded: !!(res && res.seeded),
+        workingCount: listWorkingShips().length
+      };
     }
-
-    saveAll(data);
-    return { ok: true, scene: scene, workingCount: working.length };
+    return { ok: false, msg: '调度未加载', scene: scene };
   }
 
   /** 台账以船舶调度停工为准（只读回显） */
@@ -197,16 +142,26 @@
       if (s.from && s.to) {
         var ms = new Date(s.to).getTime() - new Date(s.from).getTime();
         if (ms > 0) durationMin = Math.floor(ms / 60000);
+      } else if (s.status === 'active' && s.from) {
+        var activeMs = Date.now() - new Date(s.from).getTime();
+        if (activeMs > 0) durationMin = Math.floor(activeMs / 60000);
       }
+      var echo = null;
+      try {
+        var d = ShipOpsDemo.getDispatch(s.dispatchId);
+        if (d) echo = dispatchMachineEcho(d);
+      } catch (e) {}
+      var units = unitsForShipToday(s.shipName) || [];
+      var u0 = units[0] || null;
       return {
         id: s.id,
         date: s.date,
         dispatchId: s.dispatchId,
         shipName: s.shipName,
         voyage: s.voyage || '',
-        shift: '',
-        berth: '',
-        machine: '',
+        shift: u0 ? (u0.shift || '') : '',
+        berth: u0 ? (u0.berth || '') : (echo ? echo.berth : ''),
+        machine: u0 ? (u0.machine || '') : (echo ? echo.machine : ''),
         vesselName: s.shipName,
         from: s.from,
         to: s.to,
@@ -324,6 +279,10 @@
 
     var reason = String(payload.reason || '').trim();
     if (!reason) return { ok: false, msg: '请选择停工原因' };
+    var remark = String(payload.remark || '').trim();
+    if (reason === '其他' && !remark) {
+      return { ok: false, msg: '选「其他」须填写具体原因' };
+    }
 
     if (getActiveByDispatch(dispatchId)) {
       return { ok: false, msg: '该船已在停工计时中' };
@@ -347,12 +306,13 @@
       return { ok: false, msg: '调度停工接口未就绪' };
     }
     var startedAt = toLocalInput(new Date(now));
+    var source = payload.source || 'h5_live';
     var dispRes = ShipOpsDemo.startStoppageLive(d.id, {
       reason: reason,
       from: startedAt,
       startedAtMs: now,
-      source: 'h5_live',
-      remark: payload.remark || ''
+      source: source,
+      remark: remark
     });
     if (!dispRes.ok) return dispRes;
 
@@ -385,25 +345,43 @@
     return { ok: true, active: active, warnNoUnits: !units.length };
   }
 
-  function endLive(dispatchId) {
+  function endLive(dispatchId, payload) {
+    payload = payload || {};
     var id = String(dispatchId || '');
     var active = getActiveByDispatch(id);
     if (!active) return { ok: false, msg: '该船当前未在停工' };
 
     var endMs = Date.now();
     var from = active.startedAt || toLocalInput(new Date(active.startedAtMs));
-    var to = toLocalInput(new Date(endMs));
+    var to = String(payload.to || '').trim() || toLocalInput(new Date(endMs));
     if (to <= from) {
       var t2 = new Date(endMs + 60000);
       to = toLocalInput(t2);
     }
     var mins = elapsedMinutes(active);
-    var remark = '现场停工计时 · 共 ' + mins + ' 分';
+    var reason = String(payload.reason || active.reason || '').trim();
+    var remark = payload.remark != null
+      ? String(payload.remark).trim()
+      : String(active.remark || '').trim();
+    if (!remark && reason !== '其他') {
+      remark = '现场停工计时 · 共 ' + mins + ' 分';
+    }
+    var source = payload.source || 'h5_live';
 
     if (!global.ShipOpsDemo || !ShipOpsDemo.endStoppageLive) {
       return { ok: false, msg: '调度停工接口未就绪' };
     }
-    var dispRes = ShipOpsDemo.endStoppageLive(id, { to: to, remark: remark, source: 'h5_live' });
+    if (payload.reason && !reason) return { ok: false, msg: '请选择停工类型' };
+    if (reason === '其他' && !remark) {
+      return { ok: false, msg: '选「其他」须填写具体原因' };
+    }
+    var dispRes = ShipOpsDemo.endStoppageLive(id, {
+      stoppageId: payload.stoppageId || active.id,
+      to: to,
+      reason: reason,
+      remark: remark,
+      source: source
+    });
     if (!dispRes.ok) return dispRes;
 
     var data = loadAll();
@@ -420,14 +398,36 @@
         shipName: active.shipName,
         from: stop.from || from,
         to: stop.to || to,
-        reason: stop.reason || active.reason,
-        remark: stop.remark || remark,
+        reason: stop.reason || reason || active.reason,
+        remark: stop.remark != null ? stop.remark : remark,
         durationMin: mins,
         status: 'ended',
-        source: 'h5_live',
-        readonly: true
+        source: source,
+        readonly: false
       }
     };
+  }
+
+  /** PC：编辑已结束停工（时间 / 类型 / 备注） */
+  function updateEnded(payload) {
+    payload = payload || {};
+    if (!global.ShipOpsDemo || !ShipOpsDemo.updateStoppage) {
+      return { ok: false, msg: '调度修订接口未就绪' };
+    }
+    var dispatchId = String(payload.dispatchId || '').trim();
+    var id = String(payload.id || '').trim();
+    if (!dispatchId || !id) return { ok: false, msg: '缺少停工标识' };
+    var reason = String(payload.reason || '').trim();
+    var remark = String(payload.remark || '').trim();
+    if (reason === '其他' && !remark) {
+      return { ok: false, msg: '选「其他」须填写具体原因' };
+    }
+    return ShipOpsDemo.updateStoppage(dispatchId, id, {
+      from: payload.from,
+      to: payload.to,
+      reason: reason,
+      remark: remark
+    });
   }
 
   function markPushHours(activeId, count) {
@@ -459,6 +459,7 @@
     var remark = String(payload.remark || '').trim();
     if (!from || !to) return { ok: false, msg: '请填写开始与结束时间' };
     if (!reason) return { ok: false, msg: '请选择停工类型' };
+    if (reason === '其他' && !remark) return { ok: false, msg: '选「其他」须填写具体原因' };
     if (new Date(to) <= new Date(from)) return { ok: false, msg: '结束时间须晚于开始时间' };
 
     var units = unitsForShipToday(d.shipName);
@@ -521,6 +522,7 @@
     getActiveByDispatch: getActiveByDispatch,
     startLive: startLive,
     endLive: endLive,
+    updateEnded: updateEnded,
     elapsedMs: elapsedMs,
     elapsedMinutes: elapsedMinutes,
     completedHours: completedHours,

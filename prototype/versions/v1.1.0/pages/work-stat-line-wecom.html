@@ -25,7 +25,7 @@
       width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px;
       font-size: 14px; min-height: 40px; background: #fff; box-sizing: border-box;
     }
-    .field input:disabled { background: #f8fafc; color: #64748b; }
+    .field input:disabled, .field select:disabled { background: #f8fafc; color: #64748b; cursor: not-allowed; opacity: 0.85; }
     .toast { position: absolute; top: 72px; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); z-index: 80; min-width: 220px; max-width: 90%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
     .page-bg { background: #e2e8f0; min-height: 100vh; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center; padding: 24px 12px; box-sizing: border-box; }
     .phone-frame { width: 390px; height: 844px; border-radius: 48px; border: 3px solid #e5e7eb; background: #0f172a; box-shadow: 0 12px 40px rgba(15,23,42,0.18); padding: 12px; box-sizing: border-box; }
@@ -81,19 +81,19 @@
               <input id="fQty" type="number" step="0.01" min="0" placeholder="请输入作业量" />
             </div>
             <div class="field">
-              <label>是否正常作业</label>
-              <select id="fNormal" onchange="toggleAbnormal()">
+              <label>是否正常作业（不可改）</label>
+              <select id="fNormal" disabled>
                 <option value="yes">正常作业</option>
                 <option value="no">非正常</option>
               </select>
             </div>
             <div class="field hidden" id="reasonWrap">
-              <label>非正常原因</label>
-              <select id="fReason"></select>
+              <label>非正常原因（不可改）</label>
+              <select id="fReason" disabled></select>
             </div>
             <div class="field hidden" id="minsWrap">
-              <label>非正常时长（分钟）</label>
-              <input id="fAbMins" type="number" min="1" max="60" step="1" placeholder="如 30" />
+              <label>非正常时长（分钟，不可改）</label>
+              <input id="fAbMins" type="number" min="1" max="60" step="1" placeholder="—" disabled />
             </div>
             <div class="field">
               <label>备注</label>
@@ -194,10 +194,13 @@
       document.getElementById('fReason').value = row.reason || '';
       document.getElementById('fAbMins').value = row.abMins != null ? row.abMins : '';
       document.getElementById('fRemark').value = row.remark || '';
+      document.getElementById('fNormal').disabled = true;
+      document.getElementById('fReason').disabled = true;
+      document.getElementById('fAbMins').disabled = true;
       toggleAbnormal();
 
       if (readonly) {
-        document.querySelectorAll('#fDriver,#fCargoL1,#fCargoL2,#fQty,#fNormal,#fReason,#fAbMins,#fRemark').forEach(function (el) {
+        document.querySelectorAll('#fDriver,#fCargoL1,#fCargoL2,#fQty,#fRemark').forEach(function (el) {
           el.disabled = true;
         });
         document.getElementById('btnSave').classList.add('hidden');
@@ -205,19 +208,23 @@
       }
     }
 
+    function currentRow() {
+      var sheet = S.getSheet(ctx.date, ctx.shift);
+      var unit = S.findUnit(sheet, ctx.unitId);
+      if (!unit) return bootRow;
+      for (var i = 0; i < (unit.rows || []).length; i++) {
+        if (unit.rows[i].slot === ctx.slot) return unit.rows[i];
+      }
+      return bootRow;
+    }
+
     function validate() {
-      var normal = document.getElementById('fNormal').value === 'yes';
+      var prev = currentRow() || {};
+      var normal = prev.normal !== false;
       var qty = Number(document.getElementById('fQty').value) || 0;
       if (qty < 0) { showToast('作业量不能为负', 'err'); return null; }
-      var reason = document.getElementById('fReason').value;
-      var abRaw = String(document.getElementById('fAbMins').value || '').trim();
       var remark = String(document.getElementById('fRemark').value || '').trim();
-      if (!normal) {
-        if (!reason) { showToast('非正常须选择原因', 'err'); return null; }
-        if (!abRaw || Number(abRaw) <= 0) { showToast('请填写非正常时长（分钟）', 'err'); return null; }
-        if (Number(abRaw) > 60) { showToast('非正常时长不宜超过 60 分钟', 'err'); return null; }
-        if (reason === '其他' && !remark) { showToast('选「其他」须填备注', 'err'); return null; }
-      }
+      if (!normal && prev.reason === '其他' && !remark) { showToast('选「其他」须填备注', 'err'); return null; }
       var cargo = cargoCtl.getValue();
       if (!cargo.l1 || !cargo.l2) { showToast('请选择货种', 'err'); return null; }
       var vessel = vesselCtl ? vesselCtl.getValue() : {};
@@ -227,8 +234,8 @@
         cargoL2: cargo.l2,
         qty: qty,
         normal: normal,
-        reason: normal ? '' : reason,
-        abMins: normal || abRaw === '' ? null : Number(abRaw),
+        reason: normal ? '' : (prev.reason || ''),
+        abMins: normal ? null : (prev.abMins != null ? prev.abMins : null),
         remark: remark,
         vesselId: vessel.vesselId || '',
         vesselName: vessel.vesselName || ''

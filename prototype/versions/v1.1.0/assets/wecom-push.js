@@ -96,7 +96,10 @@
       '泊位/机台：' + ((info.berth || '—') + ' · ' + (info.machine || '—'))
     ].join('\n');
 
+    var old = document.getElementById('wecomStoppageHourMask');
+    if (old) old.remove();
     var mask = document.createElement('div');
+    mask.id = 'wecomStoppageHourMask';
     mask.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:90;display:flex;align-items:center;justify-content:center;padding:24px;';
     mask.innerHTML =
       '<div style="width:100%;max-width:420px;background:#fff;border-radius:20px;padding:20px;box-shadow:0 12px 40px rgba(0,0,0,.15);">' +

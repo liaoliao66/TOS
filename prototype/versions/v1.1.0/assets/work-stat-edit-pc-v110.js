@@ -207,18 +207,7 @@
     return opts;
   }
 
-  window.onInlineNormalChange = function (slot, el) {
-    var no = el.value === 'no';
-    var tr = el.closest('tr');
-    if (!tr) return;
-    var reasonEl = tr.querySelector('[data-field="reason"]');
-    var minsEl = tr.querySelector('[data-field="abMins"]');
-    if (reasonEl) { reasonEl.disabled = !no; if (!no) reasonEl.value = ''; }
-    if (minsEl) { minsEl.disabled = !no; if (!no) minsEl.value = ''; }
-    saveInlineRow(slot, true);
-  };
-
-  window.saveInlineRow = function (slot, fromNormal) {
+  window.saveInlineRow = function (slot) {
     if (readonly || !activeUnitId) return;
     var unit = S.findUnit(S.getSheet(getDate(), getShift()), activeUnitId);
     if (!unit) return;
@@ -231,17 +220,14 @@
     var tr = document.querySelector('#matrixBody tr[data-slot="' + slot + '"]');
     if (!tr) return;
     var qtyEl = tr.querySelector('[data-field="qty"]');
-    var normalEl = tr.querySelector('[data-field="normal"]');
-    var reasonEl = tr.querySelector('[data-field="reason"]');
-    var minsEl = tr.querySelector('[data-field="abMins"]');
     var remarkEl = tr.querySelector('[data-field="remark"]');
-    var normal = normalEl && normalEl.value === 'yes';
-    var abRaw = minsEl ? String(minsEl.value || '').trim() : '';
+    /* 是否正常 / 异常原因 / 异常时长：PC 只读，由 H5 同步，保存时原样保留 */
+    var normal = row.normal !== false;
     var patch = {
       qty: qtyEl ? (Number(qtyEl.value) || 0) : 0,
       normal: normal,
-      reason: normal ? '' : (reasonEl ? reasonEl.value || '' : ''),
-      abMins: normal || abRaw === '' ? null : Number(abRaw),
+      reason: normal ? '' : (row.reason || ''),
+      abMins: normal ? null : (row.abMins != null ? row.abMins : null),
       remark: remarkEl ? String(remarkEl.value || '').trim() : ''
     };
     if (patch.qty < 0) { showToast('作业量不能为负', 'err'); return; }
@@ -253,18 +239,15 @@
     if (wasSent && next && !next.wecomSent) {
       showToast('已修改，须再推送该时段', 'warn');
       renderTable(S.findUnit(S.getSheet(getDate(), getShift()), activeUnitId));
-      return;
     }
-    if (fromNormal) renderTable(S.findUnit(S.getSheet(getDate(), getShift()), activeUnitId));
   };
 
   window.toggleRowEditAbnormal = function () {
     var no = document.getElementById('editNormal').value === 'no';
     var block = document.getElementById('rowEditAbnormalBlock');
     if (block) block.classList.toggle('hidden', !no);
-    document.getElementById('editReason').disabled = !no;
-    document.getElementById('editAbMins').disabled = !no;
-    if (!no) { document.getElementById('editReason').value = ''; document.getElementById('editAbMins').value = ''; }
+    document.getElementById('editReason').disabled = true;
+    document.getElementById('editAbMins').disabled = true;
   };
 
   window.clearRowVesselOverride = function () {
@@ -294,8 +277,11 @@
     else rowEditVesselCtl.clear();
     document.getElementById('editQty').value = Number(row.qty) || 0;
     document.getElementById('editNormal').value = row.normal === false ? 'no' : 'yes';
+    document.getElementById('editNormal').disabled = true;
     document.getElementById('editReason').value = row.reason || '';
+    document.getElementById('editReason').disabled = true;
     document.getElementById('editAbMins').value = row.abMins != null ? row.abMins : '';
+    document.getElementById('editAbMins').disabled = true;
     document.getElementById('editRemark').value = row.remark || '';
     toggleRowEditAbnormal();
     document.getElementById('rowEditModal').classList.add('open');
@@ -305,25 +291,25 @@
     var slot = document.getElementById('editSlot').value;
     var cargo = editCargoCtl.getValue();
     if (!cargo.l1 || !cargo.l2) { showToast('请选择货种', 'err'); return; }
-    var normal = document.getElementById('editNormal').value === 'yes';
-    var abRaw = String(document.getElementById('editAbMins').value || '').trim();
+    var prevRow = null;
+    var unitForPrev = S.findUnit(S.getSheet(getDate(), getShift()), activeUnitId);
+    for (var pi = 0; pi < ((unitForPrev && unitForPrev.rows) || []).length; pi++) {
+      if (unitForPrev.rows[pi].slot === slot) { prevRow = unitForPrev.rows[pi]; break; }
+    }
+    /* 是否正常 / 异常原因 / 异常时长：PC 只读，保留原值 */
+    var normal = !(prevRow && prevRow.normal === false);
     var vessel = rowEditVesselCtl.getValue();
     var patch = {
       driver: document.getElementById('editDriver').value,
       cargoL1: cargo.l1, cargoL2: cargo.l2,
       qty: Number(document.getElementById('editQty').value) || 0,
       normal: normal,
-      reason: normal ? '' : document.getElementById('editReason').value,
-      abMins: normal || abRaw === '' ? null : Number(abRaw),
+      reason: normal ? '' : ((prevRow && prevRow.reason) || ''),
+      abMins: normal ? null : (prevRow && prevRow.abMins != null ? prevRow.abMins : null),
       remark: String(document.getElementById('editRemark').value || '').trim(),
       vesselId: vessel.vesselId || '',
       vesselName: vessel.vesselName || ''
     };
-    var prevRow = null;
-    var unitForPrev = S.findUnit(S.getSheet(getDate(), getShift()), activeUnitId);
-    for (var pi = 0; pi < ((unitForPrev && unitForPrev.rows) || []).length; pi++) {
-      if (unitForPrev.rows[pi].slot === slot) { prevRow = unitForPrev.rows[pi]; break; }
-    }
     var wasSent = !!(prevRow && prevRow.wecomSent);
     var res = S.updateRow(getDate(), getShift(), activeUnitId, slot, patch);
     if (!res.ok) { showToast(res.msg, 'err'); return; }
@@ -426,14 +412,6 @@
       var cargo = r.cargoL2 || unit.cargoL2 || '—';
       var isAbnormal = r.normal === false;
       var slotJs = String(r.slot).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-      var stopInfo = null;
-      if (typeof WorkStatStoppageStore !== 'undefined' && WorkStatStoppageStore.stoppageForSlot) {
-        stopInfo = WorkStatStoppageStore.stoppageForSlot(rv.name, getDate(), getShift(), r.slot);
-      }
-      var stopCell = stopInfo
-        ? ('<span class="badge ' + (stopInfo.status === 'active' ? 'badge-pending' : 'badge-sent') + '" title="来自船舶调度，不可在本表修改">' +
-          esc(stopInfo.label) + '</span>')
-        : '<span class="text-slate-300 text-xs">—</span>';
       var ops = '';
       if (!locked) {
         ops += '<button type="button" class="op-link" onclick="openRowEdit(\'' + slotJs + '\')">编辑</button>';
@@ -443,16 +421,14 @@
       var qtyCell = locked
         ? '<td class="text-slate-600">' + (Number(r.qty) || 0).toFixed(2) + '</td>'
         : '<td><input data-field="qty" type="number" step="0.01" min="0" value="' + (Number(r.qty) || 0).toFixed(2) + '" onchange="saveInlineRow(\'' + slotJs + '\')" /></td>';
-      var normalCell = locked
-        ? '<td>' + (isAbnormal ? '非正常' : '正常') + '</td>'
-        : '<td><select data-field="normal" onchange="onInlineNormalChange(\'' + slotJs + '\', this)"><option value="yes"' + (!isAbnormal ? ' selected' : '') + '>正常</option><option value="no"' + (isAbnormal ? ' selected' : '') + '>非正常</option></select></td>';
-      var reasonCell = locked
-        ? '<td class="text-slate-600">' + esc(isAbnormal ? (r.reason || '—') : '—') + '</td>'
-        : '<td><select data-field="reason"' + (!isAbnormal ? ' disabled' : '') + ' onchange="saveInlineRow(\'' + slotJs + '\')">' + reasonOptionsHtml(isAbnormal ? (r.reason || '') : '') + '</select></td>';
-      var minsVal = isAbnormal && r.abMins != null ? r.abMins : '';
-      var minsCell = locked
-        ? '<td class="text-slate-600">' + esc(isAbnormal && r.abMins != null ? (r.abMins + ' 分钟') : '—') + '</td>'
-        : '<td><input data-field="abMins" type="number" min="1" max="60"' + (!isAbnormal ? ' disabled' : '') + ' value="' + esc(minsVal) + '" onchange="saveInlineRow(\'' + slotJs + '\')" /></td>';
+      var normalCell = '<td class="text-slate-600">' +
+        (isAbnormal
+          ? '<span class="text-amber-700 text-xs font-medium">非正常</span>'
+          : '<span class="text-slate-500 text-xs">正常</span>') + '</td>';
+      var reasonCell = '<td class="text-slate-600">' +
+        esc(isAbnormal ? (r.reason || '—') : '—') + '</td>';
+      var minsCell = '<td class="text-slate-600">' +
+        esc(isAbnormal && r.abMins != null ? (r.abMins + ' 分钟') : '—') + '</td>';
       var remarkCell = locked
         ? '<td class="text-slate-600">' + esc(r.remark || '—') + '</td>'
         : '<td><input data-field="remark" type="text" value="' + esc(r.remark || '') + '" onchange="saveInlineRow(\'' + slotJs + '\')" /></td>';
@@ -463,7 +439,6 @@
         '<td class="text-teal-800 text-xs">' + esc(vesselLabel) + '</td>' +
         '<td>' + esc(driver) + '</td><td>' + esc(cargo) + '</td>' +
         qtyCell + normalCell + reasonCell + minsCell + remarkCell +
-        '<td class="text-xs">' + stopCell + '</td>' +
         '<td>' + (sent ? '<span class="badge badge-sent">已推送</span>' : '<span class="text-slate-400 text-xs">未推送</span>') + '</td>' +
         '<td class="whitespace-nowrap">' + ops + '</td></tr>';
     }).join('');
