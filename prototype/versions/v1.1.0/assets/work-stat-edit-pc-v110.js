@@ -192,7 +192,7 @@
     sheet.units.forEach(function (u) { (u.rows || []).forEach(function (r) { allRows.push(r); }); });
     var errs = validateRows(allRows);
     if (errs.length) { showToast(errs[0], 'err'); return; }
-    if (!confirm('确认提交本班审批？\n' + getDate() + ' · ' + getShift())) return;
+    if (!confirm('确认提交本班审批？\n' + getDate() + ' · ' + getShift() + '\n须本班全部时段已推送企微（含作业量 0）。')) return;
     var res = S.submitSheet(getDate(), getShift());
     if (!res.ok) { showToast(res.msg, 'err'); return; }
     showToast('已提交本班，请到「作业记录」审批');
@@ -226,7 +226,8 @@
     for (var i = 0; i < (unit.rows || []).length; i++) {
       if (unit.rows[i].slot === slot) { row = unit.rows[i]; break; }
     }
-    if (!row || row.wecomSent) return;
+    if (!row) return;
+    var wasSent = !!row.wecomSent;
     var tr = document.querySelector('#matrixBody tr[data-slot="' + slot + '"]');
     if (!tr) return;
     var qtyEl = tr.querySelector('[data-field="qty"]');
@@ -248,6 +249,12 @@
     if (!res.ok) { showToast(res.msg, 'err'); return; }
     document.getElementById('unitTotal').textContent = S.unitTotal(S.findUnit(S.getSheet(getDate(), getShift()), activeUnitId)).toFixed(2);
     document.getElementById('sheetTotal').textContent = S.sheetTotal(S.getSheet(getDate(), getShift())).toFixed(2);
+    var next = res.row;
+    if (wasSent && next && !next.wecomSent) {
+      showToast('已修改，须再推送该时段', 'warn');
+      renderTable(S.findUnit(S.getSheet(getDate(), getShift()), activeUnitId));
+      return;
+    }
     if (fromNormal) renderTable(S.findUnit(S.getSheet(getDate(), getShift()), activeUnitId));
   };
 
@@ -272,7 +279,7 @@
     for (var i = 0; i < (unit.rows || []).length; i++) {
       if (unit.rows[i].slot === slot) { row = unit.rows[i]; break; }
     }
-    if (!row || row.wecomSent) { showToast('已推送企微，不可再修改', 'err'); return; }
+    if (!row) return;
     document.getElementById('editSlot').value = slot;
     document.getElementById('editSlotDisplay').value = slot;
     document.getElementById('rowEditSub').textContent = getDate() + ' · ' + getShift() + ' · ' + unit.berth + ' / ' + unit.machine;
@@ -310,10 +317,16 @@
       vesselId: vessel.vesselId || '',
       vesselName: vessel.vesselName || ''
     };
+    var prevRow = null;
+    var unitForPrev = S.findUnit(S.getSheet(getDate(), getShift()), activeUnitId);
+    for (var pi = 0; pi < ((unitForPrev && unitForPrev.rows) || []).length; pi++) {
+      if (unitForPrev.rows[pi].slot === slot) { prevRow = unitForPrev.rows[pi]; break; }
+    }
+    var wasSent = !!(prevRow && prevRow.wecomSent);
     var res = S.updateRow(getDate(), getShift(), activeUnitId, slot, patch);
     if (!res.ok) { showToast(res.msg, 'err'); return; }
     closeRowEdit();
-    showToast('已保存时段行');
+    showToast(wasSent && res.row && !res.row.wecomSent ? '已保存，须再推送该时段' : '已保存时段行');
     render();
   };
 
@@ -325,12 +338,17 @@
     for (var i = 0; i < (unit.rows || []).length; i++) {
       if (unit.rows[i].slot === slot) { row = unit.rows[i]; break; }
     }
-    if (!row || row.wecomSent) { showToast('该行已推送企微', 'warn'); return; }
+    if (!row) return;
     var errs = validateRows([row]);
     if (errs.length) { showToast(errs[0], 'err'); return; }
-    if (!confirm('确认将此时段数据推送到企微？\n' + slot)) return;
+    var again = !!row.wecomSent;
+    var tip = again
+      ? '确认再次推送此时段到企微？\n' + slot
+      : '确认将此时段数据推送到企微？\n' + slot + '\n推送后仍可修改，改后须再推送。';
+    if (!confirm(tip)) return;
     var res = S.sendRowWecom(getDate(), getShift(), activeUnitId, slot);
     if (!res.ok) { showToast(res.msg, 'err'); return; }
+    row = res.row || row;
     var vessel = S.resolveVessel(unit, row);
     if (typeof WecomPush !== 'undefined' && WecomPush.notifyAfterSave) {
       WecomPush.notifyAfterSave({
@@ -340,7 +358,7 @@
         driver: row.driver || unit.driver,
         vesselName: vessel.name,
         qty: row.qty
-      }, 'push');
+      }, again ? 'update' : 'push');
     }
     showToast(res.msg || '已推送企微并保存');
     render();
@@ -398,7 +416,7 @@
     document.getElementById('unitTotal').textContent = S.unitTotal(unit).toFixed(2);
     document.getElementById('matrixBody').innerHTML = (unit.rows || []).map(function (r) {
       var sent = !!r.wecomSent;
-      var locked = readonly || sent;
+      var locked = readonly;
       var rv = S.resolveVessel(unit, r);
       var vesselLabel = rv.name || '—';
       if (S.rowHasVesselOverride(r)) vesselLabel += ' *';
@@ -407,16 +425,13 @@
       var isAbnormal = r.normal === false;
       var slotJs = String(r.slot).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
       var ops = '';
-      if (!locked) ops += '<button type="button" class="op-link" onclick="openRowEdit(\'' + slotJs + '\')">编辑</button>';
-      if (!readonly && !sent) ops += '<button type="button" class="op-link danger" onclick="sendRow(\'' + slotJs + '\')">发送</button>';
-      else if (sent) ops += '<span class="text-slate-400 text-xs">已锁定</span>';
-
-      function cellInput(field, html) {
-        return locked ? '<td class="text-slate-600">' + html + '</td>' :
-          '<td>' + html + '</td>';
+      if (!locked) {
+        ops += '<button type="button" class="op-link" onclick="openRowEdit(\'' + slotJs + '\')">编辑</button>';
+        ops += '<button type="button" class="op-link danger" onclick="sendRow(\'' + slotJs + '\')">' + (sent ? '再推送' : '发送') + '</button>';
       }
+
       var qtyCell = locked
-        ? cellInput('qty', (Number(r.qty) || 0).toFixed(2))
+        ? '<td class="text-slate-600">' + (Number(r.qty) || 0).toFixed(2) + '</td>'
         : '<td><input data-field="qty" type="number" step="0.01" min="0" value="' + (Number(r.qty) || 0).toFixed(2) + '" onchange="saveInlineRow(\'' + slotJs + '\')" /></td>';
       var normalCell = locked
         ? '<td>' + (isAbnormal ? '非正常' : '正常') + '</td>'

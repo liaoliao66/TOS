@@ -166,11 +166,6 @@
         if (unit.rows[i].slot === ctx.slot) { row = unit.rows[i]; break; }
       }
       if (!row) { showToast('时段不存在', 'err'); return; }
-      if (row.wecomSent) {
-        showToast('已推送企微，不可编辑', 'err');
-        setTimeout(function () { window.location.href = backUrl(); }, 900);
-        return;
-      }
 
       document.getElementById('pageTitle').textContent = ctx.slot;
       document.getElementById('belongHint').textContent =

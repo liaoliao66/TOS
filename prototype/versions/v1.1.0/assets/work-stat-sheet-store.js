@@ -44,10 +44,10 @@
     return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
   }
 
-  /** 当天 + 前一天（共 2 天）：min=今天-1，max=今天；支持补录昨天 */
+  /** 今天往前共 8 天：min=今天-7，max=今天 */
   function dateRange() {
     var to = todayStr();
-    return { from: addDays(to, -1), to: to };
+    return { from: addDays(to, -7), to: to };
   }
 
   function slotsForShift(shift) {
@@ -267,7 +267,7 @@
   function createUnit(opts) {
     var range = dateRange();
     if (!opts.date || opts.date < range.from || opts.date > range.to) {
-      return { ok: false, msg: '开班日仅可选当天或前一天' };
+      return { ok: false, msg: '开班日仅可选今天往前共 8 天' };
     }
     if (opts.shift !== '白班' && opts.shift !== '夜班') {
       return { ok: false, msg: '请选择班次' };
@@ -335,7 +335,7 @@
     return (unit.rows || []).some(function (r) { return !!r.wecomSent; });
   }
 
-  /** 编辑机台表：可改司机/货种；泊位机械不可改；同步未推送行 */
+  /** 编辑机台表：可改司机/货种；泊位机械不可改；同步时段行（变更则清推送标记） */
   function updateUnit(date, shift, unitId, patch) {
     var data = loadAll();
     var sheet = findSheet(data, date, shift);
@@ -374,14 +374,20 @@
       unit.vesselName = patch.vesselName;
     }
     (unit.rows || []).forEach(function (r) {
-      if (!r.wecomSent) {
-        r.driver = patch.driver;
-        r.cargoL1 = patch.cargoL1 || '';
-        r.cargoL2 = patch.cargoL2;
-        if (patch.vesselId != null && patch.vesselName && !rowHasVesselOverride(r)) {
+      var changed = false;
+      if (r.driver !== patch.driver) { r.driver = patch.driver; changed = true; }
+      if (r.cargoL1 !== (patch.cargoL1 || '')) { r.cargoL1 = patch.cargoL1 || ''; changed = true; }
+      if (r.cargoL2 !== patch.cargoL2) { r.cargoL2 = patch.cargoL2; changed = true; }
+      if (patch.vesselId != null && patch.vesselName && !rowHasVesselOverride(r)) {
+        if (r.vesselId || r.vesselName) {
           r.vesselId = '';
           r.vesselName = '';
+          changed = true;
         }
+      }
+      if (changed && r.wecomSent) {
+        r.wecomSent = false;
+        r.wecomSentAt = '';
       }
     });
     sheet.updater = '张录入';
@@ -433,10 +439,7 @@
     (unit.rows || []).forEach(function (r) { bySlot[r.slot] = r; });
     unit.rows = (rows || []).map(function (incoming) {
       var prev = bySlot[incoming.slot];
-      if (prev && prev.wecomSent) {
-        return prev;
-      }
-      return normalizeRow({
+      var next = normalizeRow({
         slot: incoming.slot,
         driver: incoming.driver != null ? incoming.driver : (prev && prev.driver) || unit.driver,
         cargoL1: incoming.cargoL1 != null ? incoming.cargoL1 : (prev && prev.cargoL1) || unit.cargoL1,
@@ -451,14 +454,43 @@
         abFrom: incoming.abFrom || '',
         abTo: incoming.abTo || '',
         remark: incoming.remark || '',
-        wecomSent: false,
-        wecomSentAt: ''
+        wecomSent: prev ? !!prev.wecomSent : false,
+        wecomSentAt: prev ? (prev.wecomSentAt || '') : ''
       }, unit);
+      if (prev && prev.wecomSent && rowFieldsChanged(prev, next)) {
+        next.wecomSent = false;
+        next.wecomSentAt = '';
+      }
+      return next;
     });
     sheet.updater = '张录入';
     sheet.updatedAt = todayStr() + ' ' + pad2(new Date().getHours()) + ':' + pad2(new Date().getMinutes());
     saveAll(data);
     return { ok: true };
+  }
+
+  function rowFieldsChanged(a, b) {
+    if (!a || !b) return true;
+    var keys = ['driver', 'cargoL1', 'cargoL2', 'vesselId', 'vesselName', 'qty', 'normal', 'reason', 'abMins', 'remark'];
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      var va = a[k];
+      var vb = b[k];
+      if (k === 'qty') {
+        if ((Number(va) || 0) !== (Number(vb) || 0)) return true;
+        continue;
+      }
+      if (k === 'normal') {
+        if (!!va !== !!vb) return true;
+        continue;
+      }
+      if (k === 'abMins') {
+        if ((va == null ? null : Number(va)) !== (vb == null ? null : Number(vb))) return true;
+        continue;
+      }
+      if (String(va || '') !== String(vb || '')) return true;
+    }
+    return false;
   }
 
   function findRow(unit, slot) {
@@ -469,7 +501,7 @@
     return null;
   }
 
-  /** 编辑单行：可改司机/货种/作业数据；泊位机械在 unit 上不可改 */
+  /** 编辑单行：可改司机/货种/作业数据；已推送行可改，改后清除推送标记 */
   function updateRow(date, shift, unitId, slot, patch) {
     var data = loadAll();
     var sheet = findSheet(data, date, shift);
@@ -485,7 +517,18 @@
     normalizeUnit(unit);
     var row = findRow(unit, slot);
     if (!row) return { ok: false, msg: '时段行不存在' };
-    if (row.wecomSent) return { ok: false, msg: '已推送企微，不可再修改' };
+    var before = {
+      driver: row.driver,
+      cargoL1: row.cargoL1,
+      cargoL2: row.cargoL2,
+      vesselId: row.vesselId,
+      vesselName: row.vesselName,
+      qty: row.qty,
+      normal: row.normal,
+      reason: row.reason,
+      abMins: row.abMins,
+      remark: row.remark
+    };
     if (patch.driver != null) row.driver = patch.driver;
     if (patch.cargoL1 != null) row.cargoL1 = patch.cargoL1;
     if (patch.cargoL2 != null) row.cargoL2 = patch.cargoL2;
@@ -509,17 +552,24 @@
       row.reason = '';
       row.abMins = null;
     }
+    if (row.wecomSent && rowFieldsChanged(before, row)) {
+      row.wecomSent = false;
+      row.wecomSentAt = '';
+    }
     sheet.updater = '张录入';
     sheet.updatedAt = todayStr() + ' ' + pad2(new Date().getHours()) + ':' + pad2(new Date().getMinutes());
     saveAll(data);
     return { ok: true, row: row };
   }
 
-  /** 推送企微并锁定该行（与班次审批无关） */
+  /** 推送企微（可重复推送）；提交本班前须全部时段已推送 */
   function sendRowWecom(date, shift, unitId, slot) {
     var data = loadAll();
     var sheet = findSheet(data, date, shift);
     if (!sheet) return { ok: false, msg: '单据不存在' };
+    if (sheet.status === '审批中' || sheet.status === '已通过') {
+      return { ok: false, msg: '当前班次状态不可推送' };
+    }
     var unit = null;
     for (var i = 0; i < sheet.units.length; i++) {
       if (sheet.units[i].id === unitId) { unit = sheet.units[i]; break; }
@@ -528,7 +578,6 @@
     normalizeUnit(unit);
     var row = findRow(unit, slot);
     if (!row) return { ok: false, msg: '时段行不存在' };
-    if (row.wecomSent) return { ok: false, msg: '该行已推送企微' };
     if (!row.driver || !row.cargoL2) return { ok: false, msg: '请先完善司机与货种后再发送' };
     var vessel = resolveVessel(unit, row);
     if (!vessel.name) return { ok: false, msg: '请先选择船舶后再发送' };
@@ -540,12 +589,32 @@
       if (row.reason === '其他' && !row.remark) return { ok: false, msg: '选「其他」须填备注后再发送' };
     }
     if (row.qty < 0) return { ok: false, msg: '作业量不能为负' };
+    var again = !!row.wecomSent;
     row.wecomSent = true;
     row.wecomSentAt = todayStr() + ' ' + pad2(new Date().getHours()) + ':' + pad2(new Date().getMinutes());
     sheet.updater = '张录入';
     sheet.updatedAt = row.wecomSentAt;
     saveAll(data);
-    return { ok: true, row: row, msg: '已推送企微并保存，该行不可再修改' };
+    return {
+      ok: true,
+      row: row,
+      msg: again
+        ? '已再次推送企微'
+        : '已推送企微；修改后须再推送，提交本班前须全部时段已推送'
+    };
+  }
+
+  function listUnpushed(sheet) {
+    var list = [];
+    (sheet.units || []).forEach(function (u) {
+      normalizeUnit(u);
+      (u.rows || []).forEach(function (r) {
+        if (!r.wecomSent) {
+          list.push((u.berth || '') + '/' + (u.machine || '') + ' ' + (r.slot || ''));
+        }
+      });
+    });
+    return list;
   }
 
   function submitSheet(date, shift) {
@@ -555,6 +624,16 @@
     if (!sheet.units.length) return { ok: false, msg: '请先新增至少一张机台填报表' };
     if (sheet.status === '审批中') return { ok: false, msg: '本班已在审批中' };
     if (sheet.status === '已通过') return { ok: false, msg: '本班已通过，无需再提交' };
+    var unpushed = listUnpushed(sheet);
+    if (unpushed.length) {
+      var sample = unpushed.slice(0, 3).join('、');
+      return {
+        ok: false,
+        msg: '提交前须推送本班全部时段（含作业量 0）。未推送 ' + unpushed.length + ' 条'
+          + (sample ? '，例如：' + sample : ''),
+        unpushed: unpushed
+      };
+    }
     sheet.status = '审批中';
     sheet.updatedAt = todayStr() + ' ' + pad2(new Date().getHours()) + ':' + pad2(new Date().getMinutes());
     saveAll(data);
@@ -642,6 +721,7 @@
     saveUnitRows: saveUnitRows,
     updateRow: updateRow,
     sendRowWecom: sendRowWecom,
+    listUnpushed: listUnpushed,
     submitSheet: submitSheet,
     approveSheet: approveSheet,
     rejectSheet: rejectSheet,

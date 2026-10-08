@@ -95,7 +95,7 @@
                 <span class="badge badge-draft" id="sheetStatus">草稿</span>
                 <span class="text-slate-500">本班合计 <strong id="sheetTotal" class="text-teal-800">0.00</strong> 吨</span>
               </div>
-              <p class="text-xs text-teal-800 bg-teal-50 rounded-xl px-3 py-2 mt-3">开班日可选<strong>当天或前一天</strong>（可补录昨天）。移动端以<strong>卡片逐条</strong>填时段，不用 PC 大表。点机台表进入 12 个时段卡片。</p>
+              <p class="text-xs text-teal-800 bg-teal-50 rounded-xl px-3 py-2 mt-3">开班日可选<strong>今天往前共 8 天</strong>。移动端以<strong>卡片逐条</strong>填时段。推送后可改，改后须再推；提交本班前 <strong>12 时段均须已推送</strong>。</p>
             </div>
 
             <div class="flex items-center justify-between px-1">
@@ -120,7 +120,7 @@
               <div class="mt-3 flex gap-3 text-xs" id="unitOps"></div>
             </div>
             <div class="px-1 text-sm font-medium text-slate-700">时段明细（卡片）</div>
-            <p class="px-1 text-xs text-slate-400 mb-1">未发送可直接改作业量；编辑/发送在卡片底部。发送后与 PC 共用数据，显示已推送并锁定。</p>
+            <p class="px-1 text-xs text-slate-400 mb-1">可直接改作业量；编辑/发送在卡片底部。已推送仍可改，改后须再发送；与 PC 共用数据。</p>
             <div id="slotList" class="space-y-2"></div>
           </main>
         </div>
@@ -359,7 +359,8 @@
     function saveQtyInline(idx, silent) {
       if (readonly) return false;
       var row = getRowByIdx(idx);
-      if (!row || row.wecomSent) return false;
+      if (!row) return false;
+      var wasSent = !!row.wecomSent;
       var qty = readQtyFromInput(idx);
       if (qty < 0) {
         if (!silent) showToast('作业量不能为负', 'err');
@@ -372,6 +373,11 @@
       }
       document.getElementById('unitTotal').textContent = S.unitTotal(S.findUnit(S.getSheet(getDate(), getShift()), activeUnitId)).toFixed(2);
       renderShiftHeader();
+      if (wasSent && res.row && !res.row.wecomSent) {
+        if (!silent) showToast('已修改，须再推送该时段', 'warn');
+        renderUnit();
+        return true;
+      }
       if (!silent) showToast('作业量已保存');
       return true;
     }
@@ -379,14 +385,17 @@
     function sendSlotByIdx(idx) {
       if (readonly) return;
       var row = getRowByIdx(idx);
-      if (!row || row.wecomSent) {
-        showToast('该行已推送企微', 'warn');
-        return;
-      }
+      if (!row) return;
       if (!saveQtyInline(idx, true)) return;
-      if (!confirm('推送「' + row.slot + '」到企微？\n推送后不可再编辑，PC 端同步显示已推送。')) return;
+      row = getRowByIdx(idx);
+      var again = !!(row && row.wecomSent);
+      var tip = again
+        ? '再次推送「' + row.slot + '」到企微？'
+        : '推送「' + row.slot + '」到企微？\n推送后仍可改，改后须再推；提交本班前 12 时段均须已推送。';
+      if (!confirm(tip)) return;
       var res = S.sendRowWecom(getDate(), getShift(), activeUnitId, row.slot);
       if (!res.ok) { showToast(res.msg, 'err'); return; }
+      row = res.row || row;
       var unit = S.findUnit(S.getSheet(getDate(), getShift()), activeUnitId);
       var vessel = S.resolveVessel(unit, row);
       if (typeof WecomPush !== 'undefined' && WecomPush.isEnabled && WecomPush.isEnabled()) {
@@ -397,9 +406,9 @@
           driver: row.driver || unit.driver,
           vesselName: vessel.name,
           qty: row.qty
-        }, 'push');
+        }, again ? 'update' : 'push');
       }
-      showToast(res.msg || '已推送企微并锁定');
+      showToast(res.msg || '已推送企微');
       renderUnit();
       renderShiftHeader();
     }
@@ -407,10 +416,6 @@
     function goLineByIdx(idx) {
       var row = getRowByIdx(idx);
       if (!row) return;
-      if (row.wecomSent) {
-        showToast('已推送企微，不可编辑', 'err');
-        return;
-      }
       saveQtyInline(idx, true);
       goLine(row.slot);
     }
@@ -433,7 +438,7 @@
       if (readonly) { showToast('当前状态不可提交', 'err'); return; }
       var sheet = S.getSheet(getDate(), getShift());
       if (!sheet || !sheet.units.length) { showToast('请先新增机台表', 'err'); return; }
-      if (!confirm('提交本班审批？\n' + getDate() + ' · ' + getShift())) return;
+      if (!confirm('提交本班审批？\n' + getDate() + ' · ' + getShift() + '\n须本班全部时段已推送（含作业量 0）。')) return;
       var res = S.submitSheet(getDate(), getShift());
       if (!res.ok) { showToast(res.msg, 'err'); return; }
       showToast('已提交本班审批');
@@ -504,7 +509,7 @@
           ? '<span class="badge shrink-0" style="background:#fef3c7;color:#b45309">非正常</span>'
           : '<span class="badge shrink-0" style="background:#d1fae5;color:#047857">正常</span>';
         var qtyBlock = '';
-        if (sent || readonly) {
+        if (readonly) {
           qtyBlock = '<div class="slot-qty-wrap">' +
             '<span class="slot-qty-readonly tabular-nums">' + (Number(r.qty) || 0).toFixed(2) + '</span>' +
             '<span class="text-xs text-slate-400">吨</span></div>';
@@ -516,13 +521,14 @@
             '<span class="text-xs text-slate-400 shrink-0">吨</span></div>';
         }
         var bottomBlock = '';
-        if (sent) {
-          bottomBlock = '<div class="slot-actions"><span class="badge badge-sent"><i class="fa-solid fa-check mr-1"></i>已推送 · 不可编辑</span></div>';
-        } else if (!readonly) {
+        if (!readonly) {
           bottomBlock = '<div class="slot-actions">' +
+            (sent ? '<span class="badge badge-sent"><i class="fa-solid fa-check mr-1"></i>已推送</span>' : '') +
             '<button type="button" class="op-link" onclick="goLineByIdx(' + idx + ')">编辑</button>' +
-            '<button type="button" class="op-link" onclick="sendSlotByIdx(' + idx + ')">发送</button>' +
+            '<button type="button" class="op-link" onclick="sendSlotByIdx(' + idx + ')">' + (sent ? '再推送' : '发送') + '</button>' +
             '</div>';
+        } else if (sent) {
+          bottomBlock = '<div class="slot-actions"><span class="badge badge-sent"><i class="fa-solid fa-check mr-1"></i>已推送</span></div>';
         }
         return '<div class="' + cardCls + '">' +
           '<div class="flex items-start justify-between gap-2">' +

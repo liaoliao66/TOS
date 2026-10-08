@@ -78,7 +78,27 @@ def to_num(v):
 def is_period(v):
     if not isinstance(v, str):
         return False
-    return bool(re.match(r"^\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2}$", v.strip()))
+    s = v.strip().replace(" ", "")
+    if re.match(r"^\d{1,2}:\d{2}\s*[-–—－]\s*\d{1,2}:\d{2}$", s):
+        return True
+    # 新表写法：20－21时 / 1－2时
+    if re.match(r"^\d{1,2}\s*[-–—－]\s*\d{1,2}\s*时$", s):
+        return True
+    return False
+
+
+def norm_period(v: str) -> str:
+    """统一为 HH:00-HH:00（24 点写作 24:00）。"""
+    s = str(v).strip().replace(" ", "")
+    m = re.match(r"^(\d{1,2}):(\d{2})\s*[-–—－]\s*(\d{1,2}):(\d{2})$", s)
+    if m:
+        a, b, c, d = (int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4)))
+        return f"{a:02d}:{b:02d}-{c:02d}:{d:02d}"
+    m = re.match(r"^(\d{1,2})\s*[-–—－]\s*(\d{1,2})\s*时$", s)
+    if m:
+        a, c = int(m.group(1)), int(m.group(2))
+        return f"{a:02d}:00-{c:02d}:00"
+    return s
 
 
 def parse_sheet(ws):
@@ -169,7 +189,7 @@ def parse_sheet(ws):
                     {
                         "date": last_date.isoformat(),
                         "shift": last_shift,
-                        "period": str(period).strip().replace(" ", ""),
+                        "period": norm_period(period),
                         "berth": b["berth"],
                         "machine": machine,
                         "driver": driver,
