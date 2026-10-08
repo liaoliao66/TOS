@@ -1,16 +1,17 @@
 @echo off
 chcp 65001 >nul
 cd /d "%~dp0"
-
-set PORT=8765
-set URL=http://127.0.0.1:%PORT%/prototype/index.html
-
-REM 若 8765 已被占用，直接打开；否则启动本地静态服务
-powershell -NoProfile -Command "try { (Invoke-WebRequest -Uri '%URL%' -UseBasicParsing -TimeoutSec 2).StatusCode } catch { exit 1 }" >nul 2>&1
+echo Starting local preview...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\start_preview.ps1"
 if errorlevel 1 (
-  start "TOS-Preview" /min cmd /c "python -m http.server %PORT%"
-  timeout /t 2 /nobreak >nul
+  echo.
+  echo Preview failed.
+  echo Manual:
+  echo   1^) mklink /J C:\TOS-local "%~dp0"
+  echo   2^) cd /d C:\TOS-local
+  echo   3^) python -m http.server 8765 --bind 127.0.0.1
+  echo   4^) open http://127.0.0.1:8765/prototype/index.html
+  pause
+  exit /b 1
 )
-
-start "" "%URL%"
 exit /b 0

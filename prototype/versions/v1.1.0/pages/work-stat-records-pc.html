@@ -50,7 +50,7 @@
       <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
         <div>
           <h1 class="text-lg font-semibold">作业记录</h1>
-          <p class="text-xs text-slate-500">按开班日+班次展示 · <strong>白班审批一次、夜班审批一次</strong></p>
+          <p class="text-xs text-slate-500">按开班日+班次展示（当天或前一天）· <strong>白班审批一次、夜班审批一次</strong></p>
         </div>
         <div class="flex items-center gap-3 text-sm text-slate-600">
           <a href="work-stat-edit-pc.html" class="text-teal-700 hover:underline">去填报</a>
@@ -260,7 +260,7 @@
 
       var body = document.getElementById('listBody');
       var empty = document.getElementById('emptyState');
-      document.getElementById('listCount').textContent = '共 ' + rows.length + ' 条（近 7 天）';
+      document.getElementById('listCount').textContent = '共 ' + rows.length + ' 条（当天或前一天）';
       if (!rows.length) {
         body.innerHTML = '';
         empty.classList.remove('hidden');

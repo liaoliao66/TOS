@@ -44,10 +44,10 @@
     return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
   }
 
-  /** 当天及近 7 天（含今天共 7 天）：min=今天-6，max=今天 */
+  /** 当天 + 前一天（共 2 天）：min=今天-1，max=今天；支持补录昨天 */
   function dateRange() {
     var to = todayStr();
-    return { from: addDays(to, -6), to: to };
+    return { from: addDays(to, -1), to: to };
   }
 
   function slotsForShift(shift) {
@@ -267,7 +267,7 @@
   function createUnit(opts) {
     var range = dateRange();
     if (!opts.date || opts.date < range.from || opts.date > range.to) {
-      return { ok: false, msg: '开班日仅可选当天及近 7 天' };
+      return { ok: false, msg: '开班日仅可选当天或前一天' };
     }
     if (opts.shift !== '白班' && opts.shift !== '夜班') {
       return { ok: false, msg: '请选择班次' };

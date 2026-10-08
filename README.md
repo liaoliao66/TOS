@@ -36,7 +36,13 @@ PC 端产品 PRD 与 HTML 原型仓库（GitHub Pages 友好）。
 
 ## 本地预览
 
-用浏览器直接打开 `prototype/index.html`，或启用任意静态服务器后访问该路径。
+> 仓库路径含中文时，勿用 Cursor / 浏览器直接双击 HTML（`file://` 常报 ERR_FILE_NOT_FOUND）。
+
+**推荐**：双击根目录 `打开原型预览.bat`（自动建 `C:\TOS-local` 联接并启动 `http://127.0.0.1:8765`）。
+
+预览地址：http://127.0.0.1:8765/prototype/index.html
+
+Cursor 内也可：Terminal → Run Task →「本地预览原型」。
 
 本地生成演示数据：`python scripts/gen_real_demo_data.py`
 
