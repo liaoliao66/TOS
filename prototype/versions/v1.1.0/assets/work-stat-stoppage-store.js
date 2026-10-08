@@ -187,9 +187,37 @@
     return { ok: true, scene: scene, workingCount: working.length };
   }
 
+  /** 台账以船舶调度停工为准（只读回显） */
   function list(date) {
-    var rows = loadAll().items.slice();
-    if (date) rows = rows.filter(function (r) { return r.date === date; });
+    if (!global.ShipOpsDemo || !ShipOpsDemo.listStoppages) {
+      return [];
+    }
+    var rows = ShipOpsDemo.listStoppages(date ? { date: date } : {}).map(function (s) {
+      var durationMin = null;
+      if (s.from && s.to) {
+        var ms = new Date(s.to).getTime() - new Date(s.from).getTime();
+        if (ms > 0) durationMin = Math.floor(ms / 60000);
+      }
+      return {
+        id: s.id,
+        date: s.date,
+        dispatchId: s.dispatchId,
+        shipName: s.shipName,
+        voyage: s.voyage || '',
+        shift: '',
+        berth: '',
+        machine: '',
+        vesselName: s.shipName,
+        from: s.from,
+        to: s.to,
+        status: s.status,
+        reason: s.reason,
+        remark: s.remark || (s.status === 'active' ? '现场计时中' : ''),
+        durationMin: durationMin,
+        source: s.source || 'dispatch',
+        readonly: true
+      };
+    });
     rows.sort(function (a, b) {
       if (a.date !== b.date) return a.date < b.date ? 1 : -1;
       if (a.from !== b.from) return a.from < b.from ? 1 : -1;
@@ -199,34 +227,65 @@
   }
 
   function listActive() {
-    return loadAll().active.slice();
+    if (!global.ShipOpsDemo || !ShipOpsDemo.listDispatches) {
+      return loadAll().active.slice();
+    }
+    var out = [];
+    (ShipOpsDemo.listDispatches('working') || []).forEach(function (d) {
+      var a = getActiveByDispatch(d.id);
+      if (a) out.push(a);
+    });
+    return out;
   }
 
-  /** 本调度单累计停工分钟：已结束台账 + 当前进行中 */
+  /** 本调度单累计停工分钟：已结束 + 进行中（以调度为准） */
   function cumulativeMinutesForDispatch(dispatchId) {
     var id = String(dispatchId || '');
-    if (!id) return 0;
+    if (!id || !global.ShipOpsDemo || !ShipOpsDemo.listStoppages) return 0;
     var total = 0;
-    var items = loadAll().items || [];
-    for (var i = 0; i < items.length; i++) {
-      if (items[i].dispatchId !== id) continue;
-      if (items[i].durationMin != null && !isNaN(Number(items[i].durationMin))) {
-        total += Number(items[i].durationMin);
-      } else if (items[i].from && items[i].to) {
-        var ms = new Date(items[i].to).getTime() - new Date(items[i].from).getTime();
-        if (ms > 0) total += Math.floor(ms / 60000);
+    ShipOpsDemo.listStoppages({ dispatchId: id }).forEach(function (s) {
+      if (s.status === 'active' || !s.to) {
+        var active = getActiveByDispatch(id);
+        if (active) total += elapsedMinutes(active);
+        return;
       }
-    }
-    var active = getActiveByDispatch(id);
-    if (active) total += elapsedMinutes(active);
+      var ms = new Date(s.to).getTime() - new Date(s.from).getTime();
+      if (ms > 0) total += Math.floor(ms / 60000);
+    });
     return total;
   }
 
   function getActiveByDispatch(dispatchId) {
     var id = String(dispatchId || '');
+    if (global.ShipOpsDemo && ShipOpsDemo.getActiveStoppageByDispatch) {
+      var remote = ShipOpsDemo.getActiveStoppageByDispatch(id);
+      if (remote) {
+        var d = ShipOpsDemo.getDispatch(id);
+        var startedAtMs = remote.startedAtMs || (remote.from ? new Date(remote.from).getTime() : Date.now());
+        var local = null;
+        var locals = loadAll().active || [];
+        for (var i = 0; i < locals.length; i++) {
+          if (locals[i].dispatchId === id) { local = locals[i]; break; }
+        }
+        return {
+          id: remote.id,
+          dispatchId: id,
+          shipName: remote.shipName || (d && d.shipName) || '',
+          voyage: (d && d.voyage) || '',
+          instructionNo: (d && d.instructionNo) || '',
+          reason: remote.reason,
+          startedAtMs: startedAtMs,
+          startedAt: remote.from,
+          pushHourCount: local ? (local.pushHourCount || 0) : 0,
+          units: unitsForShipToday(remote.shipName || (d && d.shipName) || ''),
+          vesselName: remote.shipName || (d && d.shipName) || '',
+          status: 'active'
+        };
+      }
+    }
     var list = loadAll().active;
-    for (var i = 0; i < list.length; i++) {
-      if (list[i].dispatchId === id) return list[i];
+    for (var j = 0; j < list.length; j++) {
+      if (list[j].dispatchId === id) return list[j];
     }
     return null;
   }
@@ -284,8 +343,21 @@
       }
     });
 
+    if (!ShipOpsDemo.startStoppageLive) {
+      return { ok: false, msg: '调度停工接口未就绪' };
+    }
+    var startedAt = toLocalInput(new Date(now));
+    var dispRes = ShipOpsDemo.startStoppageLive(d.id, {
+      reason: reason,
+      from: startedAt,
+      startedAtMs: now,
+      source: 'h5_live',
+      remark: payload.remark || ''
+    });
+    if (!dispRes.ok) return dispRes;
+
     var active = {
-      id: uid(),
+      id: (dispRes.stop && dispRes.stop.id) || uid(),
       dispatchId: d.id,
       shipName: d.shipName,
       voyage: d.voyage || '',
@@ -293,7 +365,7 @@
       cargoInOut: d.cargoInOut || '',
       reason: reason,
       startedAtMs: now,
-      startedAt: toLocalInput(new Date(now)),
+      startedAt: startedAt,
       pushHourCount: 0,
       units: units,
       unitId: unitMeta ? unitMeta.unitId : '',
@@ -307,59 +379,55 @@
     };
 
     var data = loadAll();
+    data.active = (data.active || []).filter(function (a) { return a.dispatchId !== d.id; });
     data.active.unshift(active);
     saveAll(data);
     return { ok: true, active: active, warnNoUnits: !units.length };
   }
 
   function endLive(dispatchId) {
-    var data = loadAll();
     var id = String(dispatchId || '');
-    var idx = -1;
-    for (var i = 0; i < data.active.length; i++) {
-      if (data.active[i].dispatchId === id) { idx = i; break; }
-    }
-    if (idx < 0) return { ok: false, msg: '该船当前未在停工' };
+    var active = getActiveByDispatch(id);
+    if (!active) return { ok: false, msg: '该船当前未在停工' };
 
-    var active = data.active[idx];
     var endMs = Date.now();
     var from = active.startedAt || toLocalInput(new Date(active.startedAtMs));
     var to = toLocalInput(new Date(endMs));
     if (to <= from) {
-      // 同一分钟内结束，结束时间 +1 分，满足校验
       var t2 = new Date(endMs + 60000);
       to = toLocalInput(t2);
     }
+    var mins = elapsedMinutes(active);
+    var remark = '现场停工计时 · 共 ' + mins + ' 分';
 
-    var item = {
-      id: active.id,
-      date: todayStr(),
-      dispatchId: active.dispatchId,
-      shipName: active.shipName,
-      voyage: active.voyage || '',
-      cargoInOut: active.cargoInOut || '',
-      unitId: active.unitId || '',
-      sheetId: active.sheetId || '',
-      shift: active.shift || '',
-      berth: active.berth || '',
-      machine: active.machine || '',
-      vesselId: '',
-      vesselName: active.vesselName || active.shipName,
-      cargo: active.cargo || '',
-      driver: active.driver || '',
-      from: from,
-      to: to,
-      reason: active.reason,
-      remark: '现场停工计时 · 共 ' + elapsedMinutes(active) + ' 分',
-      createdAt: nowStamp(),
-      updater: '张录入',
-      durationMin: elapsedMinutes(active)
-    };
+    if (!global.ShipOpsDemo || !ShipOpsDemo.endStoppageLive) {
+      return { ok: false, msg: '调度停工接口未就绪' };
+    }
+    var dispRes = ShipOpsDemo.endStoppageLive(id, { to: to, remark: remark, source: 'h5_live' });
+    if (!dispRes.ok) return dispRes;
 
-    data.active.splice(idx, 1);
-    data.items.unshift(item);
+    var data = loadAll();
+    data.active = (data.active || []).filter(function (a) { return a.dispatchId !== id; });
     saveAll(data);
-    return { ok: true, item: item };
+
+    var stop = dispRes.stop || {};
+    return {
+      ok: true,
+      item: {
+        id: stop.id || active.id,
+        date: String(stop.from || from).slice(0, 10),
+        dispatchId: id,
+        shipName: active.shipName,
+        from: stop.from || from,
+        to: stop.to || to,
+        reason: stop.reason || active.reason,
+        remark: stop.remark || remark,
+        durationMin: mins,
+        status: 'ended',
+        source: 'h5_live',
+        readonly: true
+      }
+    };
   }
 
   function markPushHours(activeId, count) {
@@ -458,6 +526,66 @@
     completedHours: completedHours,
     markPushHours: markPushHours,
     cumulativeMinutesForDispatch: cumulativeMinutesForDispatch,
-    applyDemoScene: applyDemoScene
+    applyDemoScene: applyDemoScene,
+    /** 工班大表：按船名+开班日+班次+时段回显船舶停工（只读） */
+    stoppageForSlot: stoppageForSlot
   };
+
+  function parseSlotBounds(workDate, shift, slot) {
+    var m = String(slot || '').match(/^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/);
+    if (!m || !workDate) return null;
+    var h1 = Number(m[1]);
+    var min1 = Number(m[2]);
+    var h2 = Number(m[3]);
+    var min2 = Number(m[4]);
+    var p = String(workDate).split('-');
+    function at(dayOff, h, mi) {
+      var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]), h, mi, 0, 0);
+      d.setDate(d.getDate() + dayOff);
+      return d;
+    }
+    var startOff = 0;
+    var endOff = 0;
+    if (shift === '夜班') {
+      if (h1 < 8) startOff = 1;
+      if (h2 < 8 || (h1 === 23 && h2 === 0)) endOff = 1;
+      else if (h2 === 0 && h1 >= 20) endOff = 1;
+    }
+    return { start: at(startOff, h1, min1), end: at(endOff, h2, min2) };
+  }
+
+  function stoppageForSlot(vesselName, workDate, shift, slot) {
+    if (!global.ShipOpsDemo || !ShipOpsDemo.listStoppages) return null;
+    var name = normName(vesselName);
+    if (!name) return null;
+    var bounds = parseSlotBounds(workDate, shift, slot);
+    if (!bounds) return null;
+    var rows = ShipOpsDemo.listStoppages({ vesselName: name });
+    // shipName match loose
+    if (!rows.length) {
+      rows = ShipOpsDemo.listStoppages({}).filter(function (s) {
+        return normName(s.shipName) === name;
+      });
+    }
+    var now = Date.now();
+    for (var i = 0; i < rows.length; i++) {
+      var s = rows[i];
+      if (normName(s.shipName) !== name) continue;
+      var fromMs = new Date(s.from).getTime();
+      var toMs = s.to ? new Date(s.to).getTime() : now;
+      if (isNaN(fromMs) || isNaN(toMs)) continue;
+      if (fromMs < bounds.end.getTime() && toMs > bounds.start.getTime()) {
+        return {
+          id: s.id,
+          reason: s.reason,
+          status: s.status,
+          from: s.from,
+          to: s.to,
+          label: s.status === 'active' ? ('停工中 · ' + s.reason) : ('船舶停工 · ' + s.reason),
+          readonly: true
+        };
+      }
+    }
+    return null;
+  }
 })(window);

@@ -260,6 +260,8 @@
 
   window.toggleRowEditAbnormal = function () {
     var no = document.getElementById('editNormal').value === 'no';
+    var block = document.getElementById('rowEditAbnormalBlock');
+    if (block) block.classList.toggle('hidden', !no);
     document.getElementById('editReason').disabled = !no;
     document.getElementById('editAbMins').disabled = !no;
     if (!no) { document.getElementById('editReason').value = ''; document.getElementById('editAbMins').value = ''; }
@@ -281,10 +283,10 @@
     }
     if (!row) return;
     document.getElementById('editSlot').value = slot;
-    document.getElementById('editSlotDisplay').value = slot;
-    document.getElementById('rowEditSub').textContent = getDate() + ' · ' + getShift() + ' · ' + unit.berth + ' / ' + unit.machine;
-    document.getElementById('editBerth').value = unit.berth;
-    document.getElementById('editMachine').value = unit.machine;
+    document.getElementById('editSlotDisplay').textContent = slot;
+    document.getElementById('rowEditSub').textContent = getDate() + ' · ' + getShift();
+    document.getElementById('editBerth').textContent = unit.berth || '—';
+    document.getElementById('editMachine').textContent = unit.machine || '—';
     document.getElementById('rowEditUnitVessel').textContent = unit.vesselName || '—';
     document.getElementById('editDriver').value = row.driver || unit.driver;
     editCargoCtl.setValue(row.cargoL1 || unit.cargoL1 || '', row.cargoL2 || unit.cargoL2 || '');
@@ -424,6 +426,14 @@
       var cargo = r.cargoL2 || unit.cargoL2 || '—';
       var isAbnormal = r.normal === false;
       var slotJs = String(r.slot).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      var stopInfo = null;
+      if (typeof WorkStatStoppageStore !== 'undefined' && WorkStatStoppageStore.stoppageForSlot) {
+        stopInfo = WorkStatStoppageStore.stoppageForSlot(rv.name, getDate(), getShift(), r.slot);
+      }
+      var stopCell = stopInfo
+        ? ('<span class="badge ' + (stopInfo.status === 'active' ? 'badge-pending' : 'badge-sent') + '" title="来自船舶调度，不可在本表修改">' +
+          esc(stopInfo.label) + '</span>')
+        : '<span class="text-slate-300 text-xs">—</span>';
       var ops = '';
       if (!locked) {
         ops += '<button type="button" class="op-link" onclick="openRowEdit(\'' + slotJs + '\')">编辑</button>';
@@ -453,6 +463,7 @@
         '<td class="text-teal-800 text-xs">' + esc(vesselLabel) + '</td>' +
         '<td>' + esc(driver) + '</td><td>' + esc(cargo) + '</td>' +
         qtyCell + normalCell + reasonCell + minsCell + remarkCell +
+        '<td class="text-xs">' + stopCell + '</td>' +
         '<td>' + (sent ? '<span class="badge badge-sent">已推送</span>' : '<span class="text-slate-400 text-xs">未推送</span>') + '</td>' +
         '<td class="whitespace-nowrap">' + ops + '</td></tr>';
     }).join('');
@@ -462,6 +473,6 @@
   bootContext();
   render();
   window.addEventListener('storage', function (e) {
-    if (e.key === 'tosWorkStatSheets_v6') render();
+    if (e.key === 'tosWorkStatSheets_v6' || e.key === 'tos_ship_ops_v4') render();
   });
 })();

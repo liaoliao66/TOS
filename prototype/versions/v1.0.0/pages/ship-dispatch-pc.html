@@ -223,6 +223,9 @@
         a.push('<button class="text-teal-700 hover:underline mr-3" onclick="openAct(\'start\',\'' + d.id + '\')">开工</button>');
       }
       if (d.status === 'working') {
+        if (d.stopping) {
+          a.push('<span class="text-amber-700 text-xs font-medium mr-2">停工中</span>');
+        }
         a.push('<button class="text-teal-700 hover:underline mr-3" onclick="openAct(\'finish\',\'' + d.id + '\')">完工</button>');
         a.push('<button class="text-amber-700 hover:underline mr-3" onclick="openAct(\'stop\',\'' + d.id + '\')">停工</button>');
       }
@@ -608,11 +611,13 @@
           ((d.stoppages && d.stoppages.length)
             ? ('<div class="mt-5"><div class="text-xs font-semibold text-slate-500 tracking-wide mb-2">停工记录</div>' +
               d.stoppages.map(function (s) {
+                var toLabel = (s.status === 'active' || !s.to) ? '进行中' : fmt(s.to);
+                var tag = (s.status === 'active' || !s.to) ? '<span class="ml-2 text-xs text-amber-700">现场计时</span>' : '';
                 return '<div class="stop-row"><i class="fa-solid fa-pause text-amber-500 mt-0.5"></i>' +
-                  '<div class="text-sm"><div class="font-medium text-slate-800">' + s.reason +
+                  '<div class="text-sm"><div class="font-medium text-slate-800">' + s.reason + tag +
                   (s.deptName ? '<span class="ml-2 text-xs font-normal text-slate-500">' + s.deptName + ' · ' + (s.userName || '') + '</span>' : '') +
                   '</div>' +
-                  '<div class="text-xs text-slate-500 mt-0.5 tabular-nums">' + fmt(s.from) + ' ~ ' + fmt(s.to) +
+                  '<div class="text-xs text-slate-500 mt-0.5 tabular-nums">' + fmt(s.from) + ' ~ ' + toLabel +
                   (s.remark ? ' · ' + s.remark : '') + '</div></div></div>';
               }).join('') + '</div>')
             : '') +

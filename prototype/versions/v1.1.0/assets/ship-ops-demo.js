@@ -468,6 +468,27 @@
     return { ok: true };
   }
 
+  var FIELD_OP = {
+    deptId: 'wecom', deptName: '企微现场', userId: 'wecom-op', userName: '现场录入'
+  };
+
+  function resolveOperator(row) {
+    row = row || {};
+    if (row.source === 'h5_live' || row.skipOperator) {
+      return { ok: true, op: FIELD_OP };
+    }
+    return requireOperator(row);
+  }
+
+  function findActiveStoppage(d) {
+    var list = (d && d.stoppages) || [];
+    for (var i = 0; i < list.length; i++) {
+      var s = list[i];
+      if (s.status === 'active' || (s.from && !s.to)) return s;
+    }
+    return null;
+  }
+
   function addStoppage(id, row) {
     var state = load();
     var d = findD(state, id);
@@ -480,19 +501,144 @@
     if (!from || !to) return { ok: false, msg: '请填写停工开始与结束时间' };
     if (!reason) return { ok: false, msg: '请选择停工原因' };
     if (new Date(from) > new Date(to)) return { ok: false, msg: '停工结束时间须不早于开始时间' };
-    var opChk = requireOperator(row);
+    var opChk = resolveOperator(row);
     if (!opChk.ok) return opChk;
     var stop = {
-      id: uid('stp'), from: from, to: to, reason: reason, remark: row.remark || ''
+      id: uid('stp'), from: from, to: to, reason: reason, remark: row.remark || '',
+      status: 'ended', source: row.source || 'dispatch'
     };
     applyOp(stop, opChk.op);
     d.stoppages.push(stop);
+    d.stopping = !!findActiveStoppage(d);
     d.workLogs.push({
       type: '停工', time: from, note: logNote(reason + (row.remark ? ' · ' + row.remark : ''), opChk.op),
       deptName: opChk.op.deptName, userName: opChk.op.userName
     });
     save(state);
-    return { ok: true };
+    return { ok: true, stop: stop };
+  }
+
+  /** H5 开始停工：写入调度进行中停工，并标记 stopping */
+  function startStoppageLive(id, row) {
+    row = row || {};
+    var state = load();
+    var d = findD(state, id);
+    if (!d || d.status !== 'working') {
+      return { ok: false, msg: '仅「开工」船舶可登记停工' };
+    }
+    if (findActiveStoppage(d)) {
+      return { ok: false, msg: '该船已在停工中' };
+    }
+    var reason = String(row.reason || '').trim();
+    if (!reason) return { ok: false, msg: '请选择停工原因' };
+    var from = String(row.from || '').trim() || nowLocal();
+    var opChk = resolveOperator(Object.assign({}, row, { source: 'h5_live' }));
+    if (!opChk.ok) return opChk;
+    var stop = {
+      id: uid('stp'),
+      from: from,
+      to: '',
+      status: 'active',
+      reason: reason,
+      remark: row.remark || '',
+      source: 'h5_live',
+      startedAtMs: row.startedAtMs || Date.now()
+    };
+    applyOp(stop, opChk.op);
+    d.stoppages.push(stop);
+    d.stopping = true;
+    d.workLogs.push({
+      type: '停工开始', time: from, note: logNote(reason + '（现场计时）', opChk.op),
+      deptName: opChk.op.deptName, userName: opChk.op.userName
+    });
+    save(state);
+    return { ok: true, stop: stop, dispatch: d };
+  }
+
+  /** H5 结束停工：关闭调度进行中停工 */
+  function endStoppageLive(id, row) {
+    row = row || {};
+    var state = load();
+    var d = findD(state, id);
+    if (!d) return { ok: false, msg: '调度单不存在' };
+    var active = findActiveStoppage(d);
+    if (!active) return { ok: false, msg: '该船当前未在停工' };
+    var to = String(row.to || '').trim() || nowLocal();
+    if (to <= active.from) {
+      var t2 = new Date(new Date(active.from.replace('T', ' ')).getTime() + 60000);
+      var pad = function (n) { return (n < 10 ? '0' : '') + n; };
+      to = t2.getFullYear() + '-' + pad(t2.getMonth() + 1) + '-' + pad(t2.getDate()) + 'T' +
+        pad(t2.getHours()) + ':' + pad(t2.getMinutes());
+    }
+    active.to = to;
+    active.status = 'ended';
+    if (row.remark) active.remark = row.remark;
+    d.stopping = !!findActiveStoppage(d);
+    d.workLogs.push({
+      type: '停工结束', time: to,
+      note: logNote(active.reason + (active.remark ? ' · ' + active.remark : ''), {
+        deptName: active.deptName || FIELD_OP.deptName,
+        userName: active.userName || FIELD_OP.userName
+      }),
+      deptName: active.deptName || FIELD_OP.deptName,
+      userName: active.userName || FIELD_OP.userName
+    });
+    save(state);
+    return { ok: true, stop: active, dispatch: d };
+  }
+
+  /** 扁平列出各调度停工（供台账/工班大表回显） */
+  function listStoppages(filter) {
+    filter = filter || {};
+    var state = load();
+    var out = [];
+    state.dispatches.forEach(function (d) {
+      (d.stoppages || []).forEach(function (s) {
+        var date = String(s.from || '').slice(0, 10);
+        if (filter.date && date !== filter.date) return;
+        if (filter.vesselName && String(d.shipName) !== String(filter.vesselName)) return;
+        if (filter.dispatchId && d.id !== filter.dispatchId) return;
+        if (filter.endedOnly && s.status === 'active') return;
+        out.push({
+          id: s.id,
+          dispatchId: d.id,
+          shipName: d.shipName,
+          voyage: d.voyage || '',
+          date: date,
+          from: s.from,
+          to: s.to || '',
+          status: s.status || (s.to ? 'ended' : 'active'),
+          reason: s.reason || '',
+          remark: s.remark || '',
+          source: s.source || 'dispatch',
+          stopping: !!d.stopping
+        });
+      });
+    });
+    out.sort(function (a, b) {
+      if (a.from === b.from) return 0;
+      return a.from < b.from ? 1 : -1;
+    });
+    return out;
+  }
+
+  function getActiveStoppageByDispatch(id) {
+    var state = load();
+    var d = findD(state, id);
+    if (!d) return null;
+    var s = findActiveStoppage(d);
+    if (!s) return null;
+    return {
+      id: s.id,
+      dispatchId: d.id,
+      shipName: d.shipName,
+      from: s.from,
+      to: '',
+      status: 'active',
+      reason: s.reason,
+      remark: s.remark || '',
+      startedAtMs: s.startedAtMs || null
+    };
   }
 
   function doUnberth(id, row) {
@@ -568,6 +714,11 @@
     doStart: doStart,
     doFinish: doFinish,
     addStoppage: addStoppage,
+    startStoppageLive: startStoppageLive,
+    endStoppageLive: endStoppageLive,
+    listStoppages: listStoppages,
+    getActiveStoppageByDispatch: getActiveStoppageByDispatch,
+    findActiveStoppage: findActiveStoppage,
     doUnberth: doUnberth,
     voidDispatch: voidDispatch,
     resetDemo: resetDemo

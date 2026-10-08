@@ -12,6 +12,7 @@
   <script src="../assets/ship-ops-demo.js"></script>
   <script src="../assets/vessel-search.js"></script>
   <script src="../assets/work-stat-sheet-store.js"></script>
+  <script src="../assets/work-stat-stoppage-store.js"></script>
   <script src="../assets/wecom-push.js"></script>
   <script src="../assets/pc-sidebar.js"></script>
   <style>
@@ -50,8 +51,58 @@
     .op-del { color: #dc2626; }
     .field label { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
     .field select, .field input { width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 8px 10px; font-size: 14px; background: #fff; box-sizing: border-box; }
-    .modal-mask { position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 70; display: none; align-items: center; justify-content: center; padding: 24px; }
+    .field select:focus, .field input:focus { outline: none; border-color: #99f6e4; box-shadow: 0 0 0 3px rgba(15,118,110,0.12); }
+    .modal-mask { position: fixed; inset: 0; background: rgba(15,23,42,0.5); backdrop-filter: blur(4px); z-index: 70; display: none; align-items: center; justify-content: center; padding: 24px; }
     .modal-mask.open { display: flex; }
+    .row-edit-panel {
+      width: 100%; max-width: 560px; max-height: min(90vh, 760px);
+      display: flex; flex-direction: column;
+      background: #fff; border-radius: 20px;
+      box-shadow: 0 24px 64px rgba(15,23,42,0.18);
+      overflow: hidden;
+    }
+    .row-edit-head {
+      flex-shrink: 0; padding: 18px 22px 14px;
+      border-bottom: 1px solid #f1f5f9;
+      background: linear-gradient(180deg, #f8fafc 0%, #fff 100%);
+    }
+    .row-edit-body { flex: 1; overflow-y: auto; padding: 16px 22px 8px; }
+    .row-edit-foot {
+      flex-shrink: 0; padding: 14px 22px;
+      border-top: 1px solid #f1f5f9; background: #f8fafc;
+      display: flex; justify-content: flex-end; gap: 10px;
+    }
+    .row-meta {
+      display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;
+    }
+    .row-meta-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 10px; border-radius: 10px;
+      background: #f1f5f9; color: #475569; font-size: 12px;
+    }
+    .row-meta-chip strong { color: #0f172a; font-weight: 600; }
+    .row-meta-chip .k { color: #94a3b8; }
+    .row-sec {
+      margin-bottom: 14px; padding: 14px;
+      border: 1px solid #e2e8f0; border-radius: 14px; background: #fff;
+    }
+    .row-sec-title {
+      font-size: 12px; font-weight: 600; color: #0f766e;
+      letter-spacing: 0.02em; margin-bottom: 12px;
+      display: flex; align-items: center; gap: 6px;
+    }
+    .row-sec-title i { opacity: 0.85; }
+    .row-sec-warn {
+      border-color: #fde68a; background: #fffbeb;
+    }
+    .row-sec-warn .row-sec-title { color: #b45309; }
+    .row-hint {
+      font-size: 12px; color: #64748b; margin-top: 8px; line-height: 1.5;
+    }
+    .row-hint a, .row-link {
+      color: #0f766e; font-size: 12px; background: none; border: none;
+      padding: 0; cursor: pointer; text-decoration: underline;
+    }
     .vessel-search-item:hover { background: #f0fdfa !important; }
   </style>
 </head>
@@ -134,6 +185,7 @@
                     <th style="min-width:120px">非正常原因</th>
                     <th style="min-width:100px">非正常时长</th>
                     <th style="min-width:120px">备注</th>
+                    <th style="min-width:140px">船舶停工（只读）</th>
                     <th style="min-width:88px">推送</th>
                     <th style="min-width:140px">操作</th>
                   </tr>
@@ -206,47 +258,87 @@
   </div>
 
   <div id="rowEditModal" class="modal-mask" onclick="if(event.target===this)closeRowEdit()">
-    <div class="card fade-in w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
-      <div class="flex items-center justify-between mb-4">
-        <div>
-          <h2 class="text-lg font-semibold">编辑时段行</h2>
-          <p class="text-xs text-slate-500 mt-0.5" id="rowEditSub">—</p>
+    <div class="row-edit-panel fade-in" onclick="event.stopPropagation()" role="dialog" aria-labelledby="rowEditTitle">
+      <div class="row-edit-head">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <div class="text-[11px] font-medium uppercase tracking-wide text-teal-700/80">时段编辑</div>
+            <h2 id="rowEditTitle" class="text-lg font-semibold text-slate-900 mt-0.5">编辑作业明细</h2>
+            <p class="text-xs text-slate-500 mt-1" id="rowEditSub">—</p>
+          </div>
+          <button type="button" class="shrink-0 w-9 h-9 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600" onclick="closeRowEdit()" aria-label="关闭">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
         </div>
-        <button type="button" class="text-slate-400" onclick="closeRowEdit()"><i class="fa-solid fa-xmark"></i></button>
+        <div class="row-meta" id="rowEditMeta">
+          <span class="row-meta-chip"><span class="k">泊位</span><strong id="editBerth">—</strong></span>
+          <span class="row-meta-chip"><span class="k">机械</span><strong id="editMachine">—</strong></span>
+          <span class="row-meta-chip"><span class="k">时段</span><strong id="editSlotDisplay">—</strong></span>
+        </div>
       </div>
-      <input type="hidden" id="editSlot" />
-      <div class="space-y-3">
-        <div class="grid grid-cols-2 gap-3">
-          <div class="field"><label>泊位（不可改）</label><input id="editBerth" disabled class="bg-slate-50 text-slate-500" /></div>
-          <div class="field"><label>机械（不可改）</label><input id="editMachine" disabled class="bg-slate-50 text-slate-500" /></div>
+
+      <div class="row-edit-body">
+        <input type="hidden" id="editSlot" />
+
+        <div class="row-sec">
+          <div class="row-sec-title"><i class="fa-solid fa-ship"></i>船舶与人员货种</div>
+          <div class="field mb-3">
+            <label>船舶覆盖（可选）</label>
+            <div id="rowEditVesselWrap"></div>
+            <p class="row-hint">
+              默认继承机台表船舶 <span id="rowEditUnitVessel" class="font-medium text-teal-800">—</span>
+              · <button type="button" class="row-link" onclick="clearRowVesselOverride()">清除覆盖</button>
+            </p>
+          </div>
+          <div class="field mb-3">
+            <label>司机</label>
+            <select id="editDriver"></select>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="field"><label>货种一级</label><select id="editCargoL1"></select></div>
+            <div class="field"><label>货种二级</label><select id="editCargoL2"></select></div>
+          </div>
         </div>
-        <div class="field"><label>时段（不可改）</label><input id="editSlotDisplay" disabled class="bg-slate-50 text-slate-500" /></div>
-        <div class="field">
-          <label>船舶（可覆盖机台表）</label>
-          <div id="rowEditVesselWrap"></div>
-          <p class="text-xs text-slate-400 mt-1">留空则继承机台表船舶：<span id="rowEditUnitVessel" class="text-teal-700">—</span></p>
-          <button type="button" class="text-xs text-slate-500 mt-1 underline" onclick="clearRowVesselOverride()">清除覆盖，继承机台表</button>
+
+        <div class="row-sec">
+          <div class="row-sec-title"><i class="fa-solid fa-weight-hanging"></i>作业量</div>
+          <div class="grid grid-cols-2 gap-3 mb-3">
+            <div class="field">
+              <label>作业量（吨）</label>
+              <input id="editQty" type="number" step="0.01" min="0" placeholder="0.00" />
+            </div>
+            <div class="field">
+              <label>是否正常</label>
+              <select id="editNormal" onchange="toggleRowEditAbnormal()">
+                <option value="yes">正常</option>
+                <option value="no">非正常</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>备注</label>
+            <input id="editRemark" type="text" placeholder="选「其他」时必填，其余可选" />
+          </div>
         </div>
-        <div class="field"><label>司机</label><select id="editDriver"></select></div>
-        <div class="grid grid-cols-2 gap-3">
-          <div class="field"><label>货种一级</label><select id="editCargoL1"></select></div>
-          <div class="field"><label>货种二级</label><select id="editCargoL2"></select></div>
+
+        <div id="rowEditAbnormalBlock" class="row-sec row-sec-warn hidden">
+          <div class="row-sec-title"><i class="fa-solid fa-triangle-exclamation"></i>非正常说明</div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="field">
+              <label>非正常原因</label>
+              <select id="editReason"></select>
+            </div>
+            <div class="field">
+              <label>非正常时长（分钟）</label>
+              <input id="editAbMins" type="number" min="1" max="60" placeholder="1～60" />
+            </div>
+          </div>
         </div>
-        <div class="field"><label>作业量（吨）</label><input id="editQty" type="number" step="0.01" min="0" /></div>
-        <div class="field">
-          <label>是否正常</label>
-          <select id="editNormal" onchange="toggleRowEditAbnormal()">
-            <option value="yes">正常</option>
-            <option value="no">非正常</option>
-          </select>
-        </div>
-        <div class="field"><label>非正常原因</label><select id="editReason"></select></div>
-        <div class="field"><label>非正常时长（分钟）</label><input id="editAbMins" type="number" min="1" max="60" /></div>
-        <div class="field"><label>备注</label><input id="editRemark" type="text" placeholder="选「其他」时必填" /></div>
-        <div class="flex justify-end gap-2 pt-1">
-          <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="closeRowEdit()">取消</button>
-          <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="saveRowEdit()">保存</button>
-        </div>
+      </div>
+
+      <div class="row-edit-foot">
+        <button type="button" class="btn border border-slate-200 bg-white px-5 py-2.5 text-sm text-slate-700" onclick="closeRowEdit()">取消</button>
+        <button type="button" class="btn btn-brand px-6 py-2.5 text-sm" onclick="saveRowEdit()"><i class="fa-solid fa-check mr-1.5"></i>保存</button>
       </div>
     </div>
   </div>
