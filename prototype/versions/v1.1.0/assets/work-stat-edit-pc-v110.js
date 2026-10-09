@@ -88,12 +88,22 @@
       }
     }
     S.setActive({ date: getDate(), shift: getShift(), unitId: activeUnitId });
+    syncHourlyStoppage();
+  }
+
+  function syncHourlyStoppage() {
+    try {
+      if (window.WorkStatStoppageStore && WorkStatStoppageStore.syncHourlyFromDispatch) {
+        WorkStatStoppageStore.syncHourlyFromDispatch(getDate());
+      }
+    } catch (e) {}
   }
 
   window.onContextChange = function () {
     activeUnitId = '';
     S.setActive({ date: getDate(), shift: getShift(), unitId: '' });
     S.ensureSheet(getDate(), getShift());
+    syncHourlyStoppage();
     render();
   };
 
@@ -221,14 +231,26 @@
     if (!tr) return;
     var qtyEl = tr.querySelector('[data-field="qty"]');
     var remarkEl = tr.querySelector('[data-field="remark"]');
-    /* 是否正常 / 异常原因 / 异常时长：PC 只读，由 H5 同步，保存时原样保留 */
-    var normal = row.normal !== false;
+    var normalEl = tr.querySelector('[data-field="normal"]');
+    var reasonEl = tr.querySelector('[data-field="reason"]');
+    var minsEl = tr.querySelector('[data-field="abMins"]');
+    var normal = !(normalEl && normalEl.value === 'no');
+    var reason = reasonEl ? String(reasonEl.value || '').trim() : '';
+    var abMinsRaw = minsEl ? String(minsEl.value || '').trim() : '';
+    var abMins = abMinsRaw === '' ? null : Number(abMinsRaw);
+    var remark = remarkEl ? String(remarkEl.value || '').trim() : '';
+    if (!normal) {
+      if (!reason) { showToast(row.slot + ' 非正常须选择原因', 'err'); return; }
+      if (abMins == null || isNaN(abMins) || abMins <= 0) { showToast(row.slot + ' 请填写非正常时长', 'err'); return; }
+      if (abMins > 60) { showToast(row.slot + ' 非正常时长不能超过 60 分钟', 'err'); return; }
+      if (reason === '其他' && !remark) { showToast(row.slot + ' 选「其他」须填备注', 'err'); return; }
+    }
     var patch = {
       qty: qtyEl ? (Number(qtyEl.value) || 0) : 0,
       normal: normal,
-      reason: normal ? '' : (row.reason || ''),
-      abMins: normal ? null : (row.abMins != null ? row.abMins : null),
-      remark: remarkEl ? String(remarkEl.value || '').trim() : ''
+      reason: normal ? '' : reason,
+      abMins: normal ? null : abMins,
+      remark: remark
     };
     if (patch.qty < 0) { showToast('作业量不能为负', 'err'); return; }
     var res = S.updateRow(getDate(), getShift(), activeUnitId, slot, patch);
@@ -246,8 +268,29 @@
     var no = document.getElementById('editNormal').value === 'no';
     var block = document.getElementById('rowEditAbnormalBlock');
     if (block) block.classList.toggle('hidden', !no);
-    document.getElementById('editReason').disabled = true;
-    document.getElementById('editAbMins').disabled = true;
+    document.getElementById('editReason').disabled = !no;
+    document.getElementById('editAbMins').disabled = !no;
+    if (!no) {
+      document.getElementById('editReason').value = '';
+      document.getElementById('editAbMins').value = '';
+    }
+  };
+
+  window.onInlineNormalChange = function (slot) {
+    var tr = document.querySelector('#matrixBody tr[data-slot="' + slot + '"]');
+    if (!tr) return;
+    var no = tr.querySelector('[data-field="normal"]').value === 'no';
+    var reasonEl = tr.querySelector('[data-field="reason"]');
+    var minsEl = tr.querySelector('[data-field="abMins"]');
+    if (reasonEl) {
+      reasonEl.disabled = !no;
+      if (!no) reasonEl.value = '';
+    }
+    if (minsEl) {
+      minsEl.disabled = !no;
+      if (!no) minsEl.value = '';
+    }
+    saveInlineRow(slot);
   };
 
   window.clearRowVesselOverride = function () {
@@ -277,13 +320,15 @@
     else rowEditVesselCtl.clear();
     document.getElementById('editQty').value = Number(row.qty) || 0;
     document.getElementById('editNormal').value = row.normal === false ? 'no' : 'yes';
-    document.getElementById('editNormal').disabled = true;
+    document.getElementById('editNormal').disabled = false;
     document.getElementById('editReason').value = row.reason || '';
-    document.getElementById('editReason').disabled = true;
     document.getElementById('editAbMins').value = row.abMins != null ? row.abMins : '';
-    document.getElementById('editAbMins').disabled = true;
     document.getElementById('editRemark').value = row.remark || '';
     toggleRowEditAbnormal();
+    if (row.normal === false) {
+      document.getElementById('editReason').value = row.reason || '';
+      document.getElementById('editAbMins').value = row.abMins != null ? row.abMins : '';
+    }
     document.getElementById('rowEditModal').classList.add('open');
   };
 
@@ -296,17 +341,26 @@
     for (var pi = 0; pi < ((unitForPrev && unitForPrev.rows) || []).length; pi++) {
       if (unitForPrev.rows[pi].slot === slot) { prevRow = unitForPrev.rows[pi]; break; }
     }
-    /* 是否正常 / 异常原因 / 异常时长：PC 只读，保留原值 */
-    var normal = !(prevRow && prevRow.normal === false);
+    var normal = document.getElementById('editNormal').value !== 'no';
+    var reason = String(document.getElementById('editReason').value || '').trim();
+    var abMinsRaw = String(document.getElementById('editAbMins').value || '').trim();
+    var abMins = abMinsRaw === '' ? null : Number(abMinsRaw);
+    var remark = String(document.getElementById('editRemark').value || '').trim();
+    if (!normal) {
+      if (!reason) { showToast('非正常须选择原因', 'err'); return; }
+      if (abMins == null || isNaN(abMins) || abMins <= 0) { showToast('请填写非正常时长', 'err'); return; }
+      if (abMins > 60) { showToast('非正常时长不能超过 60 分钟', 'err'); return; }
+      if (reason === '其他' && !remark) { showToast('选「其他」须填备注', 'err'); return; }
+    }
     var vessel = rowEditVesselCtl.getValue();
     var patch = {
       driver: document.getElementById('editDriver').value,
       cargoL1: cargo.l1, cargoL2: cargo.l2,
       qty: Number(document.getElementById('editQty').value) || 0,
       normal: normal,
-      reason: normal ? '' : ((prevRow && prevRow.reason) || ''),
-      abMins: normal ? null : (prevRow && prevRow.abMins != null ? prevRow.abMins : null),
-      remark: String(document.getElementById('editRemark').value || '').trim(),
+      reason: normal ? '' : reason,
+      abMins: normal ? null : abMins,
+      remark: remark,
       vesselId: vessel.vesselId || '',
       vesselName: vessel.vesselName || ''
     };
@@ -421,14 +475,23 @@
       var qtyCell = locked
         ? '<td class="text-slate-600">' + (Number(r.qty) || 0).toFixed(2) + '</td>'
         : '<td><input data-field="qty" type="number" step="0.01" min="0" value="' + (Number(r.qty) || 0).toFixed(2) + '" onchange="saveInlineRow(\'' + slotJs + '\')" /></td>';
-      var normalCell = '<td class="text-slate-600">' +
-        (isAbnormal
-          ? '<span class="text-amber-700 text-xs font-medium">非正常</span>'
-          : '<span class="text-slate-500 text-xs">正常</span>') + '</td>';
-      var reasonCell = '<td class="text-slate-600">' +
-        esc(isAbnormal ? (r.reason || '—') : '—') + '</td>';
-      var minsCell = '<td class="text-slate-600">' +
-        esc(isAbnormal && r.abMins != null ? (r.abMins + ' 分钟') : '—') + '</td>';
+      var normalCell = locked
+        ? '<td class="text-slate-600">' +
+          (isAbnormal
+            ? '<span class="text-amber-700 text-xs font-medium">非正常</span>'
+            : '<span class="text-slate-500 text-xs">正常</span>') + '</td>'
+        : '<td><select data-field="normal" onchange="onInlineNormalChange(\'' + slotJs + '\')">' +
+          '<option value="yes"' + (isAbnormal ? '' : ' selected') + '>正常</option>' +
+          '<option value="no"' + (isAbnormal ? ' selected' : '') + '>非正常</option></select></td>';
+      var reasonCell = locked
+        ? '<td class="text-slate-600">' + esc(isAbnormal ? (r.reason || '—') : '—') + '</td>'
+        : '<td><select data-field="reason" onchange="saveInlineRow(\'' + slotJs + '\')"' +
+          (isAbnormal ? '' : ' disabled') + '>' + reasonOptionsHtml(isAbnormal ? r.reason : '') + '</select></td>';
+      var minsCell = locked
+        ? '<td class="text-slate-600">' + esc(isAbnormal && r.abMins != null ? (r.abMins + ' 分钟') : '—') + '</td>'
+        : '<td><input data-field="abMins" type="number" min="1" max="60" placeholder="分钟" value="' +
+          (isAbnormal && r.abMins != null ? r.abMins : '') + '" onchange="saveInlineRow(\'' + slotJs + '\')"' +
+          (isAbnormal ? '' : ' disabled') + ' /></td>';
       var remarkCell = locked
         ? '<td class="text-slate-600">' + esc(r.remark || '—') + '</td>'
         : '<td><input data-field="remark" type="text" value="' + esc(r.remark || '') + '" onchange="saveInlineRow(\'' + slotJs + '\')" /></td>';

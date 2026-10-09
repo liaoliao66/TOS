@@ -562,6 +562,43 @@
     return { ok: true, row: row };
   }
 
+  /** 系统反写小时停工时长（不走人工编辑、不清除企微推送标记） */
+  function applyHourlyStoppage(date, shift, unitId, slot, patch) {
+    patch = patch || {};
+    var data = loadAll();
+    var sheet = findSheet(data, date, shift);
+    if (!sheet) return { ok: false, msg: '单据不存在' };
+    if (sheet.status === '审批中' || sheet.status === '已通过') {
+      return { ok: false, msg: '当前班次状态不可写入' };
+    }
+    var unit = null;
+    for (var i = 0; i < sheet.units.length; i++) {
+      if (sheet.units[i].id === unitId) { unit = sheet.units[i]; break; }
+    }
+    if (!unit) return { ok: false, msg: '填报表不存在' };
+    normalizeUnit(unit);
+    var row = findRow(unit, slot);
+    if (!row) return { ok: false, msg: '时段行不存在' };
+    if (patch.normal === true || patch.clear) {
+      row.normal = true;
+      row.reason = '';
+      row.abMins = null;
+      row.stoppageFromVessel = false;
+      if (row.remark && String(row.remark).indexOf('船舶停工') === 0) row.remark = '';
+    } else {
+      row.normal = false;
+      if (patch.reason != null) row.reason = patch.reason;
+      if (patch.abMins !== undefined) row.abMins = patch.abMins;
+      if (patch.remark != null && (!row.remark || row.stoppageFromVessel)) {
+        row.remark = patch.remark;
+      }
+      row.stoppageFromVessel = true;
+    }
+    sheet.updatedAt = todayStr() + ' ' + pad2(new Date().getHours()) + ':' + pad2(new Date().getMinutes());
+    saveAll(data);
+    return { ok: true, row: row };
+  }
+
   /** 推送企微（可重复推送）；提交本班前须全部时段已推送 */
   function sendRowWecom(date, shift, unitId, slot) {
     var data = loadAll();
@@ -720,6 +757,7 @@
     unitHasSentRows: unitHasSentRows,
     saveUnitRows: saveUnitRows,
     updateRow: updateRow,
+    applyHourlyStoppage: applyHourlyStoppage,
     sendRowWecom: sendRowWecom,
     listUnpushed: listUnpushed,
     submitSheet: submitSheet,

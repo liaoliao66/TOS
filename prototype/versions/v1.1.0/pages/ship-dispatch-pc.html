@@ -90,7 +90,7 @@
       <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8">
         <div>
           <h1 class="text-lg font-semibold">船舶调度</h1>
-          <p class="text-xs text-slate-500">靠泊→开工→完工→离泊 · 开始/结束停工与 H5 停工登记同一套计时</p>
+          <p class="text-xs text-slate-500">靠泊→开工→完工→离泊 · 停工仅查看小时记录（开始/结束在 H5）</p>
         </div>
         <div class="flex items-center gap-2">
           <a href="work-stat-stoppage-pc.html" class="btn border border-slate-200 bg-white px-4 py-2 text-sm">停工记录</a>
@@ -105,7 +105,6 @@
               <button type="button" class="tab-btn" data-tab="pending" onclick="switchTab('pending')">未入港</button>
               <button type="button" class="tab-btn" data-tab="berthed" onclick="switchTab('berthed')">靠泊</button>
               <button type="button" class="tab-btn" data-tab="working" onclick="switchTab('working')">开工</button>
-              <button type="button" class="tab-btn" data-tab="stopping" onclick="switchTab('stopping')">停工中</button>
               <button type="button" class="tab-btn" data-tab="finished" onclick="switchTab('finished')">完工</button>
               <button type="button" class="tab-btn" data-tab="departed" onclick="switchTab('departed')">离泊</button>
               <button type="button" class="tab-btn" data-tab="void" onclick="switchTab('void')">已作废</button>
@@ -181,15 +180,13 @@
     function statusLabel(s) {
       return ({ pending: '未入港', berthed: '靠泊', working: '开工', finished: '完工', departed: '离泊', void: '已作废' })[s] || s;
     }
-    function statusBadge(s, stopping) {
-      if (stopping) {
-        return '<span class="badge badge-warn">停工中</span>';
-      }
+    function statusBadge(s) {
       var map = { pending: 'badge-info', berthed: 'badge-warn', working: 'badge-ok', finished: 'badge-ok', departed: 'badge-off', void: 'badge-off' };
       return '<span class="badge ' + (map[s] || 'badge-off') + '">' + statusLabel(s) + '</span>';
     }
 
     function switchTab(t) {
+      if (t === 'stopping') t = 'working';
       tab = t;
       document.querySelectorAll('#tabs .tab-btn').forEach(function (b) {
         b.classList.toggle('active', b.getAttribute('data-tab') === t);
@@ -201,64 +198,22 @@
       return (d.start && d.start.berthNo) || (d.berth && d.berth.berthNo) || '—';
     }
 
-    function isDispatchStopping(d) {
-      if (!d) return false;
-      if (d.stopping) return true;
-      var list = d.stoppages || [];
-      for (var i = 0; i < list.length; i++) {
-        var s = list[i];
-        if (s && (s.status === 'active' || (s.from && !s.to))) return true;
-      }
-      try {
-        if (window.WorkStatStoppageStore && WorkStatStoppageStore.getActiveByDispatch) {
-          return !!WorkStatStoppageStore.getActiveByDispatch(d.id);
-        }
-      } catch (e) {}
-      return false;
-    }
-
-    function stopReasonOptionsHtml() {
-      var names = (window.StopReasonDemo && StopReasonDemo.namesEnabled)
-        ? StopReasonDemo.namesEnabled()
-        : (ShipOpsDemo.STOP_REASONS || ['天气原因', '设备异常', '等货/等驳', '移泊', '其他']);
-      return '<option value="">— 请选择停工原因 —</option>' +
-        names.map(function (n) { return '<option value="' + n + '">' + n + '</option>'; }).join('');
-    }
-
-    function histStopHtml(d) {
-      var list = (d && d.stoppages) || [];
-      if (!list.length) return '<div class="text-sm text-slate-400">暂无停工记录</div>';
-      return list.map(function (s) {
-        var active = s.status === 'active' || !s.to;
-        var span = active
-          ? (String(s.from || '').replace('T', ' ') + ' ~ 进行中')
-          : (String(s.from || '').replace('T', ' ') + ' ~ ' + String(s.to || '').replace('T', ' '));
-        return '<div class="text-sm border border-slate-100 rounded-xl px-3 py-2">' +
-          span + ' · ' + (s.reason || '—') +
-          (active ? ' <span class="text-amber-700 text-xs">计时中</span>' : '') +
-          (s.remark ? ' · ' + s.remark : '') + '</div>';
-      }).join('');
-    }
-
     function render() {
       var list = ShipOpsDemo.listDispatches(tab === 'all' ? '' : tab);
-      document.getElementById('count').textContent = '共 ' + list.length + ' 条' +
-        (tab === 'stopping' ? ' · 开工且停工计时中' : '');
+      document.getElementById('count').textContent = '共 ' + list.length + ' 条';
       var body = document.getElementById('body');
       if (!list.length) {
         body.innerHTML = '<tr><td colspan="6" class="px-4 py-12 text-center text-slate-400">' +
-          (tab === 'stopping' ? '暂无停工中的船舶' : '暂无数据（请先在船期管理确报）') +
-          '</td></tr>';
+          '暂无数据（请先在船期管理确报）</td></tr>';
         return;
       }
       body.innerHTML = list.map(function (d) {
-        var stopping = isDispatchStopping(d);
         return '<tr class="table-row border-t">' +
           '<td class="px-4 py-3 font-medium">' + d.shipName + '</td>' +
           '<td class="px-4 py-3">' + d.voyage + '</td>' +
           '<td class="px-4 py-3">' + (d.instructionNo || '—') + '</td>' +
           '<td class="px-4 py-3">' + berthNoOf(d) + '</td>' +
-          '<td class="px-4 py-3">' + statusBadge(d.status, stopping) + '</td>' +
+          '<td class="px-4 py-3">' + statusBadge(d.status) + '</td>' +
           '<td class="px-4 py-3 whitespace-nowrap">' + actionsHtml(d) + '</td></tr>';
       }).join('');
     }
@@ -273,14 +228,7 @@
         a.push('<button class="text-teal-700 hover:underline mr-3" onclick="openAct(\'start\',\'' + d.id + '\')">开工</button>');
       }
       if (d.status === 'working') {
-        var stopping = isDispatchStopping(d);
-        if (stopping) {
-          /* 停工中：只提供结束停工（与 H5 一致） */
-          a.push('<button type="button" class="text-amber-700 hover:underline mr-3 font-medium" onclick="endStopLive(\'' + d.id + '\')">结束停工</button>');
-        } else {
-          a.push('<button type="button" class="text-amber-700 hover:underline mr-3" onclick="openAct(\'stop\',\'' + d.id + '\')">开始停工</button>');
-          a.push('<button type="button" class="text-teal-700 hover:underline mr-3" onclick="openAct(\'finish\',\'' + d.id + '\')">完工</button>');
-        }
+        a.push('<button type="button" class="text-teal-700 hover:underline mr-3" onclick="openAct(\'finish\',\'' + d.id + '\')">完工</button>');
       }
       if (d.status === 'finished') {
         a.push('<button class="text-teal-700 hover:underline mr-3" onclick="openAct(\'unberth\',\'' + d.id + '\')">离泊</button>');
@@ -410,7 +358,6 @@
       var berthOpts = enabledBerthOptions(defaultBerth);
       var loadOpts = '<option value="">请选择</option>' + ShipOpsDemo.LOAD_OPTS.map(function (c) { return '<option>' + c + '</option>'; }).join('');
       var procOpts = '<option value="">请选择</option>' + ShipOpsDemo.PROCESS_OPTS.map(function (c) { return '<option>' + c + '</option>'; }).join('');
-      var reasonOpts = stopReasonOptionsHtml();
 
       if (type === 'berth') {
         title.textContent = '靠泊';
@@ -462,22 +409,6 @@
           field('备注', '<textarea id="aRemark" rows="2" class="w-full border border-slate-200 rounded-xl px-3 py-2"></textarea>') +
           footerBtns();
         bindOperatorFields();
-      } else if (type === 'stop') {
-        if (isDispatchStopping(d)) {
-          showToast('该船已在停工中，请先结束停工', 'warn');
-          return;
-        }
-        title.textContent = '开始停工';
-        form.innerHTML =
-          '<p class="text-sm text-slate-600 bg-teal-50 text-teal-800 rounded-xl px-3 py-2">与企微停工登记相同：必选原因后开始计时；选「其他」须填具体原因；满 1 小时推送企微群。结束停工请在列表操作。</p>' +
-          '<div class="space-y-2"><div class="text-sm font-medium text-slate-700">已有记录</div>' + histStopHtml(d) + '</div>' +
-          '<div class="border-t pt-3 space-y-4">' +
-          field('停工原因', '<select id="aReason" class="w-full border border-slate-200 rounded-xl px-3 py-2" required onchange="toggleStopOtherRemark()">' + reasonOpts + '</select>', true) +
-          '<div id="aRemarkWrap" class="hidden">' +
-            field('具体原因', '<input id="aRemark" type="text" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="选「其他」时必填" />', true) +
-          '</div>' +
-          '</div>' + footerBtns('确认开始停工');
-        toggleStopOtherRemark();
       } else if (type === 'unberth') {
         title.textContent = '离泊';
         form.innerHTML =
@@ -537,37 +468,12 @@
           workMode: document.getElementById('aProcess').value
         }, op));
       } else if (actType === 'finish') {
-        var dFinish = ShipOpsDemo.getDispatch(actId);
-        if (isDispatchStopping(dFinish)) {
-          showToast('停工中不可完工，请先结束停工', 'err');
-          return false;
-        }
         res = ShipOpsDemo.doFinish(actId, Object.assign({
           actual: document.getElementById('aTime').value,
           workers: document.getElementById('aWorkers').value,
           qty: document.getElementById('aQty').value,
           remark: document.getElementById('aRemark').value
         }, op));
-      } else if (actType === 'stop') {
-        var ST = window.WorkStatStoppageStore;
-        if (!ST || !ST.startLive) { showToast('停工模块未加载', 'err'); return false; }
-        var reason = (document.getElementById('aReason') || {}).value;
-        if (!reason) { showToast('请选择停工原因', 'err'); return false; }
-        var remark = String((document.getElementById('aRemark') || {}).value || '').trim();
-        if (reason === '其他' && !remark) { showToast('选「其他」须填写具体原因', 'err'); return false; }
-        res = ST.startLive({
-          dispatchId: actId,
-          reason: reason,
-          remark: remark,
-          source: 'dispatch',
-          skipOperator: true
-        });
-        if (!res.ok) { showToast(res.msg, 'err'); return false; }
-        closeAct();
-        render();
-        showToast(res.warnNoUnits ? '已开始停工计时（无机台表）' : '已开始停工计时',
-          res.warnNoUnits ? 'warn' : 'ok');
-        return false;
       } else if (actType === 'unberth') {
         res = ShipOpsDemo.doUnberth(actId, Object.assign({
           actual: document.getElementById('aTime').value,
@@ -640,6 +546,26 @@
         statusBadge(d.status);
 
       var cargoTxt = d.start.cargo || ((d.start.cargoL1 || '') + (d.start.cargoL2 ? (' / ' + d.start.cargoL2) : '')) || '';
+      var ST = window.WorkStatStoppageStore;
+      var hourRows = (ST && ST.list) ? (ST.list({ vesselName: d.shipName }) || []) : [];
+      var hourHtml = '<div class="mt-5"><div class="flex items-center justify-between mb-2">' +
+        '<div class="text-xs font-semibold text-slate-500 tracking-wide">停工记录（按小时）</div>' +
+        '<a class="text-xs text-teal-700 hover:underline" href="work-stat-stoppage-pc.html?vessel=' + encodeURIComponent(d.shipName || '') + '">查看全部</a></div>';
+      if (!hourRows.length) {
+        hourHtml += '<div class="text-sm text-slate-400">该船暂无小时停工记录（需机台表绑定本船且该小时有停工时长）</div>';
+      } else {
+        hourHtml += hourRows.map(function (s) {
+          var tag = s.status === 'active' ? '<span class="ml-2 text-xs text-amber-700">进行中</span>' : '';
+          var src = s.source === 'hourly_vessel' ? '船舶反写' : '工班小时';
+          return '<div class="stop-row"><i class="fa-solid fa-pause text-amber-500 mt-0.5"></i>' +
+            '<div class="text-sm"><div class="font-medium text-slate-800">' + (s.reason || '停工') + tag +
+            '<span class="ml-2 text-xs font-normal text-slate-500">' + (s.shift || '') + ' · ' + (s.slot || '') +
+            ' · ' + ((s.durationMin != null) ? (s.durationMin + ' 分') : '') + '</span></div>' +
+            '<div class="text-xs text-slate-500 mt-0.5">' + (s.berth || '') + ' ' + (s.machine || '') +
+            ' · ' + src + (s.remark ? ' · ' + s.remark : '') + '</div></div></div>';
+        }).join('');
+      }
+      hourHtml += '</div>';
       document.getElementById('viewBody').innerHTML =
         '<div class="view-panel mb-5">' +
           '<div class="text-xs font-semibold text-slate-500 tracking-wide mb-3">船舶信息</div>' +
@@ -678,19 +604,7 @@
               (d.unberth.remark ? chip(d.unberth.remark) : '')) +
             step(5, '离港', d.depart.plan, d.depart.actual, 'departed', '') +
           '</div>' +
-          ((d.stoppages && d.stoppages.length)
-            ? ('<div class="mt-5"><div class="text-xs font-semibold text-slate-500 tracking-wide mb-2">停工记录</div>' +
-              d.stoppages.map(function (s) {
-                var toLabel = (s.status === 'active' || !s.to) ? '进行中' : fmt(s.to);
-                var tag = (s.status === 'active' || !s.to) ? '<span class="ml-2 text-xs text-amber-700">现场计时</span>' : '';
-                return '<div class="stop-row"><i class="fa-solid fa-pause text-amber-500 mt-0.5"></i>' +
-                  '<div class="text-sm"><div class="font-medium text-slate-800">' + s.reason + tag +
-                  (s.deptName ? '<span class="ml-2 text-xs font-normal text-slate-500">' + s.deptName + ' · ' + (s.userName || '') + '</span>' : '') +
-                  '</div>' +
-                  '<div class="text-xs text-slate-500 mt-0.5 tabular-nums">' + fmt(s.from) + ' ~ ' + toLabel +
-                  (s.remark ? ' · ' + s.remark : '') + '</div></div></div>';
-              }).join('') + '</div>')
-            : '') +
+          hourHtml +
           (d.status === 'void' && d.voidInfo
             ? ('<div class="mt-5 view-panel"><div class="text-xs font-semibold text-slate-500 mb-2">作废信息</div>' +
               '<div class="text-sm">' + v(d.voidInfo.deptName) + ' · ' + v(d.voidInfo.userName) +
@@ -704,28 +618,6 @@
     function closeView(e) {
       if (e && e.target && e.target !== document.getElementById('viewMask') && e.type === 'click') return;
       document.getElementById('viewMask').classList.remove('open');
-    }
-
-    function toggleStopOtherRemark() {
-      var reasonEl = document.getElementById('aReason');
-      var wrap = document.getElementById('aRemarkWrap');
-      if (!reasonEl || !wrap) return;
-      var need = reasonEl.value === '其他';
-      wrap.classList.toggle('hidden', !need);
-      if (!need) {
-        var rem = document.getElementById('aRemark');
-        if (rem) rem.value = '';
-      }
-    }
-
-    function endStopLive(dispatchId) {
-      if (!confirm('确认结束停工？将结束本段计时并恢复作业。')) return;
-      var ST = window.WorkStatStoppageStore;
-      if (!ST || !ST.endLive) { showToast('停工模块未加载', 'err'); return; }
-      var res = ST.endLive(dispatchId, { source: 'dispatch' });
-      if (!res.ok) { showToast(res.msg, 'err'); return; }
-      render();
-      showToast('已结束停工 · 本段 ' + ((res.item && res.item.durationMin) || 0) + ' 分');
     }
 
     function tickStoppageHours() {

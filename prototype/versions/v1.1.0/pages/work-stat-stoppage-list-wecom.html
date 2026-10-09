@@ -8,8 +8,8 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
   <script src="../assets/ship-ops-demo.js?v=20260924e"></script>
   <script src="../assets/stop-reason-demo.js?v=20260924e"></script>
-  <script src="../assets/work-stat-sheet-store.js?v=20260924e"></script>
-  <script src="../assets/work-stat-stoppage-store.js?v=20260924e"></script>
+  <script src="../assets/work-stat-sheet-store.js?v=20261009a"></script>
+  <script src="../assets/work-stat-stoppage-store.js?v=20261009a"></script>
   <style>
     :root { --brand: #0f766e; }
     body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.5; font-size: 15px; background: #f1f5f9; -webkit-tap-highlight-color: transparent; }
@@ -159,7 +159,7 @@
             return '<span class="chip">' + esc(c) + '</span>';
           }).join('') + '</div>' : '') +
           '<div class="time-row"><i class="fa-regular fa-clock"></i><span>' +
-            esc(shortTime(r.from)) + ' — ' + esc(shortTime(r.to)) +
+            esc(r.slot || (shortTime(r.from) + ' — ' + shortTime(r.to))) +
           '</span></div>' +
         '</article>';
       }).join('');

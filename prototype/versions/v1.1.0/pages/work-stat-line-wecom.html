@@ -26,6 +26,12 @@
       font-size: 14px; min-height: 40px; background: #fff; box-sizing: border-box;
     }
     .field input:disabled, .field select:disabled { background: #f8fafc; color: #64748b; cursor: not-allowed; opacity: 0.85; }
+    .status-ro {
+      background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px;
+    }
+    .status-ro .k { font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+    .status-ro .v { font-size: 14px; color: #334155; font-weight: 600; }
+    .status-ro .sub { font-size: 12px; color: #92400e; margin-top: 4px; font-weight: 500; }
     .toast { position: absolute; top: 72px; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); z-index: 80; min-width: 220px; max-width: 90%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
     .page-bg { background: #e2e8f0; min-height: 100vh; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center; padding: 24px 12px; box-sizing: border-box; }
     .phone-frame { width: 390px; height: 844px; border-radius: 48px; border: 3px solid #e5e7eb; background: #0f172a; box-shadow: 0 12px 40px rgba(15,23,42,0.18); padding: 12px; box-sizing: border-box; }
@@ -81,23 +87,23 @@
               <input id="fQty" type="number" step="0.01" min="0" placeholder="请输入作业量" />
             </div>
             <div class="field">
-              <label>是否正常作业（不可改）</label>
-              <select id="fNormal" disabled>
-                <option value="yes">正常作业</option>
+              <label>是否正常</label>
+              <select id="fNormal" onchange="toggleAbnormal()">
+                <option value="yes">正常</option>
                 <option value="no">非正常</option>
               </select>
             </div>
             <div class="field hidden" id="reasonWrap">
-              <label>非正常原因（不可改）</label>
-              <select id="fReason" disabled></select>
+              <label>非正常原因</label>
+              <select id="fReason" onchange="toggleRemarkNeed()"></select>
             </div>
             <div class="field hidden" id="minsWrap">
-              <label>非正常时长（分钟，不可改）</label>
-              <input id="fAbMins" type="number" min="1" max="60" step="1" placeholder="—" disabled />
+              <label>非正常时长（分钟）</label>
+              <input id="fAbMins" type="number" min="1" max="60" step="1" placeholder="1–60" />
             </div>
-            <div class="field">
-              <label>备注</label>
-              <input id="fRemark" type="text" placeholder="选「其他」时必填" />
+            <div class="field" id="remarkWrap">
+              <label id="remarkLabel">备注</label>
+              <input id="fRemark" type="text" maxlength="50" placeholder="选「其他」时必填" />
             </div>
           </div>
 
@@ -127,6 +133,15 @@
       setTimeout(function () { el.remove(); }, 2400);
     }
 
+    function toggleRemarkNeed() {
+      var need = document.getElementById('fNormal').value === 'no' &&
+        document.getElementById('fReason').value === '其他';
+      var label = document.getElementById('remarkLabel');
+      var input = document.getElementById('fRemark');
+      if (label) label.textContent = need ? '异常原因 *' : '备注';
+      if (input) input.placeholder = need ? '请填写具体异常原因' : '选「其他」时必填';
+    }
+
     function toggleAbnormal() {
       var no = document.getElementById('fNormal').value === 'no';
       document.getElementById('reasonWrap').classList.toggle('hidden', !no);
@@ -135,6 +150,7 @@
         document.getElementById('fReason').value = '';
         document.getElementById('fAbMins').value = '';
       }
+      toggleRemarkNeed();
     }
 
     function backUrl() {
@@ -184,23 +200,24 @@
         return '<option value="' + d + '">' + d + '</option>';
       }).join('');
       document.getElementById('fDriver').value = row.driver || unit.driver;
-      document.getElementById('fReason').innerHTML = '<option value="">请选择原因</option>' +
-        AbnormalFill.REASONS.map(function (x) { return '<option value="' + x + '">' + x + '</option>'; }).join('');
       cargoCtl = CargoCascade.bindPair(document.getElementById('fCargoL1'), document.getElementById('fCargoL2'), { entryMode: true });
       cargoCtl.setValue(row.cargoL1 || unit.cargoL1, row.cargoL2 || unit.cargoL2);
 
+      document.getElementById('fReason').innerHTML = '<option value="">请选择原因</option>' +
+        (AbnormalFill.REASONS || []).map(function (x) { return '<option value="' + x + '">' + x + '</option>'; }).join('');
       document.getElementById('fQty').value = Number(row.qty) || 0;
       document.getElementById('fNormal').value = row.normal === false ? 'no' : 'yes';
       document.getElementById('fReason').value = row.reason || '';
       document.getElementById('fAbMins').value = row.abMins != null ? row.abMins : '';
       document.getElementById('fRemark').value = row.remark || '';
-      document.getElementById('fNormal').disabled = true;
-      document.getElementById('fReason').disabled = true;
-      document.getElementById('fAbMins').disabled = true;
       toggleAbnormal();
+      if (row.normal === false) {
+        document.getElementById('fReason').value = row.reason || '';
+        document.getElementById('fAbMins').value = row.abMins != null ? row.abMins : '';
+      }
 
       if (readonly) {
-        document.querySelectorAll('#fDriver,#fCargoL1,#fCargoL2,#fQty,#fRemark').forEach(function (el) {
+        document.querySelectorAll('#fDriver,#fCargoL1,#fCargoL2,#fQty,#fNormal,#fReason,#fAbMins,#fRemark').forEach(function (el) {
           el.disabled = true;
         });
         document.getElementById('btnSave').classList.add('hidden');
@@ -219,12 +236,19 @@
     }
 
     function validate() {
-      var prev = currentRow() || {};
-      var normal = prev.normal !== false;
+      var normal = document.getElementById('fNormal').value !== 'no';
       var qty = Number(document.getElementById('fQty').value) || 0;
       if (qty < 0) { showToast('作业量不能为负', 'err'); return null; }
       var remark = String(document.getElementById('fRemark').value || '').trim();
-      if (!normal && prev.reason === '其他' && !remark) { showToast('选「其他」须填备注', 'err'); return null; }
+      var reason = String(document.getElementById('fReason').value || '').trim();
+      var abRaw = String(document.getElementById('fAbMins').value || '').trim();
+      var abMins = abRaw === '' ? null : Number(abRaw);
+      if (!normal) {
+        if (!reason) { showToast('非正常须选择原因', 'err'); return null; }
+        if (abMins == null || isNaN(abMins) || abMins <= 0) { showToast('请填写非正常时长', 'err'); return null; }
+        if (abMins > 60) { showToast('非正常时长不能超过 60 分钟', 'err'); return null; }
+        if (reason === '其他' && !remark) { showToast('选「其他」须填写异常原因', 'err'); return null; }
+      }
       var cargo = cargoCtl.getValue();
       if (!cargo.l1 || !cargo.l2) { showToast('请选择货种', 'err'); return null; }
       var vessel = vesselCtl ? vesselCtl.getValue() : {};
@@ -234,8 +258,8 @@
         cargoL2: cargo.l2,
         qty: qty,
         normal: normal,
-        reason: normal ? '' : (prev.reason || ''),
-        abMins: normal ? null : (prev.abMins != null ? prev.abMins : null),
+        reason: normal ? '' : reason,
+        abMins: normal ? null : abMins,
         remark: remark,
         vesselId: vessel.vesselId || '',
         vesselName: vessel.vesselName || ''

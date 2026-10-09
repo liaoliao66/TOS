@@ -6,6 +6,7 @@
   <title>本班填报 · 企微H5</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../assets/abnormal-fill.js"></script>
   <script src="../assets/cargo-mgmt-demo.js"></script>
   <script src="../assets/cargo-cascade.js"></script>
   <script src="../assets/ship-ops-demo.js"></script>
@@ -57,6 +58,27 @@
       display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-pack: end; -webkit-justify-content: flex-end; justify-content: flex-end; gap: 16px;
     }
     .slot-actions .op-link { font-size: 13px; padding: 4px 0; }
+    .status-ro-line {
+      margin-top: 8px; font-size: 12px; color: #92400e;
+      background: #fffbeb; border-radius: 10px; padding: 6px 10px; line-height: 1.4;
+    }
+    .slot-status-row { margin-top: 8px; }
+    .slot-status-row select {
+      width: 100%; min-height: 40px; border: 1px solid #e2e8f0; border-radius: 12px;
+      padding: 8px 10px; font-size: 14px; background: #fff; box-sizing: border-box;
+    }
+    .slot-ab-row {
+      display: grid; grid-template-columns: 1fr 88px; gap: 8px; margin-top: 8px;
+    }
+    .slot-ab-row select, .slot-ab-row input {
+      min-height: 40px; border: 1px solid #fde68a; border-radius: 12px;
+      padding: 8px 10px; font-size: 13px; background: #fffbeb; box-sizing: border-box; width: 100%;
+    }
+    .slot-remark-row { margin-top: 8px; }
+    .slot-remark-row input {
+      width: 100%; min-height: 40px; border: 1px solid #fde68a; border-radius: 12px;
+      padding: 8px 10px; font-size: 13px; background: #fffbeb; box-sizing: border-box;
+    }
     .vessel-search-item:hover { background: #f0fdfa !important; }
   </style>
 </head>
@@ -119,8 +141,7 @@
               <div class="text-xs text-slate-500 mt-1">泊位/机械不可改 · 合计 <span id="unitTotal" class="text-teal-800 font-medium">0.00</span> 吨</div>
               <div class="mt-3 flex gap-3 text-xs" id="unitOps"></div>
             </div>
-            <div class="px-1 text-sm font-medium text-slate-700">时段明细（卡片）</div>
-            <p class="px-1 text-xs text-slate-400 mb-1">可直接改作业量；是否正常不可改。编辑/发送在卡片底部。已推送仍可改，改后须再发送。</p>
+            <div class="px-1 text-sm font-medium text-slate-700">时段明细</div>
             <div id="slotList" class="space-y-2"></div>
           </main>
         </div>
@@ -358,7 +379,65 @@
       return Number(el.value) || 0;
     }
 
+    function reasonOptionsHtml(selected) {
+      var names = (window.AbnormalFill && AbnormalFill.REASONS) ? AbnormalFill.REASONS : ['吃饭休息', '设备异常', '其他'];
+      var html = '<option value="">选择原因</option>';
+      names.forEach(function (x) {
+        html += '<option value="' + x + '"' + (x === selected ? ' selected' : '') + '>' + x + '</option>';
+      });
+      return html;
+    }
+
     function saveQtyInline(idx, silent) {
+      return saveSlotInline(idx, silent);
+    }
+
+    function escAttr(s) {
+      return String(s || '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;');
+    }
+
+    function toggleRemarkRow(idx) {
+      var reason = String((document.getElementById('slotReason_' + idx) || {}).value || '');
+      var wrap = document.getElementById('slotRemarkWrap_' + idx);
+      if (wrap) wrap.style.display = reason === '其他' ? 'block' : 'none';
+    }
+
+    function onInlineNormal(idx) {
+      var no = document.getElementById('slotNormal_' + idx).value === 'no';
+      var extra = document.getElementById('slotAb_' + idx);
+      if (extra) extra.style.display = no ? 'grid' : 'none';
+      if (!no) {
+        var rEl = document.getElementById('slotReason_' + idx);
+        var mEl = document.getElementById('slotMins_' + idx);
+        var rmEl = document.getElementById('slotRemark_' + idx);
+        var rmWrap = document.getElementById('slotRemarkWrap_' + idx);
+        if (rEl) rEl.value = '';
+        if (mEl) mEl.value = '';
+        if (rmEl) rmEl.value = '';
+        if (rmWrap) rmWrap.style.display = 'none';
+        saveSlotInline(idx, true);
+      } else {
+        toggleRemarkRow(idx);
+      }
+    }
+
+    function onInlineReason(idx) {
+      toggleRemarkRow(idx);
+      var reason = String((document.getElementById('slotReason_' + idx) || {}).value || '');
+      if (reason === '其他') {
+        var rmEl = document.getElementById('slotRemark_' + idx);
+        if (rmEl && !String(rmEl.value || '').trim()) {
+          rmEl.focus();
+          return;
+        }
+      }
+      saveSlotInline(idx, false);
+    }
+
+    function saveSlotInline(idx, silent) {
       if (readonly) return false;
       var row = getRowByIdx(idx);
       if (!row) return false;
@@ -368,7 +447,39 @@
         if (!silent) showToast('作业量不能为负', 'err');
         return false;
       }
-      var res = S.updateRow(getDate(), getShift(), activeUnitId, row.slot, { qty: qty });
+      var normalEl = document.getElementById('slotNormal_' + idx);
+      var normal = !(normalEl && normalEl.value === 'no');
+      var reason = '';
+      var abMins = null;
+      var remark = String((document.getElementById('slotRemark_' + idx) || {}).value || '').trim();
+      if (!normal) {
+        reason = String((document.getElementById('slotReason_' + idx) || {}).value || '').trim();
+        var raw = String((document.getElementById('slotMins_' + idx) || {}).value || '').trim();
+        abMins = raw === '' ? null : Number(raw);
+        if (!reason) {
+          if (!silent) showToast('非正常须选择原因', 'err');
+          return false;
+        }
+        if (abMins == null || isNaN(abMins) || abMins <= 0) {
+          if (!silent) showToast('请填写非正常时长', 'err');
+          return false;
+        }
+        if (abMins > 60) {
+          if (!silent) showToast('非正常时长不能超过 60 分钟', 'err');
+          return false;
+        }
+        if (reason === '其他' && !remark) {
+          if (!silent) showToast('选「其他」须填写异常原因', 'err');
+          return false;
+        }
+      }
+      var res = S.updateRow(getDate(), getShift(), activeUnitId, row.slot, {
+        qty: qty,
+        normal: normal,
+        reason: normal ? '' : reason,
+        abMins: normal ? null : abMins,
+        remark: normal ? '' : (reason === '其他' ? remark : (row.remark || ''))
+      });
       if (!res.ok) {
         if (!silent) showToast(res.msg, 'err');
         return false;
@@ -380,7 +491,7 @@
         renderUnit();
         return true;
       }
-      if (!silent) showToast('作业量已保存');
+      if (!silent) showToast('已保存');
       return true;
     }
 
@@ -507,9 +618,37 @@
         else if (!filled) cardCls += 'slot-empty';
         var driver = r.driver || unit.driver;
         var cargo = r.cargoL2 || unit.cargoL2;
-        var statusBadge = r.normal === false
-          ? '<span class="badge shrink-0" style="background:#fef3c7;color:#b45309">非正常</span>'
-          : '<span class="badge shrink-0" style="background:#d1fae5;color:#047857">正常</span>';
+        var isAbnormal = r.normal === false;
+        var statusBlock = '';
+        if (readonly) {
+          statusBlock = '<div class="mt-2">' +
+            '<span class="badge" style="background:' + (isAbnormal ? '#fef3c7;color:#b45309' : '#ecfdf5;color:#047857') + '">' +
+            (isAbnormal ? '非正常' : '正常') + '</span>' +
+            (isAbnormal ? '<div class="status-ro-line">' +
+              [r.reason || '', (r.abMins != null ? r.abMins + ' 分钟' : ''), (r.reason === '其他' ? (r.remark || '') : '')].filter(Boolean).join(' · ') +
+            '</div>' : '') +
+          '</div>';
+        } else {
+          statusBlock = '<div class="slot-status-row">' +
+            '<select id="slotNormal_' + idx + '" onchange="onInlineNormal(' + idx + ')">' +
+              '<option value="yes"' + (isAbnormal ? '' : ' selected') + '>正常</option>' +
+              '<option value="no"' + (isAbnormal ? ' selected' : '') + '>非正常</option>' +
+            '</select></div>' +
+            '<div class="slot-ab-row" id="slotAb_' + idx + '" style="display:' + (isAbnormal ? 'grid' : 'none') + '">' +
+              '<select id="slotReason_' + idx + '" onchange="onInlineReason(' + idx + ')">' +
+                reasonOptionsHtml(isAbnormal ? r.reason : '') +
+              '</select>' +
+              '<input id="slotMins_' + idx + '" type="number" min="1" max="60" placeholder="分钟" value="' +
+                (isAbnormal && r.abMins != null ? r.abMins : '') +
+                '" onchange="saveSlotInline(' + idx + ', false)" />' +
+            '</div>' +
+            '<div class="slot-remark-row" id="slotRemarkWrap_' + idx + '" style="display:' +
+              (isAbnormal && r.reason === '其他' ? 'block' : 'none') + '">' +
+              '<input id="slotRemark_' + idx + '" type="text" maxlength="50" placeholder="填写异常原因（必填）" value="' +
+                (isAbnormal && r.reason === '其他' ? escAttr(r.remark || '') : '') +
+                '" onchange="saveSlotInline(' + idx + ', false)" onblur="saveSlotInline(' + idx + ', false)" />' +
+            '</div>';
+        }
         var qtyBlock = '';
         if (readonly) {
           qtyBlock = '<div class="slot-qty-wrap">' +
@@ -519,7 +658,7 @@
           qtyBlock = '<div class="slot-qty-wrap">' +
             '<input id="slotQty_' + idx + '" class="slot-qty-input tabular-nums" type="number" step="0.01" min="0" ' +
               'value="' + (Number(r.qty) || 0) + '" placeholder="填写作业量" ' +
-              'onchange="saveQtyInline(' + idx + ', true)" onblur="saveQtyInline(' + idx + ', true)" />' +
+              'onchange="saveSlotInline(' + idx + ', true)" onblur="saveSlotInline(' + idx + ', true)" />' +
             '<span class="text-xs text-slate-400 shrink-0">吨</span></div>';
         }
         var bottomBlock = '';
@@ -533,13 +672,10 @@
           bottomBlock = '<div class="slot-actions"><span class="badge badge-sent"><i class="fa-solid fa-check mr-1"></i>已推送</span></div>';
         }
         return '<div class="' + cardCls + '">' +
-          '<div class="flex items-start justify-between gap-2">' +
-            '<div class="font-medium text-sm text-teal-800">' + r.slot + '</div>' +
-            statusBadge +
-          '</div>' +
+          '<div class="font-medium text-sm text-teal-800">' + r.slot + '</div>' +
           '<div class="mt-1 text-xs text-slate-500">' + driver + ' · ' + cargo + '</div>' +
           qtyBlock +
-          (r.normal === false && r.abMins ? '<div class="mt-1 text-xs text-amber-700">非正常 ' + r.abMins + ' 分钟 · ' + (r.reason || '') + '</div>' : '') +
+          statusBlock +
           bottomBlock +
         '</div>';
       }).join('');

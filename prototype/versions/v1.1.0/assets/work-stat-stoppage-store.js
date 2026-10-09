@@ -64,19 +64,25 @@
     return ShipOpsDemo.listDispatches('working');
   }
 
-  /** 当日白班+夜班机台表中 vesselName 匹配的 unit */
-  function unitsForShipToday(shipName) {
+  /** 指定开班日白班+夜班机台表中绑定该船的 unit */
+  function unitsForShipOnDate(shipName, date) {
     var S = global.WorkStatSheetStore;
     if (!S || !S.getSheet) return [];
     var target = normName(shipName);
     if (!target) return [];
-    var t = todayStr();
+    var t = date || todayStr();
     var out = [];
     ['白班', '夜班'].forEach(function (shift) {
       var sheet = S.getSheet(t, shift);
       if (!sheet) return;
       (sheet.units || []).forEach(function (u) {
-        if (normName(u.vesselName) !== target) return;
+        var hit = normName(u.vesselName) === target;
+        if (!hit && S.resolveVessel) {
+          (u.rows || []).forEach(function (r) {
+            if (normName((S.resolveVessel(u, r) || {}).name) === target) hit = true;
+          });
+        }
+        if (!hit) return;
         out.push({
           unitId: u.id,
           sheetId: sheet.id,
@@ -92,6 +98,11 @@
       });
     });
     return out;
+  }
+
+  /** 当日白班+夜班机台表中 vesselName 匹配的 unit */
+  function unitsForShipToday(shipName) {
+    return unitsForShipOnDate(shipName, todayStr());
   }
 
   /** 调度侧泊位/机台回显（无机台表时兜底） */
@@ -122,6 +133,7 @@
     scene = scene === 'mixed' ? 'mixed' : 'allClear';
     if (global.ShipOpsDemo && ShipOpsDemo.ensurePcStoppageDemo) {
       var res = ShipOpsDemo.ensurePcStoppageDemo();
+      try { syncHourlyFromDispatch((res && res.date) || todayStr()); } catch (e) {}
       return {
         ok: !!(res && res.ok !== false),
         scene: scene,
@@ -132,53 +144,109 @@
     return { ok: false, msg: '调度未加载', scene: scene };
   }
 
-  /** 台账以船舶调度停工为准（只读回显） */
-  function list(date) {
-    if (!global.ShipOpsDemo || !ShipOpsDemo.listStoppages) {
-      return [];
-    }
-    var rows = ShipOpsDemo.listStoppages(date ? { date: date } : {}).map(function (s) {
-      var durationMin = null;
-      if (s.from && s.to) {
-        var ms = new Date(s.to).getTime() - new Date(s.from).getTime();
-        if (ms > 0) durationMin = Math.floor(ms / 60000);
-      } else if (s.status === 'active' && s.from) {
-        var activeMs = Date.now() - new Date(s.from).getTime();
-        if (activeMs > 0) durationMin = Math.floor(activeMs / 60000);
+  function voyageForShip(shipName) {
+    if (!global.ShipOpsDemo || !ShipOpsDemo.listDispatches) return '';
+    var name = normName(shipName);
+    var all = ShipOpsDemo.listDispatches('') || [];
+    var i;
+    for (i = 0; i < all.length; i++) {
+      if (normName(all[i].shipName) === name && all[i].status === 'working') {
+        return all[i].voyage || '';
       }
-      var echo = null;
-      try {
-        var d = ShipOpsDemo.getDispatch(s.dispatchId);
-        if (d) echo = dispatchMachineEcho(d);
-      } catch (e) {}
-      var units = unitsForShipToday(s.shipName) || [];
-      var u0 = units[0] || null;
-      return {
-        id: s.id,
-        date: s.date,
-        dispatchId: s.dispatchId,
-        shipName: s.shipName,
-        voyage: s.voyage || '',
-        shift: u0 ? (u0.shift || '') : '',
-        berth: u0 ? (u0.berth || '') : (echo ? echo.berth : ''),
-        machine: u0 ? (u0.machine || '') : (echo ? echo.machine : ''),
-        vesselName: s.shipName,
-        from: s.from,
-        to: s.to,
-        status: s.status,
-        reason: s.reason,
-        remark: s.remark || (s.status === 'active' ? '现场计时中' : ''),
-        durationMin: durationMin,
-        source: s.source || 'dispatch',
-        readonly: true
-      };
+    }
+    for (i = 0; i < all.length; i++) {
+      if (normName(all[i].shipName) === name) return all[i].voyage || '';
+    }
+    return '';
+  }
+
+  /**
+   * 停工记录 = 工班小时行的停工时长，按绑定船舶查询。
+   * 入参可为日期字符串，或 { date, vesselName }。
+   */
+  function list(dateOrOpts) {
+    var date = '';
+    var vesselFilter = '';
+    if (typeof dateOrOpts === 'string') {
+      date = dateOrOpts;
+    } else if (dateOrOpts && typeof dateOrOpts === 'object') {
+      date = dateOrOpts.date || '';
+      vesselFilter = normName(dateOrOpts.vesselName || '');
+    }
+    try { syncHourlyFromDispatch(date || todayStr()); } catch (e) {}
+    var S = global.WorkStatSheetStore;
+    if (!S || !S.listSheets) return [];
+    var out = [];
+    (S.listSheets() || []).forEach(function (sheet) {
+      if (date && sheet.date !== date) return;
+      (sheet.units || []).forEach(function (u) {
+        (u.rows || []).forEach(function (r) {
+          var vessel = S.resolveVessel ? S.resolveVessel(u, r) : { name: u.vesselName || '' };
+          var vname = normName(vessel && vessel.name);
+          if (!vname) return;
+          if (vesselFilter && vname !== vesselFilter) return;
+          var mins = Number(r.abMins);
+          if (!(mins > 0) && r.normal !== false) return;
+          var bounds = parseSlotBounds(sheet.date, sheet.shift, r.slot);
+          var from = bounds ? toLocalInput(bounds.start) : '';
+          var overlap = overlapForSlot(vname, sheet.date, sheet.shift, r.slot);
+          var isActive = overlap.status === 'active' && overlap.mins > 0;
+          out.push({
+            id: 'hr_' + sheet.id + '_' + u.id + '_' + String(r.slot || '').replace(/\s+/g, ''),
+            date: sheet.date,
+            dispatchId: '',
+            shipName: vessel.name,
+            voyage: voyageForShip(vessel.name),
+            shift: sheet.shift,
+            berth: u.berth || '',
+            machine: u.machine || '',
+            vesselName: vessel.name,
+            slot: r.slot,
+            from: from,
+            to: isActive ? '' : (bounds ? toLocalInput(bounds.end) : ''),
+            status: isActive ? 'active' : 'ended',
+            reason: r.reason || overlap.reason || '',
+            remark: r.remark || '',
+            durationMin: mins > 0 ? mins : 0,
+            source: r.stoppageFromVessel ? 'hourly_vessel' : 'hourly',
+            readonly: true
+          });
+        });
+      });
     });
-    rows.sort(function (a, b) {
+    out.sort(function (a, b) {
       if (a.date !== b.date) return a.date < b.date ? 1 : -1;
-      if (a.from !== b.from) return a.from < b.from ? 1 : -1;
+      if (a.shift !== b.shift) return a.shift === '白班' ? -1 : 1;
+      if (a.slot !== b.slot) return String(a.slot) < String(b.slot) ? -1 : 1;
+      if (a.shipName !== b.shipName) return a.shipName < b.shipName ? -1 : 1;
       return 0;
     });
-    return rows;
+    return out;
+  }
+
+  function listBoundVessels(date) {
+    var S = global.WorkStatSheetStore;
+    if (!S || !S.listSheets) return [];
+    var seen = {};
+    var names = [];
+    (S.listSheets() || []).forEach(function (sheet) {
+      if (date && sheet.date !== date) return;
+      (sheet.units || []).forEach(function (u) {
+        if (u.vesselName && !seen[u.vesselName]) {
+          seen[u.vesselName] = true;
+          names.push(u.vesselName);
+        }
+        (u.rows || []).forEach(function (r) {
+          var v = S.resolveVessel ? S.resolveVessel(u, r) : { name: r.vesselName || '' };
+          if (v && v.name && !seen[v.name]) {
+            seen[v.name] = true;
+            names.push(v.name);
+          }
+        });
+      });
+    });
+    names.sort();
+    return names;
   }
 
   function listActive() {
@@ -342,6 +410,7 @@
     data.active = (data.active || []).filter(function (a) { return a.dispatchId !== d.id; });
     data.active.unshift(active);
     saveAll(data);
+    try { syncHourlyFromDispatch(todayStr()); } catch (e) {}
     return { ok: true, active: active, warnNoUnits: !units.length };
   }
 
@@ -389,6 +458,7 @@
     saveAll(data);
 
     var stop = dispRes.stop || {};
+    try { syncHourlyFromDispatch(todayStr()); } catch (e) {}
     return {
       ok: true,
       item: {
@@ -517,6 +587,9 @@
     remove: remove,
     listWorkingShips: listWorkingShips,
     unitsForShipToday: unitsForShipToday,
+    unitsForShipOnDate: unitsForShipOnDate,
+    listBoundVessels: listBoundVessels,
+    syncHourlyFromDispatch: syncHourlyFromDispatch,
     dispatchMachineEcho: dispatchMachineEcho,
     listActive: listActive,
     getActiveByDispatch: getActiveByDispatch,
@@ -532,6 +605,89 @@
     /** 工班大表：按船名+开班日+班次+时段回显船舶停工（只读） */
     stoppageForSlot: stoppageForSlot
   };
+
+  function overlapMinutes(slotStart, slotEnd, fromMs, toMs) {
+    var from = Math.max(slotStart.getTime(), fromMs);
+    var to = Math.min(slotEnd.getTime(), toMs);
+    if (to <= from) return 0;
+    return Math.min(60, Math.floor((to - from) / 60000));
+  }
+
+  function overlapForSlot(vesselName, workDate, shift, slot) {
+    var empty = { mins: 0, reason: '', status: 'ended', remark: '' };
+    if (!global.ShipOpsDemo || !ShipOpsDemo.listStoppages) return empty;
+    var name = normName(vesselName);
+    if (!name) return empty;
+    var bounds = parseSlotBounds(workDate, shift, slot);
+    if (!bounds) return empty;
+    var rows = ShipOpsDemo.listStoppages({ vesselName: name }) || [];
+    if (!rows.length) {
+      rows = (ShipOpsDemo.listStoppages({}) || []).filter(function (s) {
+        return normName(s.shipName) === name;
+      });
+    }
+    var now = Date.now();
+    var mins = 0;
+    var reason = '';
+    var status = 'ended';
+    var remark = '';
+    var best = 0;
+    rows.forEach(function (s) {
+      if (normName(s.shipName) !== name) return;
+      var fromMs = new Date(s.from).getTime();
+      var toMs = s.to ? new Date(s.to).getTime() : now;
+      if (isNaN(fromMs) || isNaN(toMs)) return;
+      var m = overlapMinutes(bounds.start, bounds.end, fromMs, toMs);
+      if (m <= 0) return;
+      mins += m;
+      if (m >= best) {
+        best = m;
+        reason = s.reason || '';
+        remark = s.remark || '';
+        status = (s.status === 'active' || !s.to) ? 'active' : 'ended';
+      }
+    });
+    if (mins > 60) mins = 60;
+    return { mins: mins, reason: reason, status: status, remark: remark };
+  }
+
+  /** 将调度停工按时段重叠分钟反写到绑定该船的工班小时行 */
+  function syncHourlyFromDispatch(date) {
+    var S = global.WorkStatSheetStore;
+    if (!S || !S.getSheet || !S.applyHourlyStoppage) {
+      return { ok: false, msg: '工班表未加载' };
+    }
+    var t = date || todayStr();
+    var written = 0;
+    ['白班', '夜班'].forEach(function (shift) {
+      var sheet = S.getSheet(t, shift);
+      if (!sheet) return;
+      var slots = S.slotsForShift ? S.slotsForShift(shift) : [];
+      (sheet.units || []).forEach(function (u) {
+        slots.forEach(function (slot) {
+          var row = null;
+          for (var i = 0; i < (u.rows || []).length; i++) {
+            if (u.rows[i].slot === slot) { row = u.rows[i]; break; }
+          }
+          var vessel = S.resolveVessel ? S.resolveVessel(u, row) : { name: (u && u.vesselName) || '' };
+          var vname = normName(vessel && vessel.name);
+          if (!vname) return;
+          var overlap = overlapForSlot(vname, t, shift, slot);
+          if (overlap.mins > 0) {
+            var res = S.applyHourlyStoppage(t, shift, u.id, slot, {
+              reason: overlap.reason || '船舶停工',
+              abMins: overlap.mins,
+              remark: overlap.remark ? ('船舶停工 · ' + overlap.remark) : ('船舶停工 · ' + (overlap.reason || ''))
+            });
+            if (res && res.ok) written += 1;
+          } else if (row && row.stoppageFromVessel) {
+            S.applyHourlyStoppage(t, shift, u.id, slot, { clear: true });
+          }
+        });
+      });
+    });
+    return { ok: true, date: t, written: written };
+  }
 
   function parseSlotBounds(workDate, shift, slot) {
     var m = String(slot || '').match(/^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/);

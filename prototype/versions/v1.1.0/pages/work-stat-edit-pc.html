@@ -12,6 +12,7 @@
   <script src="../assets/ship-ops-demo.js"></script>
   <script src="../assets/vessel-search.js"></script>
   <script src="../assets/work-stat-sheet-store.js"></script>
+  <script src="../assets/work-stat-stoppage-store.js"></script>
   <script src="../assets/wecom-push.js"></script>
   <script src="../assets/pc-sidebar.js"></script>
   <style>
@@ -156,7 +157,7 @@
               </button>
               <button type="button" id="btnSubmit" class="btn btn-brand px-4 py-2 text-sm" onclick="submitCurrent()">提交本班审批</button>
             </div>
-            <p class="text-xs text-slate-500 mt-3">开班日可选<strong>今天往前共 8 天</strong>。创建机台表须选船（必填）。小时行推送后仍可改，改后须再推送；<strong>提交本班前须全部时段已推送</strong>（含作业量 0）。泊位、机械、时段只读。</p>
+            <p class="text-xs text-slate-500 mt-3">开班日可选<strong>今天往前共 8 天</strong>。创建机台表须选船（必填）。小时行可改作业量、是否正常、非正常原因与时长；推送后仍可改，改后须再推送；<strong>提交本班前须全部时段已推送</strong>（含作业量 0）。泊位、机械、时段只读。</p>
           </div>
 
           <div class="card p-4">
@@ -307,7 +308,7 @@
             </div>
             <div class="field">
               <label>是否正常</label>
-              <select id="editNormal" disabled class="opacity-70 cursor-not-allowed">
+              <select id="editNormal" onchange="toggleRowEditAbnormal()">
                 <option value="yes">正常</option>
                 <option value="no">非正常</option>
               </select>
@@ -324,11 +325,11 @@
           <div class="grid grid-cols-2 gap-3">
             <div class="field">
               <label>非正常原因</label>
-              <select id="editReason" disabled class="opacity-70 cursor-not-allowed"></select>
+              <select id="editReason"></select>
             </div>
             <div class="field">
               <label>非正常时长（分钟）</label>
-              <input id="editAbMins" type="number" min="1" max="60" placeholder="—" disabled class="opacity-70 cursor-not-allowed" />
+              <input id="editAbMins" type="number" min="1" max="60" placeholder="1–60" />
             </div>
           </div>
         </div>

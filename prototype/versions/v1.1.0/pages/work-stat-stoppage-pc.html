@@ -50,7 +50,7 @@
       <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
         <div>
           <h1 class="text-lg font-semibold">停工记录</h1>
-          <p class="text-xs text-slate-500">调度停工台账 · 进行中可结束（可改原因）· 已结束可改时间/类型/备注</p>
+          <p class="text-xs text-slate-500">按工班每小时停工时长汇总 · 通过机台绑定船舶查询</p>
         </div>
         <div class="flex items-center gap-3 text-sm text-slate-600">
           <a href="ship-dispatch-pc.html" class="text-teal-700 hover:underline text-sm">船舶调度</a>
@@ -68,6 +68,12 @@
                 <input id="filterDate" type="date" class="border border-slate-200 rounded-xl px-3 py-2" />
               </div>
               <div>
+                <label class="block text-xs text-slate-500 mb-1">绑定船舶</label>
+                <select id="filterVessel" class="border border-slate-200 rounded-xl px-3 py-2 min-w-[10rem]">
+                  <option value="">全部船舶</option>
+                </select>
+              </div>
+              <div>
                 <label class="block text-xs text-slate-500 mb-1">状态</label>
                 <div class="flex rounded-xl border border-slate-200 overflow-hidden text-sm" id="statusTabs" role="tablist">
                   <button type="button" class="status-tab px-3 py-2 bg-teal-50 text-teal-800 font-medium" data-status="all" onclick="setStatusFilter('all')">全部</button>
@@ -79,7 +85,7 @@
               <button type="button" class="btn border border-slate-200 bg-white px-5 py-2 text-sm" onclick="resetFilters()">重置</button>
               <button type="button" class="btn border border-teal-200 bg-teal-50 text-teal-800 px-5 py-2 text-sm" onclick="loadDemoData()">载入演示数据</button>
             </div>
-            <p class="text-xs text-slate-500 mt-3">本页<strong>不可新建</strong>停工。进行中可「结束停工」；已结束可编辑时间、停工类型、备注。数据与 <a class="text-teal-700 hover:underline" href="ship-dispatch-pc.html">船舶调度</a> / H5 同源。</p>
+            <p class="text-xs text-slate-500 mt-3">台账来源为工班大表<strong>每小时停工时长</strong>。H5 现场停工按重叠分钟反写到对应小时行，再按机台绑定船舶查询。本页只查看，不新建、不结束。</p>
           </div>
 
           <div class="card overflow-hidden">
@@ -92,14 +98,12 @@
                     <th class="px-4 py-3 font-medium">船舶</th>
                     <th class="px-4 py-3 font-medium">班次</th>
                     <th class="px-4 py-3 font-medium">泊位/机台</th>
-                    <th class="px-4 py-3 font-medium">开始时间</th>
-                    <th class="px-4 py-3 font-medium">结束时间</th>
+                    <th class="px-4 py-3 font-medium">时段</th>
                     <th class="px-4 py-3 font-medium whitespace-nowrap">停工时长</th>
                     <th class="px-4 py-3 font-medium">状态</th>
                     <th class="px-4 py-3 font-medium">停工类型</th>
                     <th class="px-4 py-3 font-medium">备注</th>
                     <th class="px-4 py-3 font-medium">来源</th>
-                    <th class="px-4 py-3 font-medium whitespace-nowrap">操作</th>
                   </tr>
                 </thead>
                 <tbody id="listBody"></tbody>
@@ -113,84 +117,9 @@
     </div>
   </div>
 
-  <!-- 结束停工 -->
-  <div id="endModal" class="modal-mask" onclick="if(event.target===this)closeEndModal()">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-      <div class="flex items-start justify-between mb-4">
-        <div>
-          <h2 class="text-base font-semibold">结束停工</h2>
-          <p class="text-xs text-slate-500 mt-1" id="endShipLabel">—</p>
-        </div>
-        <button type="button" class="text-slate-400 hover:text-slate-600" onclick="closeEndModal()"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <input type="hidden" id="endDispatchId" />
-      <input type="hidden" id="endStoppageId" />
-      <div class="space-y-3">
-        <div class="field">
-          <label>开始时间（只读）</label>
-          <input id="endFrom" type="text" disabled class="bg-slate-50 text-slate-500" />
-        </div>
-        <div class="field">
-          <label>结束时间</label>
-          <input id="endTo" type="datetime-local" />
-        </div>
-        <div class="field">
-          <label>停工类型 <span class="text-amber-600">可改</span></label>
-          <select id="endReason" onchange="togglePcOtherRemark('end')"></select>
-        </div>
-        <div class="field">
-          <label>具体原因 / 备注</label>
-          <textarea id="endRemark" rows="2" placeholder="选「其他」时必填，其余可选"></textarea>
-        </div>
-      </div>
-      <div class="mt-5 flex justify-end gap-2">
-        <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="closeEndModal()">取消</button>
-        <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="saveEnd()">确认结束</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 编辑已结束 -->
-  <div id="editModal" class="modal-mask" onclick="if(event.target===this)closeEditModal()">
-    <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-      <div class="flex items-start justify-between mb-4">
-        <div>
-          <h2 class="text-base font-semibold">编辑停工</h2>
-          <p class="text-xs text-slate-500 mt-1" id="editShipLabel">—</p>
-        </div>
-        <button type="button" class="text-slate-400 hover:text-slate-600" onclick="closeEditModal()"><i class="fa-solid fa-xmark"></i></button>
-      </div>
-      <input type="hidden" id="editDispatchId" />
-      <input type="hidden" id="editStoppageId" />
-      <div class="space-y-3">
-        <div class="field">
-          <label>开始时间</label>
-          <input id="editFrom" type="datetime-local" />
-        </div>
-        <div class="field">
-          <label>结束时间</label>
-          <input id="editTo" type="datetime-local" />
-        </div>
-        <div class="field">
-          <label>停工类型</label>
-          <select id="editReason" onchange="togglePcOtherRemark('edit')"></select>
-        </div>
-        <div class="field">
-          <label>具体原因 / 备注</label>
-          <textarea id="editRemark" rows="2" placeholder="选「其他」时必填，其余可选"></textarea>
-        </div>
-      </div>
-      <div class="mt-5 flex justify-end gap-2">
-        <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="closeEditModal()">取消</button>
-        <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="saveEdit()">保存</button>
-      </div>
-    </div>
-  </div>
-
   <script>
     var ST = WorkStatStoppageStore;
     var statusFilter = 'all';
-    var rowCache = {};
 
     function showToast(msg, type) {
       type = type || 'ok';
@@ -206,40 +135,22 @@
       return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
     }
 
-    function fmtDt(iso) {
-      if (!iso) return '—';
-      return String(iso).replace('T', ' ');
-    }
-
-    function toDatetimeLocal(iso) {
-      if (!iso) return '';
-      var s = String(iso).replace(' ', 'T');
-      if (s.length >= 16) return s.slice(0, 16);
-      return s;
-    }
-
-    function reasonNames() {
-      if (window.StopReasonDemo && StopReasonDemo.namesEnabled) return StopReasonDemo.namesEnabled();
-      if (window.ShipOpsDemo && ShipOpsDemo.STOP_REASONS) return ShipOpsDemo.STOP_REASONS.slice();
-      return ['设备异常', '等货/等驳', '移泊', '避让大船', '其他'];
-    }
-
-    function fillReasonSelect(selId, selected) {
-      var sel = document.getElementById(selId);
-      var names = reasonNames();
-      var cur = selected || '';
-      if (cur && names.indexOf(cur) < 0) names = [cur].concat(names);
-      sel.innerHTML = '<option value="">— 请选择 —</option>' +
-        names.map(function (n) {
-          return '<option value="' + esc(n) + '"' + (n === cur ? ' selected' : '') + '>' + esc(n) + '</option>';
-        }).join('');
-    }
-
     function statusBadge(status) {
       if (status === 'active') {
         return '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200">进行中</span>';
       }
       return '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">已结束</span>';
+    }
+
+    function fillVesselOptions(keepValue) {
+      var sel = document.getElementById('filterVessel');
+      var date = document.getElementById('filterDate').value || ST.todayStr();
+      var cur = keepValue != null ? keepValue : sel.value;
+      var names = ST.listBoundVessels ? ST.listBoundVessels(date) : [];
+      sel.innerHTML = '<option value="">全部船舶</option>' + names.map(function (n) {
+        return '<option value="' + esc(n) + '"' + (n === cur ? ' selected' : '') + '>' + esc(n) + '</option>';
+      }).join('');
+      if (cur && names.indexOf(cur) < 0) sel.value = '';
     }
 
     function setStatusFilter(st) {
@@ -254,14 +165,15 @@
 
     function resetFilters() {
       document.getElementById('filterDate').value = ST.todayStr();
+      document.getElementById('filterVessel').value = '';
       setStatusFilter('all');
     }
 
     function renderList() {
       var date = document.getElementById('filterDate').value || ST.todayStr();
-      var all = ST.list(date) || [];
-      rowCache = {};
-      all.forEach(function (r) { rowCache[r.id] = r; });
+      fillVesselOptions(document.getElementById('filterVessel').value);
+      var vesselName = document.getElementById('filterVessel').value;
+      var all = ST.list({ date: date, vesselName: vesselName }) || [];
       var rows = all.filter(function (r) {
         if (statusFilter === 'active') return r.status === 'active';
         if (statusFilter === 'ended') return r.status !== 'active';
@@ -271,7 +183,9 @@
       var empty = document.getElementById('emptyState');
       var activeCount = all.filter(function (r) { return r.status === 'active'; }).length;
       document.getElementById('listCount').textContent =
-        '共 ' + rows.length + ' 条 · ' + date + '（全部 ' + all.length + ' · 进行中 ' + activeCount + ' · 已结束 ' + (all.length - activeCount) + '）';
+        '共 ' + rows.length + ' 条 · ' + date +
+        (vesselName ? ' · ' + vesselName : '') +
+        '（全部 ' + all.length + ' · 进行中 ' + activeCount + ' · 已结束 ' + (all.length - activeCount) + '）';
       if (!rows.length) {
         body.innerHTML = '';
         empty.classList.remove('hidden');
@@ -281,150 +195,23 @@
       body.innerHTML = rows.map(function (r) {
         var berthMachine = (r.berth && r.machine) ? (r.berth + ' · ' + r.machine) : (r.berth || r.machine || '—');
         var ship = r.shipName + (r.voyage ? ' / ' + r.voyage : '');
-        var src = r.source === 'h5_live' ? 'H5计时' : (r.source === 'pc_edit' ? 'PC修订' : (r.source === 'dispatch' ? '调度' : (r.source || '调度')));
-        var isActive = r.status === 'active' || (!r.to && r.status !== 'ended');
-        var durationLabel = '—';
-        if (r.durationMin != null && !isNaN(r.durationMin)) {
-          durationLabel = r.durationMin + ' 分';
-        } else if (isActive && r.from) {
-          var liveMs = Date.now() - new Date(r.from).getTime();
-          if (liveMs > 0) durationLabel = Math.floor(liveMs / 60000) + ' 分（计时中）';
-          else durationLabel = '计时中';
-        }
-        var ops = isActive
-          ? '<button type="button" class="js-end text-amber-700 hover:underline text-xs font-medium" data-id="' + esc(r.id) + '">结束停工</button>'
-          : '<button type="button" class="js-edit text-teal-700 hover:underline text-xs font-medium" data-id="' + esc(r.id) + '">编辑</button>';
+        var src = r.source === 'hourly_vessel' ? '船舶反写' : '工班小时';
+        var isActive = r.status === 'active';
+        var durationLabel = (r.durationMin != null && !isNaN(r.durationMin)) ? (r.durationMin + ' 分') : '—';
         return '<tr class="table-row border-t border-slate-100">' +
           '<td class="px-4 py-3">' + esc(r.date) + '</td>' +
           '<td class="px-4 py-3">' + esc(ship) + '</td>' +
           '<td class="px-4 py-3">' + esc(r.shift || '—') + '</td>' +
           '<td class="px-4 py-3 text-xs">' + esc(berthMachine) + '</td>' +
-          '<td class="px-4 py-3 whitespace-nowrap">' + esc(fmtDt(r.from)) + '</td>' +
-          '<td class="px-4 py-3 whitespace-nowrap">' + esc(r.to ? fmtDt(r.to) : '—') + '</td>' +
+          '<td class="px-4 py-3 whitespace-nowrap tabular-nums">' + esc(r.slot || '—') + '</td>' +
           '<td class="px-4 py-3 whitespace-nowrap tabular-nums ' + (isActive ? 'text-amber-700' : 'text-slate-700') + '">' + esc(durationLabel) + '</td>' +
           '<td class="px-4 py-3">' + statusBadge(isActive ? 'active' : 'ended') + '</td>' +
-          '<td class="px-4 py-3">' + esc(r.reason) + '</td>' +
+          '<td class="px-4 py-3">' + esc(r.reason || '—') + '</td>' +
           '<td class="px-4 py-3 text-slate-500 max-w-[8rem] truncate" title="' + esc(r.remark) + '">' + esc(r.remark || '—') + '</td>' +
           '<td class="px-4 py-3 text-xs text-slate-500">' + esc(src) + '</td>' +
-          '<td class="px-4 py-3 whitespace-nowrap">' + ops + '</td>' +
         '</tr>';
       }).join('');
     }
-
-    function openEnd(id) {
-      try {
-        var r = rowCache[id];
-        if (!r) { showToast('记录不存在，请重新查询', 'err'); return; }
-        var isActive = r.status === 'active' || (!r.to && r.status !== 'ended');
-        if (!isActive) { showToast('该条已结束，请点编辑', 'warn'); return; }
-        document.getElementById('endDispatchId').value = r.dispatchId || '';
-        document.getElementById('endStoppageId').value = r.id;
-        document.getElementById('endShipLabel').textContent = (r.shipName || '') + (r.voyage ? ' · ' + r.voyage : '');
-        document.getElementById('endFrom').value = fmtDt(r.from);
-        document.getElementById('endTo').value = toDatetimeLocal(
-          (window.ShipOpsDemo && ShipOpsDemo.nowLocal) ? ShipOpsDemo.nowLocal() : ''
-        );
-        fillReasonSelect('endReason', r.reason);
-        document.getElementById('endRemark').value = r.remark || '';
-        togglePcOtherRemark('end');
-        document.getElementById('endModal').classList.add('open');
-      } catch (e) {
-        showToast('打开结束弹窗失败：' + (e.message || e), 'err');
-      }
-    }
-
-    function closeEndModal() {
-      document.getElementById('endModal').classList.remove('open');
-    }
-
-    function saveEnd() {
-      var dispatchId = document.getElementById('endDispatchId').value;
-      var stoppageId = document.getElementById('endStoppageId').value;
-      var reason = document.getElementById('endReason').value;
-      var to = document.getElementById('endTo').value;
-      var remark = document.getElementById('endRemark').value.trim();
-      if (!reason) { showToast('请选择停工类型', 'err'); return; }
-      if (reason === '其他' && !remark) { showToast('选「其他」须填写具体原因', 'err'); return; }
-      if (!to) { showToast('请填写结束时间', 'err'); return; }
-      var res = ST.endLive(dispatchId, {
-        stoppageId: stoppageId,
-        to: to,
-        reason: reason,
-        remark: remark,
-        source: 'pc_edit'
-      });
-      if (!res.ok) { showToast(res.msg || '结束失败', 'err'); return; }
-      closeEndModal();
-      showToast('已结束停工');
-      renderList();
-    }
-
-    function openEdit(id) {
-      try {
-        var r = rowCache[id];
-        if (!r) { showToast('记录不存在，请重新查询', 'err'); return; }
-        var isActive = r.status === 'active' || (!r.to && r.status !== 'ended');
-        if (isActive) { showToast('进行中请先结束停工', 'warn'); return; }
-        document.getElementById('editDispatchId').value = r.dispatchId || '';
-        document.getElementById('editStoppageId').value = r.id;
-        document.getElementById('editShipLabel').textContent = (r.shipName || '') + (r.voyage ? ' · ' + r.voyage : '');
-        document.getElementById('editFrom').value = toDatetimeLocal(r.from);
-        document.getElementById('editTo').value = toDatetimeLocal(r.to);
-        fillReasonSelect('editReason', r.reason);
-        document.getElementById('editRemark').value = r.remark || '';
-        togglePcOtherRemark('edit');
-        document.getElementById('editModal').classList.add('open');
-      } catch (e) {
-        showToast('打开编辑弹窗失败：' + (e.message || e), 'err');
-      }
-    }
-
-    function closeEditModal() {
-      document.getElementById('editModal').classList.remove('open');
-    }
-
-    function togglePcOtherRemark(kind) {
-      var reasonEl = document.getElementById(kind === 'edit' ? 'editReason' : 'endReason');
-      var remarkEl = document.getElementById(kind === 'edit' ? 'editRemark' : 'endRemark');
-      if (!reasonEl || !remarkEl) return;
-      var need = reasonEl.value === '其他';
-      remarkEl.placeholder = need ? '选「其他」时必填具体原因' : '选「其他」时必填，其余可选';
-      remarkEl.classList.toggle('ring-1', need);
-      remarkEl.classList.toggle('ring-amber-400', need);
-    }
-
-    function saveEdit() {
-      if (!ST.updateEnded) {
-        showToast('修订接口未加载，请强刷页面', 'err');
-        return;
-      }
-      var reason = document.getElementById('editReason').value;
-      var remark = document.getElementById('editRemark').value.trim();
-      if (!reason) { showToast('请选择停工类型', 'err'); return; }
-      if (reason === '其他' && !remark) { showToast('选「其他」须填写具体原因', 'err'); return; }
-      var res = ST.updateEnded({
-        dispatchId: document.getElementById('editDispatchId').value,
-        id: document.getElementById('editStoppageId').value,
-        from: document.getElementById('editFrom').value,
-        to: document.getElementById('editTo').value,
-        reason: reason,
-        remark: remark
-      });
-      if (!res.ok) { showToast(res.msg || '保存失败', 'err'); return; }
-      closeEditModal();
-      showToast('已保存修订');
-      var date = String(document.getElementById('editFrom').value || '').slice(0, 10);
-      if (date) document.getElementById('filterDate').value = date;
-      renderList();
-    }
-
-    window.openEnd = openEnd;
-    window.openEdit = openEdit;
-    window.closeEndModal = closeEndModal;
-    window.closeEditModal = closeEditModal;
-    window.saveEnd = saveEnd;
-    window.saveEdit = saveEdit;
-    window.togglePcOtherRemark = togglePcOtherRemark;
 
     function loadDemoData() {
       if (!window.ShipOpsDemo || !ShipOpsDemo.ensurePcStoppageDemo) {
@@ -432,34 +219,33 @@
         return;
       }
       var res = ShipOpsDemo.ensurePcStoppageDemo({ force: true });
-      document.getElementById('filterDate').value = (res && res.date) || ST.todayStr();
+      var date = (res && res.date) || ST.todayStr();
+      document.getElementById('filterDate').value = date;
+      if (ST.syncHourlyFromDispatch) ST.syncHourlyFromDispatch(date);
+      document.getElementById('filterVessel').value = '';
       setStatusFilter('all');
-      renderList();
-      var n = (ST.list(document.getElementById('filterDate').value) || []).length;
+      var n = (ST.list({ date: date }) || []).length;
       if (!n) showToast('演示数据写入失败', 'err');
-      else showToast('已载入 ' + n + ' 条演示停工');
+      else showToast('已载入 ' + n + ' 条小时停工记录');
     }
 
     function ensureDemoOnBoot() {
       if (!window.ShipOpsDemo || !ShipOpsDemo.ensurePcStoppageDemo) return;
       var date = document.getElementById('filterDate').value || ST.todayStr();
       ShipOpsDemo.ensurePcStoppageDemo();
-      if (!(ST.list(date) || []).length) {
+      if (ST.syncHourlyFromDispatch) ST.syncHourlyFromDispatch(date);
+      if (!(ST.list({ date: date }) || []).length) {
         ShipOpsDemo.ensurePcStoppageDemo({ force: true });
+        if (ST.syncHourlyFromDispatch) ST.syncHourlyFromDispatch(date);
       }
     }
 
     (function init() {
       document.getElementById('filterDate').value = ST.todayStr();
+      var qVessel = '';
+      try { qVessel = new URLSearchParams(location.search).get('vessel') || ''; } catch (e0) {}
       try { ensureDemoOnBoot(); } catch (e) {}
-      document.getElementById('listBody').addEventListener('click', function (ev) {
-        var btn = ev.target.closest ? ev.target.closest('button[data-id]') : null;
-        if (!btn) return;
-        var id = btn.getAttribute('data-id');
-        if (!id) return;
-        if (btn.classList.contains('js-edit')) openEdit(id);
-        else if (btn.classList.contains('js-end')) openEnd(id);
-      });
+      fillVesselOptions(qVessel);
       renderList();
     })();
   </script>

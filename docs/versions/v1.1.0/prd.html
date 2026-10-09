@@ -32,7 +32,7 @@
     <div class="prd-main" style="padding-top:12px;padding-bottom:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
       <div>
         <div class="text-sm font-semibold text-slate-900">武港联投 · 单机作业量统计 · 产品 PRD</div>
-        <div class="text-xs text-slate-500 mt-0.5">版本 v1.1.0 · PC + 企微 H5 · 更新日期 2026-10-08</div>
+        <div class="text-xs text-slate-500 mt-0.5">版本 v1.1.0 · PC + 企微 H5 · 更新日期 2026-10-09</div>
       </div>
       <div class="flex items-center gap-2">
         <a href="../../../prototype/index.html" class="text-xs px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 no-underline">返回总入口</a>
@@ -63,7 +63,7 @@
       try {
         var res = await fetch("./prd.md"); if (!res.ok) throw new Error("HTTP " + res.status);
         var md = await res.text();
-        md = md.replace(/\n## 目录\n[\s\S]*?\n---\n/, "\n---\n");
+        md = md.replace(/\r?\n## 目录\r?\n[\s\S]*?\r?\n---\r?\n/, "\n---\n");
         content.innerHTML = marked.parse(md, { gfm: true, breaks: false });
         content.querySelectorAll("pre > code.language-mermaid, pre > code.mermaid").forEach(function (code) {
           var pre = code.parentNode;
