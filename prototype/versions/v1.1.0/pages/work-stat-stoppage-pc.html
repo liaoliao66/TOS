@@ -50,7 +50,7 @@
       <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
         <div>
           <h1 class="text-lg font-semibold">停工记录</h1>
-          <p class="text-xs text-slate-500">按工班每小时停工时长汇总 · 通过机台绑定船舶查询</p>
+          <p class="text-xs text-slate-500">每小时推送生成一条 · 改后再推送则更新</p>
         </div>
         <div class="flex items-center gap-3 text-sm text-slate-600">
           <a href="ship-dispatch-pc.html" class="text-teal-700 hover:underline text-sm">船舶调度</a>
@@ -64,8 +64,12 @@
           <div class="card p-5">
             <div class="flex flex-wrap gap-3 items-end">
               <div>
-                <label class="block text-xs text-slate-500 mb-1">登记日 / 作业日</label>
-                <input id="filterDate" type="date" class="border border-slate-200 rounded-xl px-3 py-2" />
+                <label class="block text-xs text-slate-500 mb-1">开始日期</label>
+                <input id="filterDateFrom" type="date" class="border border-slate-200 rounded-xl px-3 py-2" />
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">结束日期</label>
+                <input id="filterDateTo" type="date" class="border border-slate-200 rounded-xl px-3 py-2" />
               </div>
               <div>
                 <label class="block text-xs text-slate-500 mb-1">绑定船舶</label>
@@ -73,19 +77,11 @@
                   <option value="">全部船舶</option>
                 </select>
               </div>
-              <div>
-                <label class="block text-xs text-slate-500 mb-1">状态</label>
-                <div class="flex rounded-xl border border-slate-200 overflow-hidden text-sm" id="statusTabs" role="tablist">
-                  <button type="button" class="status-tab px-3 py-2 bg-teal-50 text-teal-800 font-medium" data-status="all" onclick="setStatusFilter('all')">全部</button>
-                  <button type="button" class="status-tab px-3 py-2 border-l border-slate-200 text-slate-600" data-status="active" onclick="setStatusFilter('active')">进行中</button>
-                  <button type="button" class="status-tab px-3 py-2 border-l border-slate-200 text-slate-600" data-status="ended" onclick="setStatusFilter('ended')">已结束</button>
-                </div>
-              </div>
               <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="renderList()">查询</button>
               <button type="button" class="btn border border-slate-200 bg-white px-5 py-2 text-sm" onclick="resetFilters()">重置</button>
               <button type="button" class="btn border border-teal-200 bg-teal-50 text-teal-800 px-5 py-2 text-sm" onclick="loadDemoData()">载入演示数据</button>
             </div>
-            <p class="text-xs text-slate-500 mt-3">台账来源为工班大表<strong>每小时停工时长</strong>。H5 现场停工按重叠分钟反写到对应小时行，再按机台绑定船舶查询。本页只查看，不新建、不结束。</p>
+            <p class="text-xs text-slate-500 mt-3">工班某小时<strong>推送企微</strong>后，若该小时为非正常且有停工时长，即生成一条记录。同一小时再推送则<strong>更新该条</strong>，不新增。本页只查看。</p>
           </div>
 
           <div class="card overflow-hidden">
@@ -100,10 +96,8 @@
                     <th class="px-4 py-3 font-medium">泊位/机台</th>
                     <th class="px-4 py-3 font-medium">时段</th>
                     <th class="px-4 py-3 font-medium whitespace-nowrap">停工时长</th>
-                    <th class="px-4 py-3 font-medium">状态</th>
-                    <th class="px-4 py-3 font-medium">停工类型</th>
                     <th class="px-4 py-3 font-medium">备注</th>
-                    <th class="px-4 py-3 font-medium">来源</th>
+                    <th class="px-4 py-3 font-medium whitespace-nowrap">推送时间</th>
                   </tr>
                 </thead>
                 <tbody id="listBody"></tbody>
@@ -119,7 +113,6 @@
 
   <script>
     var ST = WorkStatStoppageStore;
-    var statusFilter = 'all';
 
     function showToast(msg, type) {
       type = type || 'ok';
@@ -135,57 +128,59 @@
       return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
     }
 
-    function statusBadge(status) {
-      if (status === 'active') {
-        return '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-800 border border-amber-200">进行中</span>';
+    function defaultRange() {
+      if (window.WorkStatSheetStore && WorkStatSheetStore.dateRange) return WorkStatSheetStore.dateRange();
+      var t = ST.todayStr();
+      return { from: t, to: t };
+    }
+
+    function rawRange() {
+      var def = defaultRange();
+      return {
+        from: document.getElementById('filterDateFrom').value || def.from,
+        to: document.getElementById('filterDateTo').value || def.to
+      };
+    }
+
+    function readRange() {
+      var range = rawRange();
+      if (range.from > range.to) {
+        showToast('开始日期不能晚于结束日期', 'err');
+        return null;
       }
-      return '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">已结束</span>';
+      return range;
     }
 
     function fillVesselOptions(keepValue) {
       var sel = document.getElementById('filterVessel');
-      var date = document.getElementById('filterDate').value || ST.todayStr();
+      var range = rawRange();
+      if (range.from > range.to) range = defaultRange();
       var cur = keepValue != null ? keepValue : sel.value;
-      var names = ST.listBoundVessels ? ST.listBoundVessels(date) : [];
+      var names = ST.listBoundVessels ? ST.listBoundVessels({ dateFrom: range.from, dateTo: range.to }) : [];
       sel.innerHTML = '<option value="">全部船舶</option>' + names.map(function (n) {
         return '<option value="' + esc(n) + '"' + (n === cur ? ' selected' : '') + '>' + esc(n) + '</option>';
       }).join('');
       if (cur && names.indexOf(cur) < 0) sel.value = '';
     }
 
-    function setStatusFilter(st) {
-      statusFilter = st || 'all';
-      document.querySelectorAll('.status-tab').forEach(function (btn) {
-        var on = btn.getAttribute('data-status') === statusFilter;
-        btn.className = 'status-tab px-3 py-2 ' + (btn.getAttribute('data-status') !== 'all' ? 'border-l border-slate-200 ' : '') +
-          (on ? 'bg-teal-50 text-teal-800 font-medium' : 'text-slate-600');
-      });
+    function resetFilters() {
+      var range = defaultRange();
+      document.getElementById('filterDateFrom').value = range.from;
+      document.getElementById('filterDateTo').value = range.to;
+      document.getElementById('filterVessel').value = '';
       renderList();
     }
 
-    function resetFilters() {
-      document.getElementById('filterDate').value = ST.todayStr();
-      document.getElementById('filterVessel').value = '';
-      setStatusFilter('all');
-    }
-
     function renderList() {
-      var date = document.getElementById('filterDate').value || ST.todayStr();
+      var range = readRange();
+      if (!range) return;
       fillVesselOptions(document.getElementById('filterVessel').value);
       var vesselName = document.getElementById('filterVessel').value;
-      var all = ST.list({ date: date, vesselName: vesselName }) || [];
-      var rows = all.filter(function (r) {
-        if (statusFilter === 'active') return r.status === 'active';
-        if (statusFilter === 'ended') return r.status !== 'active';
-        return true;
-      });
+      var rows = ST.list({ dateFrom: range.from, dateTo: range.to, vesselName: vesselName }) || [];
       var body = document.getElementById('listBody');
       var empty = document.getElementById('emptyState');
-      var activeCount = all.filter(function (r) { return r.status === 'active'; }).length;
       document.getElementById('listCount').textContent =
-        '共 ' + rows.length + ' 条 · ' + date +
-        (vesselName ? ' · ' + vesselName : '') +
-        '（全部 ' + all.length + ' · 进行中 ' + activeCount + ' · 已结束 ' + (all.length - activeCount) + '）';
+        '共 ' + rows.length + ' 条 · ' + range.from + ' 至 ' + range.to + (vesselName ? ' · ' + vesselName : '');
       if (!rows.length) {
         body.innerHTML = '';
         empty.classList.remove('hidden');
@@ -195,8 +190,6 @@
       body.innerHTML = rows.map(function (r) {
         var berthMachine = (r.berth && r.machine) ? (r.berth + ' · ' + r.machine) : (r.berth || r.machine || '—');
         var ship = r.shipName + (r.voyage ? ' / ' + r.voyage : '');
-        var src = r.source === 'hourly_vessel' ? '船舶反写' : '工班小时';
-        var isActive = r.status === 'active';
         var durationLabel = (r.durationMin != null && !isNaN(r.durationMin)) ? (r.durationMin + ' 分') : '—';
         return '<tr class="table-row border-t border-slate-100">' +
           '<td class="px-4 py-3">' + esc(r.date) + '</td>' +
@@ -204,44 +197,38 @@
           '<td class="px-4 py-3">' + esc(r.shift || '—') + '</td>' +
           '<td class="px-4 py-3 text-xs">' + esc(berthMachine) + '</td>' +
           '<td class="px-4 py-3 whitespace-nowrap tabular-nums">' + esc(r.slot || '—') + '</td>' +
-          '<td class="px-4 py-3 whitespace-nowrap tabular-nums ' + (isActive ? 'text-amber-700' : 'text-slate-700') + '">' + esc(durationLabel) + '</td>' +
-          '<td class="px-4 py-3">' + statusBadge(isActive ? 'active' : 'ended') + '</td>' +
-          '<td class="px-4 py-3">' + esc(r.reason || '—') + '</td>' +
+          '<td class="px-4 py-3 whitespace-nowrap tabular-nums text-slate-700">' + esc(durationLabel) + '</td>' +
           '<td class="px-4 py-3 text-slate-500 max-w-[8rem] truncate" title="' + esc(r.remark) + '">' + esc(r.remark || '—') + '</td>' +
-          '<td class="px-4 py-3 text-xs text-slate-500">' + esc(src) + '</td>' +
+          '<td class="px-4 py-3 text-xs text-slate-500 whitespace-nowrap">' + esc(r.wecomSentAt || '—') + '</td>' +
         '</tr>';
       }).join('');
     }
 
     function loadDemoData() {
-      if (!window.ShipOpsDemo || !ShipOpsDemo.ensurePcStoppageDemo) {
-        showToast('调度演示模块未加载', 'err');
-        return;
+      var range = readRange() || defaultRange();
+      if (ST.ensureDemoHourlyPushes) {
+        ST.ensureDemoHourlyPushes(range.to);
+        ST.ensureDemoHourlyPushes(range.from);
       }
-      var res = ShipOpsDemo.ensurePcStoppageDemo({ force: true });
-      var date = (res && res.date) || ST.todayStr();
-      document.getElementById('filterDate').value = date;
-      if (ST.syncHourlyFromDispatch) ST.syncHourlyFromDispatch(date);
       document.getElementById('filterVessel').value = '';
-      setStatusFilter('all');
-      var n = (ST.list({ date: date }) || []).length;
-      if (!n) showToast('演示数据写入失败', 'err');
+      var n = (ST.list({ dateFrom: range.from, dateTo: range.to }) || []).length;
+      renderList();
+      if (!n) showToast('暂无已推送的非正常小时，请先在工班作业推送', 'warn');
       else showToast('已载入 ' + n + ' 条小时停工记录');
     }
 
     function ensureDemoOnBoot() {
-      if (!window.ShipOpsDemo || !ShipOpsDemo.ensurePcStoppageDemo) return;
-      var date = document.getElementById('filterDate').value || ST.todayStr();
-      ShipOpsDemo.ensurePcStoppageDemo();
-      if (ST.syncHourlyFromDispatch) ST.syncHourlyFromDispatch(date);
-      if (!(ST.list({ date: date }) || []).length) {
-        ShipOpsDemo.ensurePcStoppageDemo({ force: true });
-        if (ST.syncHourlyFromDispatch) ST.syncHourlyFromDispatch(date);
+      var range = readRange() || defaultRange();
+      if (!(ST.list({ dateFrom: range.from, dateTo: range.to }) || []).length && ST.ensureDemoHourlyPushes) {
+        ST.ensureDemoHourlyPushes(range.to);
+        ST.ensureDemoHourlyPushes(range.from);
       }
     }
 
     (function init() {
-      document.getElementById('filterDate').value = ST.todayStr();
+      var range = defaultRange();
+      document.getElementById('filterDateFrom').value = range.from;
+      document.getElementById('filterDateTo').value = range.to;
       var qVessel = '';
       try { qVessel = new URLSearchParams(location.search).get('vessel') || ''; } catch (e0) {}
       try { ensureDemoOnBoot(); } catch (e) {}

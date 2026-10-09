@@ -552,17 +552,17 @@
         '<div class="text-xs font-semibold text-slate-500 tracking-wide">停工记录（按小时）</div>' +
         '<a class="text-xs text-teal-700 hover:underline" href="work-stat-stoppage-pc.html?vessel=' + encodeURIComponent(d.shipName || '') + '">查看全部</a></div>';
       if (!hourRows.length) {
-        hourHtml += '<div class="text-sm text-slate-400">该船暂无小时停工记录（需机台表绑定本船且该小时有停工时长）</div>';
+        hourHtml += '<div class="text-sm text-slate-400">该船暂无已推送的小时停工记录</div>';
       } else {
         hourHtml += hourRows.map(function (s) {
-          var tag = s.status === 'active' ? '<span class="ml-2 text-xs text-amber-700">进行中</span>' : '';
-          var src = s.source === 'hourly_vessel' ? '船舶反写' : '工班小时';
           return '<div class="stop-row"><i class="fa-solid fa-pause text-amber-500 mt-0.5"></i>' +
-            '<div class="text-sm"><div class="font-medium text-slate-800">' + (s.reason || '停工') + tag +
-            '<span class="ml-2 text-xs font-normal text-slate-500">' + (s.shift || '') + ' · ' + (s.slot || '') +
-            ' · ' + ((s.durationMin != null) ? (s.durationMin + ' 分') : '') + '</span></div>' +
-            '<div class="text-xs text-slate-500 mt-0.5">' + (s.berth || '') + ' ' + (s.machine || '') +
-            ' · ' + src + (s.remark ? ' · ' + s.remark : '') + '</div></div></div>';
+            '<div class="text-sm"><div class="font-medium text-slate-800">' +
+            v(s.shift) + ' · ' + v(s.slot) +
+            '<span class="ml-2 text-xs font-normal text-slate-500">' +
+            ((s.durationMin != null) ? (s.durationMin + ' 分') : '') + '</span></div>' +
+            '<div class="text-xs text-slate-500 mt-0.5">' + v(s.berth) + ' ' + v(s.machine) +
+            (s.remark ? ' · ' + s.remark : '') +
+            (s.wecomSentAt ? ' · ' + s.wecomSentAt : '') + '</div></div></div>';
         }).join('');
       }
       hourHtml += '</div>';

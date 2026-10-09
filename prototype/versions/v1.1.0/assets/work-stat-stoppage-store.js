@@ -160,59 +160,109 @@
     return '';
   }
 
-  /**
-   * 停工记录 = 工班小时行的停工时长，按绑定船舶查询。
-   * 入参可为日期字符串，或 { date, vesselName }。
-   */
-  function list(dateOrOpts) {
-    var date = '';
-    var vesselFilter = '';
-    if (typeof dateOrOpts === 'string') {
-      date = dateOrOpts;
-    } else if (dateOrOpts && typeof dateOrOpts === 'object') {
-      date = dateOrOpts.date || '';
-      vesselFilter = normName(dateOrOpts.vesselName || '');
+  function hourKey(date, shift, unitId, slot) {
+    return [date || '', shift || '', unitId || '', String(slot || '').replace(/\s+/g, '')].join('|');
+  }
+
+  function isStoppageHour(row) {
+    if (!row || row.normal !== false) return false;
+    var mins = Number(row.abMins);
+    return mins > 0 && !isNaN(mins);
+  }
+
+  /** 小时推送成功后写入/更新一条停工记录；改回正常再推则删除。同一 hourKey 只保留一条。 */
+  function upsertFromPushedRow(date, shift, unit, row) {
+    if (!unit || !row) return { ok: false, msg: '时段不存在' };
+    var key = hourKey(date, shift, unit.id, row.slot);
+    var data = loadAll();
+    data.items = (data.items || []).filter(function (x) {
+      return !(x && x.source === 'hourly_push' && x.hourKey === key);
+    });
+    if (!isStoppageHour(row)) {
+      saveAll(data);
+      return { ok: true, removed: true, hourKey: key };
     }
-    try { syncHourlyFromDispatch(date || todayStr()); } catch (e) {}
     var S = global.WorkStatSheetStore;
-    if (!S || !S.listSheets) return [];
-    var out = [];
+    var vessel = S && S.resolveVessel ? S.resolveVessel(unit, row) : { name: (unit && unit.vesselName) || '' };
+    var vname = (vessel && vessel.name) || unit.vesselName || '';
+    var item = {
+      id: 'hr_' + key.replace(/\|/g, '_'),
+      hourKey: key,
+      source: 'hourly_push',
+      date: date,
+      shift: shift,
+      unitId: unit.id,
+      slot: row.slot,
+      shipName: vname,
+      vesselName: vname,
+      voyage: voyageForShip(vname),
+      berth: unit.berth || '',
+      machine: unit.machine || '',
+      driver: row.driver || unit.driver || '',
+      cargo: row.cargoL2 || unit.cargoL2 || '',
+      durationMin: Number(row.abMins) || 0,
+      remark: row.remark || '',
+      wecomSentAt: row.wecomSentAt || nowStamp(),
+      readonly: true
+    };
+    data.items.unshift(item);
+    saveAll(data);
+    return { ok: true, item: item };
+  }
+
+  function inDateRange(d, from, to) {
+    if (!d) return false;
+    if (from && d < from) return false;
+    if (to && d > to) return false;
+    return true;
+  }
+
+  function migratePushedHours(from, to) {
+    var S = global.WorkStatSheetStore;
+    if (!S || !S.listSheets) return;
     (S.listSheets() || []).forEach(function (sheet) {
-      if (date && sheet.date !== date) return;
+      if (!inDateRange(sheet.date, from, to)) return;
       (sheet.units || []).forEach(function (u) {
         (u.rows || []).forEach(function (r) {
-          var vessel = S.resolveVessel ? S.resolveVessel(u, r) : { name: u.vesselName || '' };
-          var vname = normName(vessel && vessel.name);
-          if (!vname) return;
-          if (vesselFilter && vname !== vesselFilter) return;
-          var mins = Number(r.abMins);
-          if (!(mins > 0) && r.normal !== false) return;
-          var bounds = parseSlotBounds(sheet.date, sheet.shift, r.slot);
-          var from = bounds ? toLocalInput(bounds.start) : '';
-          var overlap = overlapForSlot(vname, sheet.date, sheet.shift, r.slot);
-          var isActive = overlap.status === 'active' && overlap.mins > 0;
-          out.push({
-            id: 'hr_' + sheet.id + '_' + u.id + '_' + String(r.slot || '').replace(/\s+/g, ''),
-            date: sheet.date,
-            dispatchId: '',
-            shipName: vessel.name,
-            voyage: voyageForShip(vessel.name),
-            shift: sheet.shift,
-            berth: u.berth || '',
-            machine: u.machine || '',
-            vesselName: vessel.name,
-            slot: r.slot,
-            from: from,
-            to: isActive ? '' : (bounds ? toLocalInput(bounds.end) : ''),
-            status: isActive ? 'active' : 'ended',
-            reason: r.reason || overlap.reason || '',
-            remark: r.remark || '',
-            durationMin: mins > 0 ? mins : 0,
-            source: r.stoppageFromVessel ? 'hourly_vessel' : 'hourly',
-            readonly: true
-          });
+          if (!r.wecomSent) return;
+          upsertFromPushedRow(sheet.date, sheet.shift, u, r);
         });
       });
+    });
+  }
+
+  /**
+   * 停工记录 = 已推送小时行生成的台账（一小时一条；再推送则更新）。
+   * 入参可为日期字符串，或 { date, dateFrom, dateTo, vesselName }。
+   */
+  function list(dateOrOpts) {
+    var dateFrom = '';
+    var dateTo = '';
+    var vesselFilter = '';
+    if (typeof dateOrOpts === 'string') {
+      dateFrom = dateOrOpts;
+      dateTo = dateOrOpts;
+    } else if (dateOrOpts && typeof dateOrOpts === 'object') {
+      if (dateOrOpts.dateFrom || dateOrOpts.dateTo) {
+        dateFrom = dateOrOpts.dateFrom || '';
+        dateTo = dateOrOpts.dateTo || '';
+      } else if (dateOrOpts.date) {
+        dateFrom = dateOrOpts.date;
+        dateTo = dateOrOpts.date;
+      }
+      vesselFilter = normName(dateOrOpts.vesselName || '');
+    }
+    if (dateFrom && dateTo && dateFrom > dateTo) {
+      var tmp = dateFrom;
+      dateFrom = dateTo;
+      dateTo = tmp;
+    }
+    try { migratePushedHours(dateFrom, dateTo); } catch (e) {}
+    var out = (loadAll().items || []).filter(function (r) {
+      if (!r || r.source !== 'hourly_push') return false;
+      if ((dateFrom || dateTo) && !inDateRange(r.date, dateFrom, dateTo)) return false;
+      if (vesselFilter && normName(r.shipName || r.vesselName) !== vesselFilter) return false;
+      return Number(r.durationMin) > 0;
     });
     out.sort(function (a, b) {
       if (a.date !== b.date) return a.date < b.date ? 1 : -1;
@@ -224,26 +274,48 @@
     return out;
   }
 
-  function listBoundVessels(date) {
+  /** 演示：把当日非正常小时推一遍，生成停工记录 */
+  function ensureDemoHourlyPushes(date) {
     var S = global.WorkStatSheetStore;
-    if (!S || !S.listSheets) return [];
-    var seen = {};
-    var names = [];
-    (S.listSheets() || []).forEach(function (sheet) {
-      if (date && sheet.date !== date) return;
+    if (!S || !S.getSheet) return { ok: false, written: 0 };
+    var t = date || todayStr();
+    var written = 0;
+    ['白班', '夜班'].forEach(function (shift) {
+      var sheet = S.getSheet(t, shift);
+      if (!sheet) return;
+      var locked = sheet.status === '审批中' || sheet.status === '已通过';
       (sheet.units || []).forEach(function (u) {
-        if (u.vesselName && !seen[u.vesselName]) {
-          seen[u.vesselName] = true;
-          names.push(u.vesselName);
-        }
         (u.rows || []).forEach(function (r) {
-          var v = S.resolveVessel ? S.resolveVessel(u, r) : { name: r.vesselName || '' };
-          if (v && v.name && !seen[v.name]) {
-            seen[v.name] = true;
-            names.push(v.name);
+          if (!isStoppageHour(r)) {
+            if (r.wecomSent) upsertFromPushedRow(t, shift, u, r);
+            return;
+          }
+          if (r.wecomSent || locked) {
+            upsertFromPushedRow(t, shift, u, r);
+            written += 1;
+            return;
+          }
+          if (S.sendRowWecom) {
+            var res = S.sendRowWecom(t, shift, u.id, r.slot);
+            if (res && res.ok) written += 1;
           }
         });
       });
+    });
+    return { ok: true, date: t, written: written };
+  }
+
+  function listBoundVessels(dateOrOpts) {
+    var seen = {};
+    var names = [];
+    var opts = dateOrOpts;
+    if (typeof dateOrOpts === 'string') opts = { date: dateOrOpts };
+    (list(opts || {}) || []).forEach(function (r) {
+      var n = r.shipName || r.vesselName || '';
+      if (n && !seen[n]) {
+        seen[n] = true;
+        names.push(n);
+      }
     });
     names.sort();
     return names;
@@ -583,6 +655,8 @@
   global.WorkStatStoppageStore = {
     todayStr: todayStr,
     list: list,
+    upsertFromPushedRow: upsertFromPushedRow,
+    ensureDemoHourlyPushes: ensureDemoHourlyPushes,
     create: create,
     remove: remove,
     listWorkingShips: listWorkingShips,

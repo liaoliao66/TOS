@@ -191,6 +191,8 @@
           : (demoRemark[i].indexOf('高温') >= 0 ? '避高温，暂停作业'
             : (demoRemark[i].indexOf('交接') >= 0 ? '交接班' : '车辆断档'));
         r.abMins = 30;
+        r.wecomSent = true;
+        r.wecomSentAt = t + ' 09:10';
       }
     });
     daySheet.units.push(u1);
@@ -213,6 +215,8 @@
         vesselName: '海丰致远',
         rows: emptyRows('夜班', { driver: '陈迪政', cargoL1: '吨包袋', cargoL2: '吨包' }).map(function (r, i) {
           r.qty = i % 3 === 0 ? 0 : 80 + i * 3;
+          r.wecomSent = true;
+          r.wecomSentAt = t + ' 07:50';
           if (r.qty === 0) {
             r.normal = false;
             r.reason = '吃饭休息';
@@ -632,6 +636,11 @@
     sheet.updater = '张录入';
     sheet.updatedAt = row.wecomSentAt;
     saveAll(data);
+    try {
+      if (global.WorkStatStoppageStore && WorkStatStoppageStore.upsertFromPushedRow) {
+        WorkStatStoppageStore.upsertFromPushedRow(date, shift, unit, row);
+      }
+    } catch (e0) {}
     return {
       ok: true,
       row: row,

@@ -6,41 +6,36 @@
   <title>停工记录 · 企微H5</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
-  <script src="../assets/ship-ops-demo.js?v=20260924e"></script>
-  <script src="../assets/stop-reason-demo.js?v=20260924e"></script>
-  <script src="../assets/work-stat-sheet-store.js?v=20261009a"></script>
-  <script src="../assets/work-stat-stoppage-store.js?v=20261009a"></script>
+  <script src="../assets/ship-ops-demo.js?v=20261009d"></script>
+  <script src="../assets/stop-reason-demo.js?v=20261009d"></script>
+  <script src="../assets/work-stat-sheet-store.js?v=20261009d"></script>
+  <script src="../assets/work-stat-stoppage-store.js?v=20261009d"></script>
   <style>
     :root { --brand: #0f766e; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.5; font-size: 15px; background: #f1f5f9; -webkit-tap-highlight-color: transparent; }
-    .page-bg { background: #e2e8f0; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 12px; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; font-size: 14px; background: #f1f5f9; -webkit-tap-highlight-color: transparent; }
+    .btn { border-radius: 20px; -webkit-transition: all .15s ease; transition: all .15s ease; }
+    .btn:active { -webkit-transform: scale(0.95); transform: scale(0.95); }
+    .btn-brand { background: var(--brand); color: #fff; }
+    .card { background: #fff; border-radius: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+    .toast { position: absolute; top: 72px; left: 50%; -webkit-transform: translateX(-50%); transform: translateX(-50%); z-index: 90; min-width: 220px; max-width: 90%; border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+    .page-bg { background: #e2e8f0; min-height: 100vh; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center; padding: 24px 12px; box-sizing: border-box; }
     .phone-frame { width: 390px; height: 844px; border-radius: 48px; border: 3px solid #e5e7eb; background: #0f172a; box-shadow: 0 12px 40px rgba(15,23,42,0.18); padding: 12px; box-sizing: border-box; }
-    .phone-screen { width: 100%; height: 100%; border-radius: 36px; background: #f5f6f8; overflow: hidden; display: flex; flex-direction: column; position: relative; }
-    .phone-status { height: 28px; background: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 11px; color: #334155; border-bottom: 1px solid #f1f5f9; flex-shrink: 0; }
-    .phone-scroll { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-bottom: 24px; }
+    .phone-screen { width: 100%; height: 100%; border-radius: 36px; background: #f1f5f9; overflow: hidden; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-orient: vertical; -webkit-flex-direction: column; flex-direction: column; position: relative; }
+    .phone-status { height: 28px; background: #fff; display: -webkit-box; display: -webkit-flex; display: flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: justify; -webkit-justify-content: space-between; justify-content: space-between; padding: 0 16px; font-size: 11px; color: #334155; border-bottom: 1px solid #f1f5f9; -webkit-flex-shrink: 0; flex-shrink: 0; }
+    .phone-scroll { -webkit-box-flex: 1; -webkit-flex: 1; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; position: relative; min-height: 0; }
     .wecom-tag { font-size: 10px; color: #0f766e; background: #ccfbf1; border-radius: 999px; padding: 1px 8px; }
-    .nav-head { position: relative; display: flex; align-items: center; height: 44px; padding: 0 12px; background: #fff; border-bottom: 1px solid #f1f5f9; flex-shrink: 0; }
-    .nav-back { position: relative; z-index: 2; display: inline-flex; align-items: center; gap: 2px; color: #0f766e; font-size: 15px; text-decoration: none; min-width: 64px; min-height: 44px; }
-    .nav-back i { font-size: 14px; }
-    .nav-title { position: absolute; left: 0; right: 0; text-align: center; font-size: 17px; font-weight: 600; pointer-events: none; }
-    .cell-bar { background: #fff; border-radius: 12px; overflow: hidden; }
-    .cell { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; min-height: 52px; }
-    .cell + .cell { border-top: 1px solid #f1f5f9; }
-    .cell-label { color: #64748b; font-size: 15px; }
-    .cell-value { color: #0f172a; font-size: 15px; display: flex; align-items: center; gap: 6px; }
-    .cell-value input[type="date"] { border: 0; background: transparent; color: #0f172a; font-size: 15px; text-align: right; outline: none; max-width: 140px; }
-    .chip { display: inline-block; font-size: 12px; line-height: 1.4; padding: 2px 8px; border-radius: 6px; background: #f1f5f9; color: #475569; }
-    .chip-reason { background: #fef3c7; color: #b45309; }
-    .record { background: #fff; border-radius: 12px; padding: 14px 16px; }
-    .record:active { background: #f8fafc; }
-    .duration { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 22px; color: #0f172a; letter-spacing: -0.02em; }
-    .duration small { font-size: 13px; font-weight: 500; color: #64748b; margin-left: 2px; }
-    .meta-line { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-    .time-row { margin-top: 10px; font-size: 13px; color: #64748b; display: flex; align-items: flex-start; gap: 6px; }
-    .time-row i { margin-top: 2px; color: #94a3b8; }
-    .hint { font-size: 12px; color: #64748b; padding: 10px 4px 2px; }
-    .empty { text-align: center; padding: 48px 16px; color: #94a3b8; font-size: 14px; }
-    .empty i { font-size: 36px; color: #cbd5e1; display: block; margin-bottom: 12px; }
+    .nav-back { display: inline-flex; -webkit-box-align: center; -webkit-align-items: center; align-items: center; gap: 2px; color: #0f766e; font-size: 15px; text-decoration: none; min-width: 56px; min-height: 44px; }
+    .seg { display: -webkit-box; display: -webkit-flex; display: flex; gap: 8px; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; scrollbar-width: none; }
+    .seg::-webkit-scrollbar { display: none; }
+    .seg-btn { -webkit-flex-shrink: 0; flex-shrink: 0; min-height: 32px; padding: 6px 14px; border-radius: 999px; border: 1px solid #e2e8f0; background: #fff; color: #475569; font-size: 13px; }
+    .seg-btn:active { -webkit-transform: scale(0.95); transform: scale(0.95); }
+    .seg-btn.on { background: #0f766e; border-color: #0f766e; color: #fff; font-weight: 600; }
+    .sec-lab { font-size: 12px; color: #94a3b8; margin: 10px 2px 6px; }
+    .field label { display: block; font-size: 12px; color: #64748b; margin-bottom: 4px; }
+    .field input { width: 100%; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px; font-size: 14px; min-height: 44px; background: #fff; box-sizing: border-box; }
+    .mask { position: absolute; inset: 0; background: rgba(15,23,42,0.45); z-index: 60; display: none; -webkit-box-align: center; -webkit-align-items: center; align-items: center; -webkit-box-pack: center; -webkit-justify-content: center; justify-content: center; padding: 24px 16px; }
+    .mask.open { display: -webkit-box; display: -webkit-flex; display: flex; }
+    .sheet { width: 100%; max-width: 320px; background: #fff; border-radius: 20px; padding: 16px 16px 20px; }
   </style>
 </head>
 <body class="page-bg text-slate-800">
@@ -52,30 +47,44 @@
         <span><i class="fa-solid fa-signal"></i> <i class="fa-solid fa-wifi"></i> <i class="fa-solid fa-battery-full"></i></span>
       </div>
 
-      <header class="nav-head">
+      <header class="sticky top-0 z-30 bg-white border-b border-slate-100 px-3 h-11 flex items-center shrink-0">
         <a href="../index.html" class="nav-back" id="btnBack"><i class="fa-solid fa-chevron-left"></i>返回</a>
-        <div class="nav-title">停工记录</div>
+        <div class="font-semibold text-[17px] flex-1 text-center">停工记录</div>
+        <span class="min-w-[56px] shrink-0" aria-hidden="true"></span>
       </header>
 
       <div class="phone-scroll">
-        <div class="px-3 pt-3">
-          <div class="cell-bar">
-            <div class="cell">
-              <span class="cell-label">登记日</span>
-              <label class="cell-value">
-                <input id="filterDate" type="date" onchange="renderList()" />
-                <i class="fa-solid fa-chevron-right text-slate-300 text-xs"></i>
-              </label>
-            </div>
+        <div class="px-4 pt-3">
+          <div class="flex items-center justify-between mb-1">
+            <div class="sec-lab mt-0 mb-0">时间范围</div>
+            <button type="button" id="btnClear" class="hidden text-[13px] text-teal-700 py-1 min-h-[32px]" onclick="resetFilters()">清除条件</button>
           </div>
-          <p class="hint">按日查看停工台账（含进行中 / 已结束）</p>
+          <div class="seg" id="rangeSeg"></div>
         </div>
 
-        <div class="px-3 pt-1 pb-1 text-xs text-slate-400" id="listCount">共 0 条</div>
-        <main class="px-3 space-y-2.5 pb-4" id="listBody"></main>
-        <div id="emptyState" class="hidden empty">
-          <i class="fa-regular fa-clipboard"></i>
-          暂无停工记录
+        <div class="px-4 pt-3 pb-1 text-xs text-slate-400" id="listCount">共 0 条</div>
+        <main class="px-4 space-y-2.5 pb-8" id="listBody"></main>
+        <div id="emptyState" class="hidden px-4 pb-16 text-center text-sm text-slate-400 pt-8">该时间范围内暂无停工记录</div>
+      </div>
+
+      <div id="rangeMask" class="mask" onclick="closeIfMask(event,'rangeMask')">
+        <div class="sheet" onclick="event.stopPropagation()">
+          <div class="flex items-center justify-between mb-3">
+            <div class="font-semibold text-base">自定义日期</div>
+            <button type="button" class="text-slate-400 min-w-[44px] min-h-[44px]" onclick="closeRangeSheet()"><i class="fa-solid fa-xmark"></i></button>
+          </div>
+          <div class="field mb-3">
+            <label>开始日期</label>
+            <input id="customFrom" type="date" />
+          </div>
+          <div class="field">
+            <label>结束日期</label>
+            <input id="customTo" type="date" />
+          </div>
+          <div class="flex gap-2 mt-4">
+            <button type="button" class="btn border border-slate-200 bg-white flex-1 py-2.5 text-sm" onclick="closeRangeSheet()">取消</button>
+            <button type="button" class="btn btn-brand flex-1 py-2.5 text-sm" onclick="confirmCustomRange()">确定</button>
+          </div>
         </div>
       </div>
     </div>
@@ -83,6 +92,73 @@
 
   <script>
     var ST = window.WorkStatStoppageStore;
+    var S = window.WorkStatSheetStore;
+    var PRESETS = [
+      { id: 'today', label: '今天' },
+      { id: 'd3', label: '近3天' },
+      { id: 'd8', label: '近8天' },
+      { id: 'custom', label: '自定义' }
+    ];
+    var preset = 'd8';
+    var dateFrom = '';
+    var dateTo = '';
+
+    function pad2(n) { return (n < 10 ? '0' : '') + n; }
+
+    function addDays(iso, delta) {
+      var p = String(iso).split('-');
+      var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+      d.setDate(d.getDate() + delta);
+      return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+    }
+
+    function windowRange() {
+      if (S && S.dateRange) return S.dateRange();
+      var t = ST.todayStr();
+      return { from: addDays(t, -7), to: t };
+    }
+
+    function todayStr() {
+      return (ST && ST.todayStr) ? ST.todayStr() : windowRange().to;
+    }
+
+    function rangeForPreset(id) {
+      var win = windowRange();
+      var t = todayStr();
+      if (id === 'today') return { from: t, to: t };
+      if (id === 'd3') {
+        var from3 = addDays(t, -2);
+        if (from3 < win.from) from3 = win.from;
+        return { from: from3, to: t };
+      }
+      return { from: win.from, to: win.to };
+    }
+
+    function applyPreset(id, custom) {
+      preset = id;
+      if (id === 'custom' && custom) {
+        dateFrom = custom.from;
+        dateTo = custom.to;
+      } else if (id !== 'custom') {
+        var r = rangeForPreset(id);
+        dateFrom = r.from;
+        dateTo = r.to;
+      }
+      paintSeg();
+      renderList();
+    }
+
+    function isDirty() {
+      return preset !== 'd8';
+    }
+
+    function paintSeg() {
+      document.getElementById('rangeSeg').innerHTML = PRESETS.map(function (o) {
+        var on = o.id === preset ? ' on' : '';
+        return '<button type="button" class="seg-btn' + on + '" data-preset="' + o.id + '">' + o.label + '</button>';
+      }).join('');
+      document.getElementById('btnClear').classList.toggle('hidden', !isDirty());
+    }
 
     function esc(s) {
       return String(s == null ? '' : s)
@@ -91,78 +167,113 @@
         .replace(/"/g, '&quot;');
     }
 
-    function driverOf(r) {
-      if (r.driver) return r.driver;
-      try {
-        var units = ST.unitsForShipToday(r.shipName) || [];
-        var names = [], seen = {};
-        units.forEach(function (u) {
-          if (u.driver && !seen[u.driver]) { seen[u.driver] = true; names.push(u.driver); }
-        });
-        if (names.length) return names.join('、');
-      } catch (e) {}
-      return '—';
+    function showToast(msg, type) {
+      type = type || 'ok';
+      var host = document.querySelector('.phone-screen');
+      var el = document.createElement('div');
+      el.className = 'toast px-4 py-3 text-sm text-white text-center ' +
+        (type === 'err' ? 'bg-red-500' : type === 'warn' ? 'bg-amber-500' : 'bg-emerald-500');
+      el.textContent = msg;
+      host.appendChild(el);
+      setTimeout(function () { el.remove(); }, 2400);
     }
 
-    function ioOf(r) {
-      if (r.cargoInOut) return r.cargoInOut;
-      try {
-        if (window.ShipOpsDemo && ShipOpsDemo.getDispatch && r.dispatchId) {
-          var d = ShipOpsDemo.getDispatch(r.dispatchId);
-          if (d && d.cargoInOut) return d.cargoInOut;
-        }
-      } catch (e) {}
-      return '—';
+    function mdLabel(iso) {
+      var p = String(iso || '').split('-');
+      if (p.length < 3) return iso || '';
+      return Number(p[1]) + '月' + Number(p[2]) + '日';
     }
 
-    function shortTime(s) {
-      var t = String(s || '').replace('T', ' ');
-      if (t.length >= 16) return t.slice(5, 16);
-      return t || '—';
+    function shortRange() {
+      function md(iso) {
+        var p = String(iso || '').split('-');
+        if (p.length < 3) return iso || '';
+        return p[1] + '-' + p[2];
+      }
+      if (dateFrom === dateTo) return mdLabel(dateFrom);
+      return md(dateFrom) + ' 至 ' + md(dateTo);
+    }
+
+    function openRangeSheet() {
+      var win = windowRange();
+      document.getElementById('customFrom').min = win.from;
+      document.getElementById('customFrom').max = win.to;
+      document.getElementById('customTo').min = win.from;
+      document.getElementById('customTo').max = win.to;
+      document.getElementById('customFrom').value = dateFrom || win.from;
+      document.getElementById('customTo').value = dateTo || win.to;
+      document.getElementById('rangeMask').classList.add('open');
+    }
+
+    function closeRangeSheet() {
+      document.getElementById('rangeMask').classList.remove('open');
+    }
+
+    function closeIfMask(e, id) {
+      if (e.target === document.getElementById(id)) closeRangeSheet();
+    }
+
+    function confirmCustomRange() {
+      var from = document.getElementById('customFrom').value;
+      var to = document.getElementById('customTo').value;
+      var win = windowRange();
+      if (!from || !to) { showToast('请选择起止日期', 'err'); return; }
+      if (from > to) { showToast('开始日期不能晚于结束日期', 'err'); return; }
+      if (from < win.from || to > win.to) { showToast('仅可查询近 8 天', 'err'); return; }
+      closeRangeSheet();
+      applyPreset('custom', { from: from, to: to });
+    }
+
+    function resetFilters() {
+      applyPreset('d8');
     }
 
     function renderList() {
-      var date = document.getElementById('filterDate').value || ST.todayStr();
-      var rows = ST.list(date) || [];
+      var rows = ST.list({ dateFrom: dateFrom, dateTo: dateTo }) || [];
+      document.getElementById('listCount').textContent = '共 ' + rows.length + ' 条 · ' + shortRange();
       var body = document.getElementById('listBody');
       var empty = document.getElementById('emptyState');
-      document.getElementById('listCount').textContent = '共 ' + rows.length + ' 条';
-
       if (!rows.length) {
         body.innerHTML = '';
         empty.classList.remove('hidden');
         return;
       }
       empty.classList.add('hidden');
-      body.innerHTML = rows.map(function (r) {
-        var title = (r.shipName || '—') + (r.voyage ? ' · ' + r.voyage : '');
-        var mins = r.durationMin != null ? r.durationMin : '—';
-        var chips = [
-          r.berth || '',
-          r.cargo || '',
-          ioOf(r) !== '—' ? ioOf(r) : '',
-          driverOf(r) !== '—' ? driverOf(r) : ''
-        ].filter(Boolean);
-        return '<article class="record">' +
-          '<div class="flex items-start justify-between gap-3">' +
-            '<div class="min-w-0 flex-1">' +
-              '<div class="font-medium text-[15px] text-slate-900 truncate">' + esc(title) + '</div>' +
-              (r.reason ? '<span class="chip chip-reason mt-1.5 inline-block">' + esc(r.reason) + '</span>' : '') +
+
+      var groups = [];
+      var map = {};
+      rows.forEach(function (r) {
+        var k = (r.date || '') + '|' + (r.shift || '');
+        if (!map[k]) {
+          map[k] = { date: r.date, shift: r.shift, items: [] };
+          groups.push(map[k]);
+        }
+        map[k].items.push(r);
+      });
+
+      var html = '';
+      groups.forEach(function (g) {
+        html += '<div class="text-xs text-slate-400 px-1 pt-1">' + esc(mdLabel(g.date)) +
+          (g.shift ? ' · ' + esc(g.shift) : '') + '</div>';
+        g.items.forEach(function (r) {
+          var ship = (r.shipName || '—') + (r.voyage ? ' · ' + r.voyage : '');
+          var meta = [r.berth, r.machine, r.driver].filter(Boolean).join(' · ') || '—';
+          var mins = (r.durationMin != null && !isNaN(r.durationMin)) ? (r.durationMin + ' 分钟') : '—';
+          html += '<div class="card p-4">' +
+            '<div class="flex items-start justify-between gap-3">' +
+              '<div class="min-w-0 flex-1">' +
+                '<div class="font-medium">' + esc(r.slot || '—') + '</div>' +
+                '<div class="text-xs text-teal-800 mt-1 truncate">' + esc(ship) + '</div>' +
+                '<div class="text-xs text-slate-500 mt-0.5 truncate">' + esc(meta) + '</div>' +
+              '</div>' +
+              '<div class="text-sm font-semibold text-teal-800 tabular-nums shrink-0">' + esc(mins) + '</div>' +
             '</div>' +
-            '<div class="text-right shrink-0">' +
-              '<div class="duration">' + esc(mins) + '<small>分</small></div>' +
-              '<div class="text-[11px] mt-0.5 ' + (r.status === 'active' ? 'text-amber-700' : 'text-slate-400') + '">' +
-                (r.status === 'active' ? '进行中' : '已结束') + '</div>' +
-            '</div>' +
-          '</div>' +
-          (chips.length ? '<div class="meta-line">' + chips.map(function (c) {
-            return '<span class="chip">' + esc(c) + '</span>';
-          }).join('') + '</div>' : '') +
-          '<div class="time-row"><i class="fa-regular fa-clock"></i><span>' +
-            esc(r.slot || (shortTime(r.from) + ' — ' + shortTime(r.to))) +
-          '</span></div>' +
-        '</article>';
-      }).join('');
+            (r.remark ? '<div class="mt-2 text-xs text-slate-500">' + esc(r.remark) + '</div>' : '') +
+            (r.wecomSentAt ? '<div class="text-xs text-slate-400 mt-1">推送 ' + esc(r.wecomSentAt) + '</div>' : '') +
+          '</div>';
+        });
+      });
+      body.innerHTML = html;
     }
 
     (function init() {
@@ -173,11 +284,24 @@
           window.location.href = '../index.html';
         });
       }
-      document.getElementById('filterDate').value = ST.todayStr();
-      var rows = ST.list(ST.todayStr()) || [];
-      if (!rows.length) {
-        try { ST.applyDemoScene('mixed'); } catch (e) {}
+      document.getElementById('rangeSeg').addEventListener('click', function (ev) {
+        var btn = ev.target.closest ? ev.target.closest('.seg-btn') : null;
+        if (!btn) return;
+        var id = btn.getAttribute('data-preset');
+        if (id === 'custom') { openRangeSheet(); return; }
+        applyPreset(id);
+      });
+      var r = rangeForPreset('d8');
+      dateFrom = r.from;
+      dateTo = r.to;
+      var rows = ST.list({ dateFrom: dateFrom, dateTo: dateTo }) || [];
+      if (!rows.length && ST.ensureDemoHourlyPushes) {
+        try {
+          ST.ensureDemoHourlyPushes(dateTo);
+          ST.ensureDemoHourlyPushes(dateFrom);
+        } catch (e) {}
       }
+      paintSeg();
       renderList();
     })();
   </script>
