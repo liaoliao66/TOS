@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>船舶效率 · v1.2.0</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <script src="../assets/cargo-mgmt-demo.js"></script>
+  <script src="../assets/cargo-cascade.js"></script>
+  <script src="../assets/stop-reason-demo.js"></script>
+  <script src="../assets/ship-eff-demo.js"></script>
+  <script src="../assets/eff-agent.js"></script>
+  <style>
+    :root { --brand: #0f766e; --brand-hover: #0d9488; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; line-height: 1.6; }
+    .sidebar { background: #1e293b; }
+    .card { background: #fff; border-radius: 24px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+    .btn { border-radius: 20px; transition: all .15s ease; }
+    .btn:active { transform: scale(0.95); }
+    .btn-brand { background: var(--brand); color: #fff; }
+    .btn-brand:hover { background: var(--brand-hover); }
+    .table-row:hover { background: #f8fafc; }
+    .badge { border-radius: 999px; font-size: 12px; padding: 2px 10px; }
+    .kpi { background: linear-gradient(135deg, #f8fafc 0%, #f0fdfa 100%); border: 1px solid #e2e8f0; border-radius: 18px; padding: 14px 16px; }
+    .kpi .lab { font-size: 12px; color: #64748b; }
+    .kpi .val { font-size: 22px; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums; margin-top: 4px; }
+    .kpi .unit { font-size: 12px; font-weight: 500; color: #94a3b8; margin-left: 4px; }
+    input, select { font-size: 14px; }
+    .bar-track { height: 8px; background: #f1f5f9; border-radius: 999px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 999px; background: #0f766e; }
+    /* 船舶效率榜 + 效率对比：固定高度，内容区内部滚动 */
+    .rank-module .rank-card {
+      height: 360px; display: flex; flex-direction: column; min-height: 0;
+    }
+    .rank-module .rank-card__body {
+      flex: 1; min-height: 0; overflow: auto;
+    }
+    .rank-module thead th {
+      position: sticky; top: 0; z-index: 1; background: #f8fafc;
+      box-shadow: 0 1px 0 #e2e8f0;
+    }
+    .fab-ask { position: fixed; right: 24px; bottom: 24px; z-index: 60; min-width: 72px; height: 72px; padding: 0 14px; border-radius: 20px; background: #0f766e; color: #fff; box-shadow: 0 8px 24px rgba(15,118,110,0.35); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; transition: transform .15s ease, background .15s ease; border: 3px solid #99f6e4; }
+    .fab-ask:hover { background: #0d9488; transform: translateY(-4px); }
+    .fab-ask i { font-size: 22px; }
+    .fab-ask span { font-size: 13px; font-weight: 600; letter-spacing: 0.05em; }
+    .ask-drawer { position: fixed; top: 0; right: 0; width: 440px; max-width: 100%; height: 100vh; background: #fff; z-index: 70; box-shadow: 0 12px 40px rgba(0,0,0,0.12); display: none; flex-direction: column; }
+    .ask-drawer.open { display: flex; animation: fadeIn .2s ease; }
+    .ask-drawer.fullscreen { width: 100vw; left: 0; right: 0; }
+    .ask-mask { position: fixed; inset: 0; background: rgba(15,23,42,0.45); z-index: 65; display: none; }
+    .ask-mask.open { display: block; }
+    .ask-chip { border-radius: 999px; border: 1px solid #e2e8f0; padding: 6px 12px; font-size: 12px; background: #f8fafc; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+    .ask-chip:hover { border-color: #0f766e; color: #0f766e; }
+    .ask-chip .chip-edit { color: #94a3b8; }
+    .bubble-user { background: #0f766e; color: #fff; border-radius: 16px 16px 4px 16px; }
+    .bubble-bot { background: #f1f5f9; color: #334155; border-radius: 16px 16px 16px 4px; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <div class="flex min-h-screen">
+    <aside class="sidebar w-64 shrink-0 text-slate-100 flex flex-col">
+      <div class="px-5 py-6 border-b border-slate-700">
+        <div class="text-xs text-slate-400 mb-1">TOS 子模块</div>
+        <div class="text-lg font-semibold leading-snug">单机作业量统计</div>
+      </div>
+      <nav id="pcSidebarNav" class="p-3 flex-1 overflow-y-auto" data-active="efficiency-ship"></nav>
+      <div class="p-4 text-xs text-slate-500 border-t border-slate-700">
+        <a href="../index.html" class="hover:text-slate-300">返回版本入口</a>
+      </div>
+    </aside>
+    <div class="flex-1 min-w-0 flex flex-col">
+      <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0">
+        <div>
+          <h1 class="text-lg font-semibold">船舶效率</h1>
+          <p class="text-xs text-slate-500">作业效率分析 · 对齐船舶作业统计表 · 产量取调度完工填写</p>
+        </div>
+        <div class="text-sm text-slate-500">v1.2.0 · 效率智能体</div>
+      </header>
+      <main class="flex-1 p-6 overflow-auto">
+        <div class="max-w-[1400px] mx-auto space-y-5">
+          <div class="card p-5">
+            <div class="flex flex-wrap gap-3 items-end">
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">开始日期</label>
+                <input id="fFrom" type="date" value="2026-08-01" class="border border-slate-200 rounded-xl px-3 py-2" />
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">结束日期</label>
+                <input id="fTo" type="date" value="2026-08-31" class="border border-slate-200 rounded-xl px-3 py-2" />
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">船名</label>
+                <select id="fShip" class="border border-slate-200 rounded-xl px-3 py-2 min-w-[9rem]"></select>
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">货种一级</label>
+                <select id="fCargoL1" class="border border-slate-200 rounded-xl px-3 py-2 min-w-[8rem]"></select>
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">货种二级</label>
+                <select id="fCargoL2" class="border border-slate-200 rounded-xl px-3 py-2 min-w-[8rem]"></select>
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">装/卸</label>
+                <select id="fLoad" class="border border-slate-200 rounded-xl px-3 py-2">
+                  <option value="">全部</option>
+                  <option value="装">装</option>
+                  <option value="卸">卸</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs text-slate-500 mb-1">接岸电</label>
+                <select id="fShore" class="border border-slate-200 rounded-xl px-3 py-2">
+                  <option value="">全部</option>
+                  <option value="是">是</option>
+                  <option value="否">否</option>
+                </select>
+              </div>
+              <label class="inline-flex items-center gap-2 text-sm text-slate-700 px-1 py-2 cursor-pointer select-none" title="勾选后仅统计审核已通过；不勾选为全部状态">
+                <input id="fApprovedOnly" type="checkbox" class="rounded border-slate-300 text-teal-700 focus:ring-teal-600" onchange="renderAll()" />
+                <span>仅已通过</span>
+              </label>
+              <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="renderAll()">查询</button>
+              <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="resetFilter()">重置</button>
+              <div id="shipFilterHint" class="text-xs text-slate-600 bg-slate-100 rounded-xl px-3 py-2">状态：全部</div>
+            </div>
+            <p class="text-xs text-slate-400 mt-3">口径：在港=(离泊−靠泊)；生产用时=(完工−开工)−停工；单船效率=调度产量÷生产用时。停工按字典归入天气/故障/其他。演示数据中部分船次为未通过，勾选「仅已通过」后会剔除。</p>
+          </div>
+
+          <div class="grid grid-cols-2 lg:grid-cols-5 gap-3" id="kpiRow"></div>
+
+          <div class="grid lg:grid-cols-5 gap-5 rank-module">
+            <div class="card p-5 lg:col-span-2 rank-card">
+              <div class="flex items-center justify-between mb-3 shrink-0">
+                <div class="text-sm font-semibold">船舶效率榜</div>
+                <div class="text-xs text-slate-400">按单船效率降序</div>
+              </div>
+              <div class="rank-card__body">
+                <table class="min-w-full text-sm">
+                  <thead class="bg-slate-50 text-slate-500 text-left">
+                    <tr>
+                      <th class="px-3 py-2">排名</th>
+                      <th class="px-3 py-2">船名</th>
+                      <th class="px-3 py-2">船次</th>
+                      <th class="px-3 py-2">产量(吨)</th>
+                      <th class="px-3 py-2">生产用时</th>
+                      <th class="px-3 py-2">效率</th>
+                    </tr>
+                  </thead>
+                  <tbody id="rankBody"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card p-5 lg:col-span-3 rank-card">
+              <div class="text-sm font-semibold mb-3 shrink-0">效率对比</div>
+              <div id="rankBars" class="rank-card__body space-y-3 pr-1"></div>
+            </div>
+          </div>
+
+          <div class="card overflow-hidden">
+            <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div class="text-sm font-semibold">作业明细</div>
+              <div class="text-xs text-slate-400" id="detailCount">共 0 条</div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-xs">
+                <thead class="bg-slate-50 text-slate-500 text-left whitespace-nowrap">
+                  <tr>
+                    <th class="px-3 py-2">日期</th>
+                    <th class="px-3 py-2">船名</th>
+                    <th class="px-3 py-2">审核</th>
+                    <th class="px-3 py-2">人数</th>
+                    <th class="px-3 py-2">货种</th>
+                    <th class="px-3 py-2">装/卸</th>
+                    <th class="px-3 py-2">过程</th>
+                    <th class="px-3 py-2">起驳</th>
+                    <th class="px-3 py-2">落驳</th>
+                    <th class="px-3 py-2">产量(吨)</th>
+                    <th class="px-3 py-2">靠泊</th>
+                    <th class="px-3 py-2">开工</th>
+                    <th class="px-3 py-2">完工</th>
+                    <th class="px-3 py-2">离泊</th>
+                    <th class="px-3 py-2">天气停工</th>
+                    <th class="px-3 py-2">故障停工</th>
+                    <th class="px-3 py-2">其他停工</th>
+                    <th class="px-3 py-2">在港(h)</th>
+                    <th class="px-3 py-2">生产用时(h)</th>
+                    <th class="px-3 py-2">单船效率</th>
+                    <th class="px-3 py-2">岸电</th>
+                  </tr>
+                </thead>
+                <tbody id="detailBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div id="askMask" class="ask-mask" onclick="closeAsk()"></div>
+  <button type="button" class="fab-ask" title="打开效率智能体" onclick="openAsk()">
+    <i class="fa-solid fa-robot"></i>
+    <span>智能体</span>
+  </button>
+  <aside id="askDrawer" class="ask-drawer">
+    <div class="px-4 py-4 border-b border-slate-200 flex items-center justify-between gap-2">
+      <div class="min-w-0">
+        <div class="font-semibold flex items-center gap-2"><i class="fa-solid fa-robot text-teal-700"></i>效率智能体</div>
+        <div class="text-xs text-slate-500">筛选上下文追问 · 图表解读 · 快捷问句 · 支持全屏</div>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <button type="button" id="askFullBtn" class="btn border border-slate-200 bg-white px-3 py-1.5 text-xs" onclick="toggleAskFullscreen()"><i class="fa-solid fa-expand mr-1"></i>全屏</button>
+        <button type="button" class="text-slate-400 hover:text-slate-600 px-2" onclick="closeAsk()"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+    </div>
+    <div id="askContextBanner" class="px-4 py-3 border-b border-slate-100 bg-slate-50"></div>
+    <div class="px-4 py-3 border-b border-slate-100 space-y-3">
+      <div>
+        <div class="text-xs text-slate-500 mb-2">快捷问句模板</div>
+        <div class="flex flex-wrap gap-2" id="askChipsPreset"></div>
+      </div>
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <div class="text-xs text-slate-500">我的快捷</div>
+          <button type="button" class="text-xs text-teal-700 hover:underline" onclick="openShortcutEditor()"><i class="fa-solid fa-plus mr-1"></i>创建快捷</button>
+        </div>
+        <div class="flex flex-wrap gap-2" id="askChipsMine"></div>
+      </div>
+    </div>
+    <div id="askChat" class="flex-1 overflow-y-auto p-4 space-y-3 text-sm"></div>
+    <div class="p-4 border-t border-slate-200 space-y-2">
+      <button type="button" class="btn border border-slate-200 bg-white px-3 py-2 text-xs" onclick="saveCurrentAsShortcut()"><i class="fa-solid fa-bookmark mr-1"></i>将上次问法存为快捷</button>
+      <form id="askForm" class="flex gap-2" onsubmit="return sendAsk(event)">
+        <input id="askInput" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="基于当前筛选追问，例如：单船效率 Top5" />
+        <button type="submit" class="btn btn-brand px-4 py-2 text-sm">发送</button>
+      </form>
+    </div>
+  </aside>
+  <div id="shortcutModal" class="ask-mask" style="z-index:75;display:none;align-items:center;justify-content:center;">
+    <div class="card w-full max-w-md p-6 m-4" style="border-radius:24px;box-shadow:0 12px 40px rgba(0,0,0,0.12);background:#fff;">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="font-semibold" id="shortcutModalTitle">创建快捷查询</h3>
+        <button type="button" class="text-slate-400" onclick="closeShortcutEditor()"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="space-y-3 text-sm">
+        <div>
+          <label class="block text-xs text-slate-500 mb-1">快捷名称</label>
+          <input id="shortcutName" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="例如：单船效率 Top5" />
+        </div>
+        <div>
+          <label class="block text-xs text-slate-500 mb-1">查询问法</label>
+          <input id="shortcutQuery" class="w-full border border-slate-200 rounded-xl px-3 py-2" placeholder="例如：按当前筛选给出单船效率 Top5" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 mt-5">
+        <button type="button" class="btn border border-slate-200 bg-white px-4 py-2 text-sm" onclick="closeShortcutEditor()">取消</button>
+        <button type="button" class="btn btn-brand px-5 py-2 text-sm" onclick="commitShortcut()">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../assets/pc-sidebar.js"></script>
+  <script>
+    function showToast(msg, type) {
+      type = type || 'ok';
+      var el = document.createElement('div');
+      el.className = 'fixed top-6 right-6 z-[80] px-4 py-3 text-sm text-white rounded-2xl shadow-lg ' + (type === 'err' ? 'bg-red-500' : 'bg-emerald-500');
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function () { el.remove(); }, 2400);
+    }
+
+    function v(x, suffix) {
+      if (x === 0) return '0' + (suffix || '');
+      if (x == null || x === '' || (typeof x === 'number' && isNaN(x))) return '—';
+      return String(x) + (suffix || '');
+    }
+
+    var cargoCtl = null;
+
+    function isApprovedOnly() {
+      var el = document.getElementById('fApprovedOnly');
+      return !!(el && el.checked);
+    }
+
+    function syncShipFilterHint() {
+      var el = document.getElementById('shipFilterHint');
+      if (el) el.textContent = '状态：' + (isApprovedOnly() ? '仅已通过' : '全部');
+    }
+
+    function getFilter() {
+      var cargo = cargoCtl && cargoCtl.getValue ? cargoCtl.getValue() : { l1: '全部', l2: '全部' };
+      return {
+        from: document.getElementById('fFrom').value,
+        to: document.getElementById('fTo').value,
+        ship: document.getElementById('fShip').value,
+        loadUnload: document.getElementById('fLoad').value,
+        shorePower: document.getElementById('fShore').value,
+        cargoL1: cargo.l1 || '全部',
+        cargoL2: cargo.l2 || '全部',
+        approvedOnly: isApprovedOnly()
+      };
+    }
+
+    function resetFilter() {
+      document.getElementById('fFrom').value = '2026-08-01';
+      document.getElementById('fTo').value = '2026-08-31';
+      document.getElementById('fShip').value = '';
+      document.getElementById('fLoad').value = '';
+      document.getElementById('fShore').value = '';
+      var ap = document.getElementById('fApprovedOnly');
+      if (ap) ap.checked = false;
+      if (cargoCtl && cargoCtl.setValue) cargoCtl.setValue('全部', '全部');
+      renderAll();
+    }
+
+    function renderKpi(sum) {
+      var cells = [
+        { lab: '作业艘次', val: sum.trips, unit: '次' },
+        { lab: '调度产量合计', val: sum.qtySum, unit: '吨' },
+        { lab: '平均在港时间', val: sum.avgPort, unit: 'h' },
+        { lab: '平均生产用时', val: sum.avgProd, unit: 'h' },
+        { lab: '平均单船效率', val: sum.avgEff, unit: '吨/h' }
+      ];
+      document.getElementById('kpiRow').innerHTML = cells.map(function (c) {
+        return '<div class="kpi"><div class="lab">' + c.lab + '</div><div class="val">' +
+          (c.val == null ? '—' : c.val) + '<span class="unit">' + c.unit + '</span></div></div>';
+      }).join('');
+    }
+
+    function renderRank(rank) {
+      var body = document.getElementById('rankBody');
+      var bars = document.getElementById('rankBars');
+      if (!rank.length) {
+        body.innerHTML = '<tr><td colspan="6" class="px-3 py-8 text-center text-slate-400">暂无数据</td></tr>';
+        bars.innerHTML = '<div class="text-sm text-slate-400 py-6 text-center">暂无对比</div>';
+        return;
+      }
+      var maxEff = Math.max.apply(null, rank.map(function (r) { return r.efficiency || 0; })) || 1;
+      body.innerHTML = rank.map(function (r, i) {
+        return '<tr class="table-row border-t">' +
+          '<td class="px-3 py-2 tabular-nums">' + (i + 1) + '</td>' +
+          '<td class="px-3 py-2 font-medium">' + r.shipName + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.voyage) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.qty) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.prodHours) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums font-semibold text-teal-800">' + v(r.efficiency) + '</td></tr>';
+      }).join('');
+      bars.innerHTML = rank.map(function (r, i) {
+        var pct = Math.round(((r.efficiency || 0) / maxEff) * 100);
+        return '<div>' +
+          '<div class="flex justify-between text-xs mb-1"><span class="font-medium">' + (i + 1) + '. ' + r.shipName +
+          ' <span class="text-slate-400 font-normal">' + v(r.voyage) + '</span></span>' +
+          '<span class="tabular-nums text-teal-800">' + v(r.efficiency, ' 吨/h') + '</span></div>' +
+          '<div class="bar-track"><div class="bar-fill" style="width:' + pct + '%"></div></div></div>';
+      }).join('');
+    }
+
+    function renderDetail(rows) {
+      document.getElementById('detailCount').textContent = '共 ' + rows.length + ' 条';
+      var body = document.getElementById('detailBody');
+      if (!rows.length) {
+        body.innerHTML = '<tr><td colspan="21" class="px-3 py-10 text-center text-slate-400">暂无数据</td></tr>';
+        return;
+      }
+      body.innerHTML = rows.map(function (r) {
+        if (r.noWork) {
+          return '<tr class="border-t bg-slate-50/80"><td class="px-3 py-2">' + v(r.date) + '</td>' +
+            '<td class="px-3 py-2 font-medium text-slate-500" colspan="20">无生产作业</td></tr>';
+        }
+        var auditHtml = r.approved === false
+          ? '<span class="badge bg-amber-50 text-amber-700 border border-amber-100">未通过</span>'
+          : '<span class="badge bg-emerald-50 text-emerald-700 border border-emerald-100">已通过</span>';
+        return '<tr class="table-row border-t whitespace-nowrap">' +
+          '<td class="px-3 py-2">' + v(r.date) + '</td>' +
+          '<td class="px-3 py-2 font-medium">' + v(r.shipName) + '</td>' +
+          '<td class="px-3 py-2">' + auditHtml + '</td>' +
+          '<td class="px-3 py-2">' + v(r.workers) + '</td>' +
+          '<td class="px-3 py-2">' + v(r.cargo) + '</td>' +
+          '<td class="px-3 py-2">' + v(r.loadUnload) + '</td>' +
+          '<td class="px-3 py-2">' + v(r.process) + '</td>' +
+          '<td class="px-3 py-2">' + v(r.craneUp) + '</td>' +
+          '<td class="px-3 py-2">' + v(r.craneDown) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums font-medium">' + v(r.qty) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.berthAt) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.startAt) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.finishAt) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.unberthAt) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.stopWeather) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.stopFault) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.stopOther) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.portHours) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums">' + v(r.prodHours) + '</td>' +
+          '<td class="px-3 py-2 tabular-nums font-semibold text-teal-800">' + v(r.efficiency) + '</td>' +
+          '<td class="px-3 py-2">' + v(r.shorePower) + '</td></tr>';
+      }).join('');
+    }
+
+    function renderAll() {
+      syncShipFilterHint();
+      var f = getFilter();
+      var rows = ShipEffDemo.listRows(f);
+      var workRows = rows.filter(function (r) { return !r.noWork; });
+      renderKpi(ShipEffDemo.summarize(rows));
+      renderRank(ShipEffDemo.rankByShip(workRows));
+      renderDetail(rows);
+      if (window.EffAgent && EffAgent.refreshContextBanner) EffAgent.refreshContextBanner();
+    }
+
+    window.EffAgentPage = {
+      pageKey: 'ship',
+      pageLabel: '船舶效率',
+      getFilterContext: function () {
+        var f = getFilter();
+        return {
+          '页面': '船舶效率',
+          '日期': (f.from || '—') + ' ~ ' + (f.to || '—'),
+          '船名': f.ship || '全部',
+          '货种': (f.cargoL1 || '全部') + ' / ' + (f.cargoL2 || '全部'),
+          '装卸': f.loadUnload || '全部',
+          '岸电': f.shorePower || '全部',
+          '审核': f.approvedOnly ? '仅已通过' : '全部状态'
+        };
+      },
+      getChartSnapshot: function () {
+        var bars = document.getElementById('rankBars');
+        var top = [];
+        if (bars) {
+          Array.prototype.slice.call(bars.querySelectorAll('.flex.justify-between')).slice(0, 3).forEach(function (row) {
+            var name = (row.querySelector('span.font-medium') || {}).textContent;
+            var val = (row.querySelector('.text-teal-800') || {}).textContent;
+            if (name) top.push((name || '').trim() + ' → ' + (val || '').trim());
+          });
+        }
+        return {
+          title: '船舶效率排名对比',
+          points: top.length
+            ? top.map(function (t) { return '领先：' + t; }).concat(['在港时间偏长通常拖累单船效率，可结合明细停工列核对。'])
+            : ['当前筛选暂无排名条，请调整条件后重试。'],
+          hint: '可追问：在港用时偏长船 / 岸电作业占比。'
+        };
+      },
+      answerQuestion: function (q, ctx) {
+        var ctxLine = Object.keys(ctx || {}).map(function (k) { return k + '=' + ctx[k]; }).join('；');
+        if (q.indexOf('Top5') >= 0 || q.indexOf('效率') >= 0 || q.indexOf('排名') >= 0) {
+          var body = document.getElementById('rankBody');
+          var lines = [];
+          if (body) {
+            Array.prototype.slice.call(body.querySelectorAll('tr')).slice(0, 5).forEach(function (tr) {
+              var tds = tr.querySelectorAll('td');
+              if (tds.length >= 6 && tds[1].textContent.indexOf('暂无') < 0) {
+                lines.push(tds[0].textContent.trim() + '. ' + tds[1].textContent.trim() + ' · ' + tds[5].textContent.trim() + ' 吨/h');
+              }
+            });
+          }
+          return '<div class="font-medium mb-1">单船效率 Top（当前筛选）</div><div class="text-xs text-slate-500 mb-2">' + ctxLine + '</div><div>' +
+            (lines.length ? lines.join('<br>') : '暂无数据') + '</div>';
+        }
+        if (q.indexOf('在港') >= 0) {
+          return '<div class="font-medium mb-1">在港用时提示</div><div class="text-xs text-slate-500 mb-2">' + ctxLine + '</div><p>请在作业明细中按「在港(h)」列降序核对；停工（天气/故障/其他）会拉长在港但不计入生产用时。</p>';
+        }
+        if (q.indexOf('岸电') >= 0) {
+          var f = getFilter();
+          f.shorePower = '是';
+          var yes = ShipEffDemo.listRows(f).filter(function (r) { return !r.noWork; }).length;
+          f.shorePower = '';
+          var all = ShipEffDemo.listRows(f).filter(function (r) { return !r.noWork; }).length;
+          var pct = all ? ((yes * 100) / all).toFixed(1) : '0.0';
+          return '<div class="font-medium mb-1">岸电作业占比（当前其它筛选不变）</div><div class="text-xs text-slate-500 mb-2">' + ctxLine + '</div><div class="text-2xl font-semibold text-teal-800">' + pct + '%</div><div class="text-xs text-slate-500 mt-1">岸电艘次 ' + yes + ' / 作业艘次 ' + all + '</div>';
+        }
+        return null;
+      }
+    };
+
+    document.addEventListener('DOMContentLoaded', function () {
+      var sel = document.getElementById('fShip');
+      sel.innerHTML = '<option value="">全部</option>' +
+        ShipEffDemo.shipOptions().map(function (s) {
+          return '<option value="' + s + '">' + s + '</option>';
+        }).join('');
+      if (typeof CargoCascade !== 'undefined') {
+        cargoCtl = CargoCascade.bindPair(
+          document.getElementById('fCargoL1'),
+          document.getElementById('fCargoL2'),
+          { allowAll: true, defaultL1: '全部', defaultL2: '全部' }
+        );
+      }
+      renderAll();
+      if (window.EffAgent && EffAgent.mountDrawerShell) EffAgent.mountDrawerShell();
+    });
+  </script>
+</body>
+</html>

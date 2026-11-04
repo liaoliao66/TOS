@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>v1.2.0 · 效率分析增强 PC 原型</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" />
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Microsoft YaHei", sans-serif; }
+    .card { background:#fff; border-radius:24px; box-shadow:0 4px 12px rgba(0,0,0,0.05); }
+    .card-hover { transition: transform .2s ease, box-shadow .2s ease; }
+    .card-hover:hover { transform: translateY(-4px); box-shadow:0 8px 24px rgba(0,0,0,0.08); }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen">
+  <main class="max-w-4xl mx-auto px-6 py-10">
+    <div class="mb-2 text-xs text-slate-500">版本 v1.2.0 · 原型先行</div>
+    <h1 class="text-2xl font-semibold">作业效率分析增强 · PC 三页</h1>
+    <p class="mt-2 text-sm text-slate-600 leading-relaxed">
+      本版仅含三页：司机效率、作业统计、船舶效率。三页均支持「仅已通过」审核筛选；司机效率另含泊位多选；三页均嵌入效率智能体。
+    </p>
+
+    <div class="mt-6 grid md:grid-cols-3 gap-4">
+      <a class="card card-hover p-5 block" href="pages/work-stat-efficiency-pc.html?tab=master">
+        <div class="text-teal-800 font-medium"><i class="fa-solid fa-user-gear mr-2"></i>司机效率</div>
+        <p class="text-sm text-slate-500 mt-2">泊位多选 · 仅已通过 · 智能体</p>
+      </a>
+      <a class="card card-hover p-5 block" href="pages/work-stat-efficiency-pc.html?tab=volume">
+        <div class="text-teal-800 font-medium"><i class="fa-solid fa-chart-column mr-2"></i>作业统计</div>
+        <p class="text-sm text-slate-500 mt-2">仅已通过 · 结构分析 · 智能体</p>
+      </a>
+      <a class="card card-hover p-5 block" href="pages/work-stat-ship-eff-pc.html">
+        <div class="text-teal-800 font-medium"><i class="fa-solid fa-ship mr-2"></i>船舶效率</div>
+        <p class="text-sm text-slate-500 mt-2">仅已通过 · 排名对比 · 智能体</p>
+      </a>
+    </div>
+
+    <div class="mt-8 text-sm text-slate-500 space-y-2">
+      <div>对应 PRD：
+        <a class="text-teal-700 hover:underline" href="../../../docs/versions/v1.2.0/prd.html">docs/versions/v1.2.0/prd.html</a>
+        ·
+        <a class="text-slate-600 hover:underline" href="../../../docs/versions/v1.2.0/prd.md">源码 MD</a>
+      </div>
+      <div><a class="text-teal-700 hover:underline" href="../../index.html">返回原型总入口</a></div>
+    </div>
+  </main>
+</body>
+</html>

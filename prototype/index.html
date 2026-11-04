@@ -36,10 +36,37 @@
     <header class="mb-8">
       <p class="text-xs font-medium tracking-wide text-teal-700 uppercase">原型总入口 · 请先选择版本</p>
       <h1 class="mt-2 text-2xl font-semibold tracking-tight">武港联投 · 每日每班单机作业量统计</h1>
-      <p class="mt-2 text-sm text-slate-600">两个版本并排列出。进入后分别浏览对应原型与 PRD，互不混用。</p>
+      <p class="mt-2 text-sm text-slate-600">多版本并排列出。进入后分别浏览对应原型与 PRD，互不混用。</p>
     </header>
 
-    <div class="grid md:grid-cols-2 gap-6">
+    <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- v1.2.0 -->
+      <section class="ver-card p-6 flex flex-col border-teal-100">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="text-xs text-slate-500">版本</div>
+            <h2 class="text-xl font-semibold text-slate-900 mt-0.5">v1.2.0</h2>
+          </div>
+          <span class="text-xs px-2.5 py-1 rounded-full bg-teal-50 text-teal-800">效率增强 · 最新</span>
+        </div>
+        <p class="mt-4 text-sm text-slate-600 leading-relaxed flex-1">
+          PC 三页：司机效率（泊位多选 + 仅已通过）、作业统计、船舶效率；三页嵌入效率智能体（上下文追问 / 图表解读 / 快捷模板）。
+        </p>
+        <ul class="mt-5 space-y-3 text-sm">
+          <li>
+            <a class="btn-link" href="versions/v1.2.0/index.html">
+              <i class="fa-solid fa-desktop"></i>进入 v1.2.0 PC 原型
+            </a>
+          </li>
+          <li class="text-slate-400 text-xs">企微 H5：—（见 v1.1.0）</li>
+          <li>
+            <a class="btn-link btn-muted" href="../docs/versions/v1.2.0/prd.html">
+              <i class="fa-regular fa-file-lines"></i>查看 v1.2.0 PRD
+            </a>
+          </li>
+        </ul>
+      </section>
+
       <!-- v1.0.0 -->
       <section class="ver-card p-6 flex flex-col">
         <div class="flex items-start justify-between gap-3">
@@ -103,6 +130,8 @@
 
     <p class="mt-8 text-xs text-slate-500">
       本地预览建议使用静态服务打开本页。单版本入口：
+      <a class="text-teal-700 hover:underline" href="versions/v1.2.0/index.html">v1.2.0</a>
+      ·
       <a class="text-teal-700 hover:underline" href="versions/v1.0.0/index.html">v1.0.0</a>
       ·
       <a class="text-teal-700 hover:underline" href="versions/v1.1.0/index.html">v1.1.0 企微</a>
